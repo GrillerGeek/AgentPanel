@@ -47,6 +47,45 @@ function App() {
     return () => window.removeEventListener("keydown", onKey, { capture: true });
   }, []);
 
+  // Terminal tab shortcuts (capture phase so they beat xterm). State is read
+  // fresh from the store so the listener can register once.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || e.altKey || e.metaKey) return;
+      if (document.querySelector(".palette-backdrop")) return; // a modal is open
+      const st = useStore.getState();
+      const { terminals, activeTabId } = st;
+      const idx = terminals.findIndex((t) => t.id === activeTabId);
+
+      const take = () => {
+        e.preventDefault();
+        e.stopPropagation();
+      };
+
+      if ((e.key === "t" || e.key === "T") && activeTabId) {
+        take();
+        st.duplicateActiveTerminal();
+      } else if ((e.key === "w" || e.key === "W") && activeTabId) {
+        take();
+        st.closeTab(activeTabId);
+      } else if (e.key === "Tab" && terminals.length > 1) {
+        take();
+        const next = e.shiftKey
+          ? (idx - 1 + terminals.length) % terminals.length
+          : (idx + 1) % terminals.length;
+        st.setActiveTab(terminals[next].id);
+      } else if (!e.shiftKey && e.key >= "1" && e.key <= "9") {
+        const n = Number(e.key) - 1;
+        if (n < terminals.length) {
+          take();
+          st.setActiveTab(terminals[n].id);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
+  }, []);
+
   return (
     <div className="app">
       <header className="titlebar">
