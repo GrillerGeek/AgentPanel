@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useStore } from "../state/store";
+import { sortWorktrees } from "../state/activity";
 import type { Repository } from "../types";
 
 function NewWorktreeForm({ repoId }: { repoId: string }) {
@@ -64,6 +65,7 @@ function RepoRow({ repo }: { repo: Repository }) {
   const expanded = useStore((s) => s.expanded[repo.id] ?? false);
   const worktrees = useStore((s) => s.worktrees[repo.id]);
   const statuses = useStore((s) => s.statuses);
+  const terminals = useStore((s) => s.terminals);
   const activeWorktreeId = useStore((s) => {
     const active = s.terminals.find((t) => t.id === s.activeTabId);
     return active?.worktreeId ?? null;
@@ -72,6 +74,9 @@ function RepoRow({ repo }: { repo: Repository }) {
   const openWorktreeTerminal = useStore((s) => s.openWorktreeTerminal);
   const removeRepository = useStore((s) => s.removeRepository);
   const deleteWorktree = useStore((s) => s.deleteWorktree);
+
+  const openWorktreeIds = new Set(terminals.map((t) => t.worktreeId));
+  const sorted = worktrees ? sortWorktrees(worktrees, openWorktreeIds, statuses) : worktrees;
 
   return (
     <div className="repo">
@@ -88,9 +93,9 @@ function RepoRow({ repo }: { repo: Repository }) {
 
       {expanded && (
         <div className="worktrees">
-          {worktrees === undefined && <div className="muted">loading…</div>}
-          {worktrees?.length === 0 && <div className="muted">no worktrees</div>}
-          {worktrees?.map((wt) => (
+          {sorted === undefined && <div className="muted">loading…</div>}
+          {sorted?.length === 0 && <div className="muted">no worktrees</div>}
+          {sorted?.map((wt) => (
             <div key={wt.id} className={`worktree-row ${activeWorktreeId === wt.id ? "selected" : ""}`}>
               <button className="worktree" onClick={() => openWorktreeTerminal(wt)} title={wt.path}>
                 <span className="wt-name">{wt.name}</span>
