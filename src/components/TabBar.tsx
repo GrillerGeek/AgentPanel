@@ -6,8 +6,12 @@ export function TabBar() {
   const setActiveTab = useStore((s) => s.setActiveTab);
   const closeTab = useStore((s) => s.closeTab);
   const duplicateActiveTerminal = useStore((s) => s.duplicateActiveTerminal);
+  const splitActiveTab = useStore((s) => s.splitActiveTab);
   const runAgentInActive = useStore((s) => s.runAgentInActive);
   const agentCommands = useStore((s) => s.settings.agentCommands);
+
+  const activeTab = terminals.find((t) => t.id === activeTabId);
+  const canSplit = !!activeTab && activeTab.panes.length < 2;
 
   return (
     <div className="tabbar">
@@ -34,6 +38,11 @@ export function TabBar() {
       {terminals.length > 0 && (
         <button className="tab-new" title="New terminal in this worktree" onClick={() => duplicateActiveTerminal()}>
           +
+        </button>
+      )}
+      {canSplit && (
+        <button className="tab-new" title="Split: second terminal beside this one" onClick={() => splitActiveTab()}>
+          ◫
         </button>
       )}
       {activeTabId && agentCommands.length > 0 && (

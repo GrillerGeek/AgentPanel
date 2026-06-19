@@ -547,6 +547,35 @@ body,
 .terminal-host {
   width: 100%;
   height: 100%;
+  gap: 4px;
+}
+
+.pane-wrap {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+}
+.pane-wrap + .pane-wrap {
+  border-left: 1px solid #333;
+}
+
+.pane-close {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 5;
+  background: rgba(37, 37, 38, 0.85);
+  border: 1px solid #3a3d41;
+  border-radius: 3px;
+  color: #9da5b4;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 5px;
+  cursor: pointer;
+}
+.pane-close:hover {
+  color: #e06c75;
 }
 
 .terminal-pane {

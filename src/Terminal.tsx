@@ -25,15 +25,15 @@ function decodeBase64(b64: string): Uint8Array {
  */
 export function TerminalPane({
   cwd,
-  tabId,
+  paneId,
   initialCommand,
 }: {
   cwd?: string;
-  tabId?: string;
+  paneId?: string;
   initialCommand?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const setTabSession = useStore((s) => s.setTabSession);
+  const setPaneSession = useStore((s) => s.setPaneSession);
   const shell = useStore((s) => s.settings.shell);
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export function TerminalPane({
           return;
         }
         sessionId = id;
-        if (tabId) setTabSession(tabId, id);
+        if (paneId) setPaneSession(paneId, id);
         // Agent quick-launch: run the command once the shell is up.
         if (initialCommand) void invoke("pty_write", { id, data: initialCommand + "\r" });
       })

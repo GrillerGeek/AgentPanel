@@ -16,14 +16,20 @@ export interface Worktree {
   isPrimary: boolean;
 }
 
-/** An open terminal tab bound (1:1) to a Rust PTY session. */
+/** One terminal pane = one Rust PTY session. A tab holds 1–2 panes. */
+export interface Pane {
+  id: string;
+  /** command auto-run once this pane's shell spawns (agent quick-launch) */
+  initialCommand?: string;
+}
+
+/** An open terminal tab. All its panes share the worktree (cwd). */
 export interface TerminalTab {
   id: string;
   worktreeId: string;
   cwd: string;
   title: string;
-  /** command auto-run once the shell spawns (agent quick-launch) */
-  initialCommand?: string;
+  panes: Pane[];
 }
 
 /** User settings (persisted in localStorage). */

@@ -1,10 +1,12 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { PrInfo, Repository, Settings, TerminalTab, Worktree, WorktreeStatus } from "../types";
+import type { Pane, PrInfo, Repository, Settings, TerminalTab, Worktree, WorktreeStatus } from "../types";
 
-let seq = 0;
-const nextTabId = () => `t${++seq}`;
+let tabSeq = 0;
+const nextTabId = () => `t${++tabSeq}`;
+let paneSeq = 0;
+const nextPaneId = () => `p${++paneSeq}`;
 
 const SESSION_KEY = "agentpanel.session";
 /** Gates session persistence until restore has run, so boot-time store
@@ -33,11 +35,11 @@ interface AppState {
   /** PR info keyed by worktree id (polled via gh; null = no PR) */
   prs: Record<string, PrInfo | null>;
 
-  /** open terminal tabs (each maps to one live PTY) */
+  /** open terminal tabs; each tab has 1-2 panes, each pane a live PTY */
   terminals: TerminalTab[];
   activeTabId: string | null;
-  /** tabId -> Rust PTY session id, so terminals can be closed deterministically */
-  tabSessions: Record<string, number>;
+  /** paneId -> Rust PTY session id, so panes can be closed deterministically */
+  paneSessions: Record<string, number>;
   settings: Settings;
 
   loadRepositories: () => Promise<void>;
@@ -54,16 +56,25 @@ interface AppState {
 
   /** open (or focus the existing) terminal for a worktree */
   openWorktreeTerminal: (wt: Worktree) => void;
-  /** open an additional terminal for the active tab's worktree */
+  /** open an additional terminal (separate tab) for the active tab's worktree */
   duplicateActiveTerminal: () => void;
   /** open a new terminal in the active worktree that auto-runs `command` */
   runAgentInActive: (command: string) => void;
+  /** add a second pane to the active tab (split) */
+  splitActiveTab: () => void;
+  /** close one pane; if it was the tab's last pane, close the tab */
+  closePane: (tabId: string, paneId: string) => void;
   closeTab: (id: string) => void;
   updateSettings: (partial: Partial<Settings>) => void;
   setActiveTab: (id: string) => void;
-  setTabSession: (tabId: string, sessionId: number) => void;
-  /** close (await) all terminals for a worktree so its directory is unlocked */
+  setPaneSession: (paneId: string, sessionId: number) => void;
+  /** close (await) all panes for a worktree so its directory is unlocked */
   closeWorktreeTerminals: (worktreeId: string) => Promise<void>;
+}
+
+/** Build a fresh single-pane tab for a worktree. */
+function newTab(worktreeId: string, cwd: string, title: string, initialCommand?: string): TerminalTab {
+  return { id: nextTabId(), worktreeId, cwd, title, panes: [{ id: nextPaneId(), initialCommand }] };
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -74,7 +85,7 @@ export const useStore = create<AppState>((set, get) => ({
   prs: {},
   terminals: [],
   activeTabId: null,
-  tabSessions: {},
+  paneSessions: {},
   settings: readSettings(),
 
   loadRepositories: async () => {
@@ -103,12 +114,12 @@ export const useStore = create<AppState>((set, get) => ({
       const wtIds = new Set((s.worktrees[id] ?? []).map((w) => w.id));
       const worktrees = { ...s.worktrees };
       delete worktrees[id];
-      // Close any terminals belonging to this repo's worktrees (their panes
-      // unmount and fire pty_close).
+      // Drop terminals belonging to this repo's worktrees (their panes unmount
+      // and fire pty_close).
       const removed = s.terminals.filter((t) => wtIds.has(t.worktreeId));
       const terminals = s.terminals.filter((t) => !wtIds.has(t.worktreeId));
-      const tabSessions = { ...s.tabSessions };
-      for (const t of removed) delete tabSessions[t.id];
+      const paneSessions = { ...s.paneSessions };
+      for (const t of removed) for (const p of t.panes) delete paneSessions[p.id];
       const activeTabId =
         s.activeTabId && terminals.some((t) => t.id === s.activeTabId)
           ? s.activeTabId
@@ -117,7 +128,7 @@ export const useStore = create<AppState>((set, get) => ({
         repositories: s.repositories.filter((r) => r.id !== id),
         worktrees,
         terminals,
-        tabSessions,
+        paneSessions,
         activeTabId,
       };
     });
@@ -142,7 +153,6 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   refreshStatuses: async () => {
-    // Poll branch + dirty count for every git worktree currently loaded.
     const gitRepoIds = new Set(get().repositories.filter((r) => r.isGit).map((r) => r.id));
     const all: Worktree[] = [];
     for (const [repoId, list] of Object.entries(get().worktrees)) {
@@ -189,16 +199,24 @@ export const useStore = create<AppState>((set, get) => ({
   restoreSession: () => {
     try {
       const raw = localStorage.getItem(SESSION_KEY);
-      const saved = raw ? (JSON.parse(raw) as { tabs: Array<{ worktreeId: string; cwd: string; title: string }>; activeIndex: number }) : null;
+      const saved = raw
+        ? (JSON.parse(raw) as {
+            tabs: Array<{ worktreeId: string; cwd: string; title: string; panes?: number }>;
+            activeIndex: number;
+          })
+        : null;
       if (saved?.tabs?.length) {
         // Only restore tabs whose worktree still exists.
         const existing = new Set(Object.values(get().worktrees).flat().map((w) => w.id));
         const valid = saved.tabs.filter((t) => existing.has(t.worktreeId));
         if (valid.length) {
-          const tabs: TerminalTab[] = valid.map((t) => ({ id: nextTabId(), ...t }));
+          const tabs: TerminalTab[] = valid.map((t) => {
+            const count = Math.max(1, Math.min(2, t.panes ?? 1));
+            const panes: Pane[] = Array.from({ length: count }, () => ({ id: nextPaneId() }));
+            return { id: nextTabId(), worktreeId: t.worktreeId, cwd: t.cwd, title: t.title, panes };
+          });
           const activeSaved = saved.tabs[saved.activeIndex] ?? saved.tabs[0];
-          const activeTabId =
-            tabs.find((t) => t.worktreeId === activeSaved?.worktreeId)?.id ?? tabs[0].id;
+          const activeTabId = tabs.find((t) => t.worktreeId === activeSaved?.worktreeId)?.id ?? tabs[0].id;
           set({ terminals: tabs, activeTabId });
         }
       }
@@ -232,34 +250,64 @@ export const useStore = create<AppState>((set, get) => ({
       set({ activeTabId: existing.id });
       return;
     }
-    const tab: TerminalTab = { id: nextTabId(), worktreeId: wt.id, cwd: wt.path, title: wt.name };
+    const tab = newTab(wt.id, wt.path, wt.name);
     set((s) => ({ terminals: [...s.terminals, tab], activeTabId: tab.id }));
   },
 
   duplicateActiveTerminal: () => {
     const active = get().terminals.find((t) => t.id === get().activeTabId);
     if (!active) return;
-    const tab: TerminalTab = {
-      id: nextTabId(),
-      worktreeId: active.worktreeId,
-      cwd: active.cwd,
-      title: active.title,
-    };
+    const tab = newTab(active.worktreeId, active.cwd, active.title);
     set((s) => ({ terminals: [...s.terminals, tab], activeTabId: tab.id }));
   },
 
   runAgentInActive: (command) => {
     const active = get().terminals.find((t) => t.id === get().activeTabId);
     if (!active) return;
-    const tab: TerminalTab = {
-      id: nextTabId(),
-      worktreeId: active.worktreeId,
-      cwd: active.cwd,
-      title: `${active.title} · ${command}`,
-      initialCommand: command,
-    };
+    const tab = newTab(active.worktreeId, active.cwd, `${active.title} · ${command}`, command);
     set((s) => ({ terminals: [...s.terminals, tab], activeTabId: tab.id }));
   },
+
+  splitActiveTab: () =>
+    set((s) => {
+      const tab = s.terminals.find((t) => t.id === s.activeTabId);
+      if (!tab || tab.panes.length >= 2) return s;
+      const panes = [...tab.panes, { id: nextPaneId() }];
+      return { terminals: s.terminals.map((t) => (t.id === tab.id ? { ...t, panes } : t)) };
+    }),
+
+  closePane: (tabId, paneId) =>
+    set((s) => {
+      const tab = s.terminals.find((t) => t.id === tabId);
+      if (!tab) return s;
+      const paneSessions = { ...s.paneSessions };
+      delete paneSessions[paneId];
+      const remaining = tab.panes.filter((p) => p.id !== paneId);
+      if (remaining.length === 0) {
+        const terminals = s.terminals.filter((t) => t.id !== tabId);
+        const activeTabId = s.activeTabId === tabId ? (terminals.at(-1)?.id ?? null) : s.activeTabId;
+        return { terminals, activeTabId, paneSessions };
+      }
+      return {
+        terminals: s.terminals.map((t) => (t.id === tabId ? { ...t, panes: remaining } : t)),
+        paneSessions,
+      };
+    }),
+
+  closeTab: (id) =>
+    set((s) => {
+      const tab = s.terminals.find((t) => t.id === id);
+      const terminals = s.terminals.filter((t) => t.id !== id);
+      const activeTabId = s.activeTabId === id ? (terminals.at(-1)?.id ?? null) : s.activeTabId;
+      const paneSessions = { ...s.paneSessions };
+      if (tab) for (const p of tab.panes) delete paneSessions[p.id];
+      return { terminals, activeTabId, paneSessions };
+    }),
+
+  setActiveTab: (id) => set({ activeTabId: id }),
+
+  setPaneSession: (paneId, sessionId) =>
+    set((s) => ({ paneSessions: { ...s.paneSessions, [paneId]: sessionId } })),
 
   updateSettings: (partial) =>
     set((s) => {
@@ -272,47 +320,33 @@ export const useStore = create<AppState>((set, get) => ({
       return { settings };
     }),
 
-  closeTab: (id) =>
-    set((s) => {
-      const terminals = s.terminals.filter((t) => t.id !== id);
-      const activeTabId =
-        s.activeTabId === id ? (terminals.at(-1)?.id ?? null) : s.activeTabId;
-      const tabSessions = { ...s.tabSessions };
-      delete tabSessions[id];
-      return { terminals, activeTabId, tabSessions };
-    }),
-
-  setActiveTab: (id) => set({ activeTabId: id }),
-
-  setTabSession: (tabId, sessionId) =>
-    set((s) => ({ tabSessions: { ...s.tabSessions, [tabId]: sessionId } })),
-
   closeWorktreeTerminals: async (worktreeId) => {
     const tabs = get().terminals.filter((t) => t.worktreeId === worktreeId);
-    // Await each PTY close so the shells are actually dead (and the directory
+    const panes = tabs.flatMap((t) => t.panes);
+    // Await EVERY pane's PTY close so all shells are dead (and the directory is
     // unlocked) before the caller removes the worktree.
     await Promise.all(
-      tabs.map(async (t) => {
-        const sid = get().tabSessions[t.id];
+      panes.map(async (p) => {
+        const sid = get().paneSessions[p.id];
         if (sid !== undefined) {
           try {
             await invoke("pty_close", { id: sid });
           } catch (err) {
-            console.error(`pty_close failed for tab ${t.id}`, err);
+            console.error(`pty_close failed for pane ${p.id}`, err);
           }
         }
       }),
     );
     set((s) => {
-      const ids = new Set(tabs.map((t) => t.id));
-      const terminals = s.terminals.filter((t) => !ids.has(t.id));
-      const tabSessions = { ...s.tabSessions };
-      for (const t of tabs) delete tabSessions[t.id];
+      const tabIds = new Set(tabs.map((t) => t.id));
+      const terminals = s.terminals.filter((t) => !tabIds.has(t.id));
+      const paneSessions = { ...s.paneSessions };
+      for (const p of panes) delete paneSessions[p.id];
       const activeTabId =
         s.activeTabId && terminals.some((t) => t.id === s.activeTabId)
           ? s.activeTabId
           : (terminals.at(-1)?.id ?? null);
-      return { terminals, tabSessions, activeTabId };
+      return { terminals, paneSessions, activeTabId };
     });
   },
 }));
@@ -324,7 +358,7 @@ let lastSessionSnapshot = "";
 useStore.subscribe((s) => {
   if (!hydrated) return;
   const snapshot = JSON.stringify({
-    tabs: s.terminals.map((t) => ({ worktreeId: t.worktreeId, cwd: t.cwd, title: t.title })),
+    tabs: s.terminals.map((t) => ({ worktreeId: t.worktreeId, cwd: t.cwd, title: t.title, panes: t.panes.length })),
     activeIndex: s.terminals.findIndex((t) => t.id === s.activeTabId),
   });
   if (snapshot !== lastSessionSnapshot) {

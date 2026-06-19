@@ -13,6 +13,7 @@ function App() {
   const refreshPrs = useStore((s) => s.refreshPrs);
   const terminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
+  const closePane = useStore((s) => s.closePane);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -108,15 +109,28 @@ function App() {
             <>
               <TabBar />
               <div className="terminal-stack">
-                {/* All panes stay mounted so their PTYs keep running in parallel;
-                    only the active one is visible. */}
+                {/* All tabs (and their panes) stay mounted so PTYs keep running
+                    in parallel; only the active tab is visible. */}
                 {terminals.map((t) => (
                   <div
                     key={t.id}
                     className="terminal-host"
-                    style={{ display: t.id === activeTabId ? "block" : "none" }}
+                    style={{ display: t.id === activeTabId ? "flex" : "none" }}
                   >
-                    <TerminalPane cwd={t.cwd} tabId={t.id} initialCommand={t.initialCommand} />
+                    {t.panes.map((pane) => (
+                      <div key={pane.id} className="pane-wrap">
+                        {t.panes.length > 1 && (
+                          <button
+                            className="pane-close"
+                            title="Close pane"
+                            onClick={() => closePane(t.id, pane.id)}
+                          >
+                            ✕
+                          </button>
+                        )}
+                        <TerminalPane cwd={t.cwd} paneId={pane.id} initialCommand={pane.initialCommand} />
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
