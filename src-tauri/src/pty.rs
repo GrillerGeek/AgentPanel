@@ -20,12 +20,28 @@ use tauri::ipc::Channel;
 use tauri::State;
 
 /// One live terminal session: the master side (for resize), a writer (for
-/// keystrokes), and the child handle (so we can kill the process tree on close).
+/// keystrokes), the child handle, and its pid (to kill the whole process tree
+/// on close — agents spawn subprocesses that `child.kill()` alone would leak).
 struct PtySession {
     master: Box<dyn MasterPty + Send>,
     writer: Box<dyn Write + Send>,
     child: Box<dyn Child + Send + Sync>,
+    pid: Option<u32>,
 }
+
+/// Kill a process and all its descendants. On Windows `child.kill()` only
+/// terminates the direct shell, so we use `taskkill /T` to take the tree.
+#[cfg(windows)]
+fn kill_process_tree(pid: u32) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let mut cmd = std::process::Command::new("taskkill");
+    cmd.args(["/PID", &pid.to_string(), "/T", "/F"]);
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    let _ = cmd.output();
+}
+#[cfg(not(windows))]
+fn kill_process_tree(_pid: u32) {}
 
 /// App-wide PTY state, registered via `.manage()`.
 #[derive(Default)]
@@ -82,6 +98,7 @@ pub fn pty_spawn(
         .slave
         .spawn_command(cmd)
         .map_err(|e| format!("spawn failed: {e}"))?;
+    let pid = child.process_id();
     // Drop the slave so the only handle keeping the pty open is the master;
     // otherwise the reader never sees EOF when the child exits.
     drop(pair.slave);
@@ -126,6 +143,7 @@ pub fn pty_spawn(
             master: pair.master,
             writer,
             child,
+            pid,
         },
     );
 
@@ -173,6 +191,9 @@ pub fn pty_resize(
 #[tauri::command]
 pub fn pty_close(state: State<'_, PtyManager>, id: u32) -> Result<(), String> {
     if let Some(mut session) = state.sessions.lock().map_err(|e| e.to_string())?.remove(&id) {
+        if let Some(pid) = session.pid {
+            kill_process_tree(pid);
+        }
         let _ = session.child.kill();
     }
     Ok(())

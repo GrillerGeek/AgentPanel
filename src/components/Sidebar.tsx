@@ -4,9 +4,12 @@ import type { Repository } from "../types";
 function RepoRow({ repo }: { repo: Repository }) {
   const expanded = useStore((s) => s.expanded[repo.id] ?? false);
   const worktrees = useStore((s) => s.worktrees[repo.id]);
-  const selectedWorktreeId = useStore((s) => s.selectedWorktreeId);
+  const activeWorktreeId = useStore((s) => {
+    const active = s.terminals.find((t) => t.id === s.activeTabId);
+    return active?.worktreeId ?? null;
+  });
   const toggleExpand = useStore((s) => s.toggleExpand);
-  const selectWorktree = useStore((s) => s.selectWorktree);
+  const openWorktreeTerminal = useStore((s) => s.openWorktreeTerminal);
   const removeRepository = useStore((s) => s.removeRepository);
 
   return (
@@ -29,8 +32,8 @@ function RepoRow({ repo }: { repo: Repository }) {
           {worktrees?.map((wt) => (
             <button
               key={wt.id}
-              className={`worktree ${selectedWorktreeId === wt.id ? "selected" : ""}`}
-              onClick={() => selectWorktree(wt.id)}
+              className={`worktree ${activeWorktreeId === wt.id ? "selected" : ""}`}
+              onClick={() => openWorktreeTerminal(wt)}
               title={wt.path}
             >
               <span className="wt-name">{wt.name}</span>

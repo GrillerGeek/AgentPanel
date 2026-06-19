@@ -1,19 +1,14 @@
 import { useEffect } from "react";
 import { Sidebar } from "./components/Sidebar";
+import { TabBar } from "./components/TabBar";
 import { TerminalPane } from "./Terminal";
 import { useStore } from "./state/store";
 import "./App.css";
 
 function App() {
   const loadRepositories = useStore((s) => s.loadRepositories);
-  const selectedWorktreeId = useStore((s) => s.selectedWorktreeId);
-  const worktrees = useStore((s) => s.worktrees);
-
-  const selectedWorktree = selectedWorktreeId
-    ? Object.values(worktrees)
-        .flat()
-        .find((w) => w.id === selectedWorktreeId)
-    : undefined;
+  const terminals = useStore((s) => s.terminals);
+  const activeTabId = useStore((s) => s.activeTabId);
 
   useEffect(() => {
     void loadRepositories();
@@ -25,10 +20,25 @@ function App() {
       <div className="body">
         <Sidebar />
         <main className="content">
-          {selectedWorktree ? (
-            <TerminalPane key={selectedWorktree.id} cwd={selectedWorktree.path} />
-          ) : (
+          {terminals.length === 0 ? (
             <div className="placeholder">Select a worktree to open a terminal.</div>
+          ) : (
+            <>
+              <TabBar />
+              <div className="terminal-stack">
+                {/* All panes stay mounted so their PTYs keep running in parallel;
+                    only the active one is visible. */}
+                {terminals.map((t) => (
+                  <div
+                    key={t.id}
+                    className="terminal-host"
+                    style={{ display: t.id === activeTabId ? "block" : "none" }}
+                  >
+                    <TerminalPane cwd={t.cwd} />
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </main>
       </div>

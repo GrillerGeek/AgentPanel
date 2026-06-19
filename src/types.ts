@@ -15,3 +15,11 @@ export interface Worktree {
   branch: string | null;
   isPrimary: boolean;
 }
+
+/** An open terminal tab bound (1:1) to a Rust PTY session. */
+export interface TerminalTab {
+  id: string;
+  worktreeId: string;
+  cwd: string;
+  title: string;
+}

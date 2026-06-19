@@ -75,8 +75,10 @@ export function TerminalPane({ cwd }: { cwd?: string }) {
       if (sessionId !== null) void invoke("pty_write", { id: sessionId, data });
     });
 
-    // Keep the PTY sized to the viewport.
+    // Keep the PTY sized to the viewport. Skip while hidden (a tab on another
+    // screen has a 0x0 container; fitting to that would corrupt the layout).
     const resize = () => {
+      if (container.clientWidth === 0 || container.clientHeight === 0) return;
       fit.fit();
       if (sessionId !== null) {
         void invoke("pty_resize", { id: sessionId, rows: term.rows, cols: term.cols });
