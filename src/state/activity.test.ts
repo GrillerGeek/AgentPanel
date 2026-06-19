@@ -30,7 +30,7 @@ describe("sortWorktrees", () => {
     const list = [wt("idle"), wt("dirty"), wt("running")];
     const openIds = new Set(["running"]); // worktree ids with an open terminal
     const statuses: Record<string, WorktreeStatus> = {
-      dirty: { branch: "dirty", dirty: 2 },
+      dirty: { branch: "dirty", dirty: 2, ahead: 0, behind: 0, lastCommit: null },
     };
     const sorted = sortWorktrees(list, openIds, statuses);
     expect(sorted.map((w) => w.id)).toEqual(["running", "dirty", "idle"]);

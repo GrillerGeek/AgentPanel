@@ -97,14 +97,30 @@ function RepoRow({ repo }: { repo: Repository }) {
           {sorted?.length === 0 && <div className="muted">no worktrees</div>}
           {sorted?.map((wt) => (
             <div key={wt.id} className={`worktree-row ${activeWorktreeId === wt.id ? "selected" : ""}`}>
-              <button className="worktree" onClick={() => openWorktreeTerminal(wt)} title={wt.path}>
+              <button
+                className="worktree"
+                onClick={() => openWorktreeTerminal(wt)}
+                title={[wt.path, statuses[wt.id]?.lastCommit].filter(Boolean).join("\n")}
+              >
                 <span className="wt-name">{wt.name}</span>
                 {wt.isPrimary && <span className="badge subtle">main</span>}
-                {(statuses[wt.id]?.dirty ?? 0) > 0 && (
-                  <span className="dirty" title={`${statuses[wt.id].dirty} changed file(s)`}>
-                    ●{statuses[wt.id].dirty}
-                  </span>
-                )}
+                <span className="wt-status">
+                  {(statuses[wt.id]?.ahead ?? 0) > 0 && (
+                    <span className="ahead" title={`${statuses[wt.id].ahead} ahead of upstream`}>
+                      ↑{statuses[wt.id].ahead}
+                    </span>
+                  )}
+                  {(statuses[wt.id]?.behind ?? 0) > 0 && (
+                    <span className="behind" title={`${statuses[wt.id].behind} behind upstream`}>
+                      ↓{statuses[wt.id].behind}
+                    </span>
+                  )}
+                  {(statuses[wt.id]?.dirty ?? 0) > 0 && (
+                    <span className="dirty" title={`${statuses[wt.id].dirty} changed file(s)`}>
+                      ●{statuses[wt.id].dirty}
+                    </span>
+                  )}
+                </span>
               </button>
               {!wt.isPrimary && (
                 <button

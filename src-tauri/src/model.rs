@@ -29,11 +29,14 @@ pub struct Worktree {
     pub is_primary: bool,
 }
 
-/// Live status of a worktree: current branch and how many files are dirty
-/// (modified/untracked/staged).
+/// Live status of a worktree: current branch, dirty-file count, ahead/behind
+/// vs upstream, and the last commit summary.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorktreeStatus {
     pub branch: Option<String>,
     pub dirty: usize,
+    pub ahead: usize,
+    pub behind: usize,
+    pub last_commit: Option<String>,
 }

@@ -224,8 +224,23 @@ body,
   padding: 0;
 }
 
-.dirty {
+.wt-status {
   margin-left: auto;
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+.ahead {
+  font-size: 10px;
+  color: #98c379;
+  white-space: nowrap;
+}
+.behind {
+  font-size: 10px;
+  color: #e06c75;
+  white-space: nowrap;
+}
+.dirty {
   font-size: 10px;
   color: #e5c07b;
   white-space: nowrap;

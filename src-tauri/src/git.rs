@@ -7,7 +7,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use crate::model::Worktree;
+use crate::model::{Worktree, WorktreeStatus};
 
 /// On Windows, prevent a console window from flashing for each git subprocess.
 #[cfg(windows)]
@@ -127,15 +127,40 @@ pub fn remove_worktree(repo_path: &str, worktree_path: &str) -> Result<(), Strin
     }
 }
 
-/// Current branch (None if detached) and dirty-file count for a worktree.
-pub fn worktree_status(path: &str) -> Result<(Option<String>, usize), String> {
+/// Commits ahead/behind the branch's upstream. (0, 0) when there is no upstream.
+fn ahead_behind(path: &str) -> (usize, usize) {
+    match run_git(path, &["rev-list", "--left-right", "--count", "@{upstream}...HEAD"]) {
+        Ok(out) => {
+            // Output is "<behind>\t<ahead>" (left = upstream-only, right = HEAD-only).
+            let mut it = out.split_whitespace();
+            let behind = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+            let ahead = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+            (ahead, behind)
+        }
+        Err(_) => (0, 0),
+    }
+}
+
+/// Full live status for a worktree: branch, dirty count, ahead/behind, last commit.
+pub fn worktree_status(path: &str) -> Result<WorktreeStatus, String> {
     let branch = run_git(path, &["rev-parse", "--abbrev-ref", "HEAD"])
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty() && s != "HEAD");
     let status = run_git(path, &["status", "--porcelain"])?;
     let dirty = status.lines().filter(|l| !l.trim().is_empty()).count();
-    Ok((branch, dirty))
+    let (ahead, behind) = ahead_behind(path);
+    let last_commit = run_git(path, &["log", "-1", "--pretty=%h %s"])
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    Ok(WorktreeStatus {
+        branch,
+        dirty,
+        ahead,
+        behind,
+        last_commit,
+    })
 }
 
 #[cfg(test)]
@@ -186,13 +211,15 @@ mod tests {
         init_repo(&repo);
         let repo_str = repo.to_string_lossy().to_string();
 
-        let (branch, dirty) = worktree_status(&repo_str).unwrap();
-        assert_eq!(branch.as_deref(), Some("main"));
-        assert_eq!(dirty, 0, "clean repo");
+        let st = worktree_status(&repo_str).unwrap();
+        assert_eq!(st.branch.as_deref(), Some("main"));
+        assert_eq!(st.dirty, 0, "clean repo");
+        assert_eq!((st.ahead, st.behind), (0, 0), "no upstream");
+        assert!(st.last_commit.is_some(), "has a commit");
 
         fs::write(repo.join("new.txt"), "x").unwrap();
-        let (_, dirty) = worktree_status(&repo_str).unwrap();
-        assert_eq!(dirty, 1, "one untracked file");
+        let st = worktree_status(&repo_str).unwrap();
+        assert_eq!(st.dirty, 1, "one untracked file");
 
         let _ = fs::remove_dir_all(&base);
     }

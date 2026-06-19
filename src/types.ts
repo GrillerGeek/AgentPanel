@@ -28,4 +28,7 @@ export interface TerminalTab {
 export interface WorktreeStatus {
   branch: string | null;
   dirty: number;
+  ahead: number;
+  behind: number;
+  lastCommit: string | null;
 }

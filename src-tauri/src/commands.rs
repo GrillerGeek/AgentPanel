@@ -120,11 +120,11 @@ pub fn create_worktree(
     git::list_worktrees(&repo_path, &id)
 }
 
-/// Current branch + dirty-file count for a worktree path (polled by the UI).
+/// Live status for a worktree path (branch/dirty/ahead/behind/last-commit),
+/// polled by the UI.
 #[tauri::command]
 pub fn worktree_status(path: String) -> Result<WorktreeStatus, String> {
-    let (branch, dirty) = git::worktree_status(&path)?;
-    Ok(WorktreeStatus { branch, dirty })
+    git::worktree_status(&path)
 }
 
 /// Remove a worktree (does not delete its branch). Returns the refreshed list.
