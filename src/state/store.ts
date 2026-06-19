@@ -370,3 +370,18 @@ useStore.subscribe((s) => {
     }
   }
 });
+
+// Keep the Rust file watcher's path set in sync with the git worktrees.
+let lastWatchedSnapshot = "";
+useStore.subscribe((s) => {
+  const gitRepoIds = new Set(s.repositories.filter((r) => r.isGit).map((r) => r.id));
+  const paths: string[] = [];
+  for (const [repoId, list] of Object.entries(s.worktrees)) {
+    if (gitRepoIds.has(repoId)) for (const w of list) paths.push(w.path);
+  }
+  const snapshot = paths.slice().sort().join("|");
+  if (snapshot !== lastWatchedSnapshot) {
+    lastWatchedSnapshot = snapshot;
+    void invoke("set_watched_paths", { paths }).catch((err) => console.error("set_watched_paths failed", err));
+  }
+});

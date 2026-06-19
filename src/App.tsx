@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { Sidebar } from "./components/Sidebar";
 import { TabBar } from "./components/TabBar";
 import { CommandPalette } from "./components/CommandPalette";
@@ -21,10 +22,27 @@ function App() {
     void loadRepositories();
   }, [loadRepositories]);
 
-  // Poll worktree status (branch + dirty count) so the sidebar stays live.
+  // Poll worktree status as a safety net (the file watcher drives instant
+  // updates; this catches anything the throttle's trailing edge misses).
   useEffect(() => {
-    const t = setInterval(() => void refreshStatuses(), 2500);
+    const t = setInterval(() => void refreshStatuses(), 5000);
     return () => clearInterval(t);
+  }, [refreshStatuses]);
+
+  // Instant status refresh on file changes, debounced to coalesce bursts.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let timer: number | undefined;
+    void listen("worktrees-changed", () => {
+      if (timer) clearTimeout(timer);
+      timer = window.setTimeout(() => void refreshStatuses(), 200);
+    }).then((un) => {
+      unlisten = un;
+    });
+    return () => {
+      unlisten?.();
+      if (timer) clearTimeout(timer);
+    };
   }, [refreshStatuses]);
 
   // Poll PR/CI status less often (slower-changing, hits the network via gh).
