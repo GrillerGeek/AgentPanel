@@ -32,6 +32,7 @@ pub fn run() {
             commands::list_worktrees,
             commands::create_worktree,
             commands::delete_worktree,
+            commands::worktree_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

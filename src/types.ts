@@ -23,3 +23,9 @@ export interface TerminalTab {
   cwd: string;
   title: string;
 }
+
+/** Live status of a worktree (polled). */
+export interface WorktreeStatus {
+  branch: string | null;
+  dirty: number;
+}

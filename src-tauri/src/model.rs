@@ -28,3 +28,12 @@ pub struct Worktree {
     pub branch: Option<String>,
     pub is_primary: bool,
 }
+
+/// Live status of a worktree: current branch and how many files are dirty
+/// (modified/untracked/staged).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorktreeStatus {
+    pub branch: Option<String>,
+    pub dirty: usize,
+}

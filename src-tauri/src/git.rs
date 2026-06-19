@@ -127,6 +127,17 @@ pub fn remove_worktree(repo_path: &str, worktree_path: &str) -> Result<(), Strin
     }
 }
 
+/// Current branch (None if detached) and dirty-file count for a worktree.
+pub fn worktree_status(path: &str) -> Result<(Option<String>, usize), String> {
+    let branch = run_git(path, &["rev-parse", "--abbrev-ref", "HEAD"])
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty() && s != "HEAD");
+    let status = run_git(path, &["status", "--porcelain"])?;
+    let dirty = status.lines().filter(|l| !l.trim().is_empty()).count();
+    Ok((branch, dirty))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -165,6 +176,24 @@ mod tests {
         assert!(!is_git_repository(&repo));
         init_repo(&repo);
         assert!(is_git_repository(&repo));
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn status_reports_dirty_count() {
+        let base = std::env::temp_dir().join(format!("agentpanel_status_{}", std::process::id()));
+        let repo = base.join("repo");
+        init_repo(&repo);
+        let repo_str = repo.to_string_lossy().to_string();
+
+        let (branch, dirty) = worktree_status(&repo_str).unwrap();
+        assert_eq!(branch.as_deref(), Some("main"));
+        assert_eq!(dirty, 0, "clean repo");
+
+        fs::write(repo.join("new.txt"), "x").unwrap();
+        let (_, dirty) = worktree_status(&repo_str).unwrap();
+        assert_eq!(dirty, 1, "one untracked file");
+
         let _ = fs::remove_dir_all(&base);
     }
 

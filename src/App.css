@@ -137,6 +137,13 @@ body,
   padding: 0;
 }
 
+.dirty {
+  margin-left: auto;
+  font-size: 10px;
+  color: #e5c07b;
+  white-space: nowrap;
+}
+
 .icon-btn {
   background: none;
   border: none;

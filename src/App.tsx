@@ -7,12 +7,19 @@ import "./App.css";
 
 function App() {
   const loadRepositories = useStore((s) => s.loadRepositories);
+  const refreshStatuses = useStore((s) => s.refreshStatuses);
   const terminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
 
   useEffect(() => {
     void loadRepositories();
   }, [loadRepositories]);
+
+  // Poll worktree status (branch + dirty count) so the sidebar stays live.
+  useEffect(() => {
+    const t = setInterval(() => void refreshStatuses(), 2500);
+    return () => clearInterval(t);
+  }, [refreshStatuses]);
 
   return (
     <div className="app">

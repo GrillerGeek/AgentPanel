@@ -7,7 +7,7 @@ use std::path::Path;
 use tauri::{AppHandle, State};
 
 use crate::git;
-use crate::model::{Repository, Worktree};
+use crate::model::{Repository, Worktree, WorktreeStatus};
 use crate::store::{self, AppStore};
 
 /// Add a folder as a repository: detect git vs plain folder, dedupe by path,
@@ -118,6 +118,13 @@ pub fn create_worktree(
 
     git::add_worktree(&repo_path, &wt_dir.to_string_lossy(), branch)?;
     git::list_worktrees(&repo_path, &id)
+}
+
+/// Current branch + dirty-file count for a worktree path (polled by the UI).
+#[tauri::command]
+pub fn worktree_status(path: String) -> Result<WorktreeStatus, String> {
+    let (branch, dirty) = git::worktree_status(&path)?;
+    Ok(WorktreeStatus { branch, dirty })
 }
 
 /// Remove a worktree (does not delete its branch). Returns the refreshed list.

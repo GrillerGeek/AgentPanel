@@ -63,6 +63,7 @@ function NewWorktreeForm({ repoId }: { repoId: string }) {
 function RepoRow({ repo }: { repo: Repository }) {
   const expanded = useStore((s) => s.expanded[repo.id] ?? false);
   const worktrees = useStore((s) => s.worktrees[repo.id]);
+  const statuses = useStore((s) => s.statuses);
   const activeWorktreeId = useStore((s) => {
     const active = s.terminals.find((t) => t.id === s.activeTabId);
     return active?.worktreeId ?? null;
@@ -94,6 +95,11 @@ function RepoRow({ repo }: { repo: Repository }) {
               <button className="worktree" onClick={() => openWorktreeTerminal(wt)} title={wt.path}>
                 <span className="wt-name">{wt.name}</span>
                 {wt.isPrimary && <span className="badge subtle">main</span>}
+                {(statuses[wt.id]?.dirty ?? 0) > 0 && (
+                  <span className="dirty" title={`${statuses[wt.id].dirty} changed file(s)`}>
+                    ●{statuses[wt.id].dirty}
+                  </span>
+                )}
               </button>
               {!wt.isPrimary && (
                 <button

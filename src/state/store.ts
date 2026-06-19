@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { Repository, TerminalTab, Worktree } from "../types";
+import type { Repository, TerminalTab, Worktree, WorktreeStatus } from "../types";
 
 let seq = 0;
 const nextTabId = () => `t${++seq}`;
@@ -12,6 +12,8 @@ interface AppState {
   worktrees: Record<string, Worktree[]>;
   /** which repositories are expanded in the sidebar */
   expanded: Record<string, boolean>;
+  /** live status keyed by worktree id (polled) */
+  statuses: Record<string, WorktreeStatus>;
 
   /** open terminal tabs (each maps to one live PTY) */
   terminals: TerminalTab[];
@@ -24,6 +26,7 @@ interface AppState {
   removeRepository: (id: string) => Promise<void>;
   loadWorktrees: (repoId: string) => Promise<void>;
   toggleExpand: (repoId: string) => Promise<void>;
+  refreshStatuses: () => Promise<void>;
   createWorktree: (repoId: string, branch: string) => Promise<void>;
   deleteWorktree: (repoId: string, worktreePath: string) => Promise<void>;
 
@@ -42,6 +45,7 @@ export const useStore = create<AppState>((set, get) => ({
   repositories: [],
   worktrees: {},
   expanded: {},
+  statuses: {},
   terminals: [],
   activeTabId: null,
   tabSessions: {},
@@ -50,6 +54,7 @@ export const useStore = create<AppState>((set, get) => ({
     const repositories = await invoke<Repository[]>("list_repositories");
     set({ repositories });
     await Promise.all(repositories.map((r) => get().loadWorktrees(r.id)));
+    await get().refreshStatuses();
   },
 
   addRepository: async () => {
@@ -106,6 +111,29 @@ export const useStore = create<AppState>((set, get) => ({
     if (willExpand && !get().worktrees[repoId]) {
       await get().loadWorktrees(repoId);
     }
+  },
+
+  refreshStatuses: async () => {
+    // Poll branch + dirty count for every git worktree currently loaded.
+    const gitRepoIds = new Set(get().repositories.filter((r) => r.isGit).map((r) => r.id));
+    const all: Worktree[] = [];
+    for (const [repoId, list] of Object.entries(get().worktrees)) {
+      if (gitRepoIds.has(repoId)) all.push(...list);
+    }
+    const results = await Promise.all(
+      all.map(async (wt): Promise<[string, WorktreeStatus] | null> => {
+        try {
+          return [wt.id, await invoke<WorktreeStatus>("worktree_status", { path: wt.path })];
+        } catch {
+          return null;
+        }
+      }),
+    );
+    set((s) => {
+      const statuses = { ...s.statuses };
+      for (const r of results) if (r) statuses[r[0]] = r[1];
+      return { statuses };
+    });
   },
 
   createWorktree: async (repoId, branch) => {
