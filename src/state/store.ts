@@ -6,6 +6,11 @@ import type { Repository, TerminalTab, Worktree, WorktreeStatus } from "../types
 let seq = 0;
 const nextTabId = () => `t${++seq}`;
 
+const SESSION_KEY = "agentpanel.session";
+/** Gates session persistence until restore has run, so boot-time store
+ *  mutations (loading repos/worktrees) can't clobber the saved session. */
+let hydrated = false;
+
 interface AppState {
   repositories: Repository[];
   /** worktrees keyed by repository id */
@@ -27,6 +32,8 @@ interface AppState {
   loadWorktrees: (repoId: string) => Promise<void>;
   toggleExpand: (repoId: string) => Promise<void>;
   refreshStatuses: () => Promise<void>;
+  /** reopen previously-open worktree terminals (fresh shells) */
+  restoreSession: () => void;
   createWorktree: (repoId: string, branch: string) => Promise<void>;
   deleteWorktree: (repoId: string, worktreePath: string) => Promise<void>;
 
@@ -55,6 +62,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({ repositories });
     await Promise.all(repositories.map((r) => get().loadWorktrees(r.id)));
     await get().refreshStatuses();
+    get().restoreSession();
   },
 
   addRepository: async () => {
@@ -134,6 +142,28 @@ export const useStore = create<AppState>((set, get) => ({
       for (const r of results) if (r) statuses[r[0]] = r[1];
       return { statuses };
     });
+  },
+
+  restoreSession: () => {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      const saved = raw ? (JSON.parse(raw) as { tabs: Array<{ worktreeId: string; cwd: string; title: string }>; activeIndex: number }) : null;
+      if (saved?.tabs?.length) {
+        // Only restore tabs whose worktree still exists.
+        const existing = new Set(Object.values(get().worktrees).flat().map((w) => w.id));
+        const valid = saved.tabs.filter((t) => existing.has(t.worktreeId));
+        if (valid.length) {
+          const tabs: TerminalTab[] = valid.map((t) => ({ id: nextTabId(), ...t }));
+          const activeSaved = saved.tabs[saved.activeIndex] ?? saved.tabs[0];
+          const activeTabId =
+            tabs.find((t) => t.worktreeId === activeSaved?.worktreeId)?.id ?? tabs[0].id;
+          set({ terminals: tabs, activeTabId });
+        }
+      }
+    } catch (err) {
+      console.error("restoreSession failed", err);
+    }
+    hydrated = true;
   },
 
   createWorktree: async (repoId, branch) => {
@@ -220,3 +250,23 @@ export const useStore = create<AppState>((set, get) => ({
     });
   },
 }));
+
+// Persist open terminal tabs (ephemeral UI session) to localStorage on change.
+// Gated by `hydrated` so boot-time store loads don't overwrite the saved session
+// before restoreSession() runs.
+let lastSessionSnapshot = "";
+useStore.subscribe((s) => {
+  if (!hydrated) return;
+  const snapshot = JSON.stringify({
+    tabs: s.terminals.map((t) => ({ worktreeId: t.worktreeId, cwd: t.cwd, title: t.title })),
+    activeIndex: s.terminals.findIndex((t) => t.id === s.activeTabId),
+  });
+  if (snapshot !== lastSessionSnapshot) {
+    lastSessionSnapshot = snapshot;
+    try {
+      localStorage.setItem(SESSION_KEY, snapshot);
+    } catch (err) {
+      console.error("session persist failed", err);
+    }
+  }
+});
