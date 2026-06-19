@@ -1,4 +1,5 @@
 mod commands;
+mod gh;
 mod git;
 mod model;
 mod pty;
@@ -33,6 +34,7 @@ pub fn run() {
             commands::create_worktree,
             commands::delete_worktree,
             commands::worktree_status,
+            commands::worktree_pr,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

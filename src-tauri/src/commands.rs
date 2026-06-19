@@ -7,7 +7,8 @@ use std::path::Path;
 use tauri::{AppHandle, State};
 
 use crate::git;
-use crate::model::{Repository, Worktree, WorktreeStatus};
+use crate::gh;
+use crate::model::{PrInfo, Repository, Worktree, WorktreeStatus};
 use crate::store::{self, AppStore};
 
 /// Add a folder as a repository: detect git vs plain folder, dedupe by path,
@@ -125,6 +126,13 @@ pub fn create_worktree(
 #[tauri::command]
 pub fn worktree_status(path: String) -> Result<WorktreeStatus, String> {
     git::worktree_status(&path)
+}
+
+/// PR + CI status for the branch checked out at `path` (via gh). None if gh is
+/// unavailable or there's no PR — the UI just shows nothing.
+#[tauri::command]
+pub fn worktree_pr(path: String) -> Option<PrInfo> {
+    gh::pr_info(&path)
 }
 
 /// Remove a worktree (does not delete its branch). Returns the refreshed list.

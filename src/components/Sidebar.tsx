@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useStore } from "../state/store";
 import { sortWorktrees } from "../state/activity";
 import type { Repository } from "../types";
@@ -65,6 +66,7 @@ function RepoRow({ repo }: { repo: Repository }) {
   const expanded = useStore((s) => s.expanded[repo.id] ?? false);
   const worktrees = useStore((s) => s.worktrees[repo.id]);
   const statuses = useStore((s) => s.statuses);
+  const prs = useStore((s) => s.prs);
   const terminals = useStore((s) => s.terminals);
   const activeWorktreeId = useStore((s) => {
     const active = s.terminals.find((t) => t.id === s.activeTabId);
@@ -122,6 +124,18 @@ function RepoRow({ repo }: { repo: Repository }) {
                   )}
                 </span>
               </button>
+              {prs[wt.id] && (
+                <span
+                  className={`pr pr-${prs[wt.id]!.checks}`}
+                  title={`PR #${prs[wt.id]!.number} · ${prs[wt.id]!.state} · checks: ${prs[wt.id]!.checks}\n${prs[wt.id]!.title}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void openUrl(prs[wt.id]!.url).catch(() => {});
+                  }}
+                >
+                  #{prs[wt.id]!.number}
+                </span>
+              )}
               {!wt.isPrimary && (
                 <button
                   className="icon-btn"

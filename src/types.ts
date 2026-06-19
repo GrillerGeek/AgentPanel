@@ -24,6 +24,15 @@ export interface TerminalTab {
   title: string;
 }
 
+/** Pull-request info for a worktree branch (via gh). */
+export interface PrInfo {
+  number: number;
+  state: string; // OPEN | MERGED | CLOSED
+  title: string;
+  url: string;
+  checks: string; // passing | failing | pending | none
+}
+
 /** Live status of a worktree (polled). */
 export interface WorktreeStatus {
   branch: string | null;

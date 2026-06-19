@@ -9,6 +9,7 @@ import "./App.css";
 function App() {
   const loadRepositories = useStore((s) => s.loadRepositories);
   const refreshStatuses = useStore((s) => s.refreshStatuses);
+  const refreshPrs = useStore((s) => s.refreshPrs);
   const terminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -22,6 +23,13 @@ function App() {
     const t = setInterval(() => void refreshStatuses(), 2500);
     return () => clearInterval(t);
   }, [refreshStatuses]);
+
+  // Poll PR/CI status less often (slower-changing, hits the network via gh).
+  useEffect(() => {
+    void refreshPrs();
+    const t = setInterval(() => void refreshPrs(), 30000);
+    return () => clearInterval(t);
+  }, [refreshPrs]);
 
   // Global command-palette hotkey (Ctrl+Shift+P). Capture phase so it fires
   // before xterm.js consumes the keystroke when a terminal is focused.

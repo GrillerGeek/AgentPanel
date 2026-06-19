@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { Repository, TerminalTab, Worktree, WorktreeStatus } from "../types";
+import type { PrInfo, Repository, TerminalTab, Worktree, WorktreeStatus } from "../types";
 
 let seq = 0;
 const nextTabId = () => `t${++seq}`;
@@ -19,6 +19,8 @@ interface AppState {
   expanded: Record<string, boolean>;
   /** live status keyed by worktree id (polled) */
   statuses: Record<string, WorktreeStatus>;
+  /** PR info keyed by worktree id (polled via gh; null = no PR) */
+  prs: Record<string, PrInfo | null>;
 
   /** open terminal tabs (each maps to one live PTY) */
   terminals: TerminalTab[];
@@ -32,6 +34,7 @@ interface AppState {
   loadWorktrees: (repoId: string) => Promise<void>;
   toggleExpand: (repoId: string) => Promise<void>;
   refreshStatuses: () => Promise<void>;
+  refreshPrs: () => Promise<void>;
   /** reopen previously-open worktree terminals (fresh shells) */
   restoreSession: () => void;
   createWorktree: (repoId: string, branch: string) => Promise<void>;
@@ -53,6 +56,7 @@ export const useStore = create<AppState>((set, get) => ({
   worktrees: {},
   expanded: {},
   statuses: {},
+  prs: {},
   terminals: [],
   activeTabId: null,
   tabSessions: {},
@@ -141,6 +145,28 @@ export const useStore = create<AppState>((set, get) => ({
       const statuses = { ...s.statuses };
       for (const r of results) if (r) statuses[r[0]] = r[1];
       return { statuses };
+    });
+  },
+
+  refreshPrs: async () => {
+    const gitRepoIds = new Set(get().repositories.filter((r) => r.isGit).map((r) => r.id));
+    const all: Worktree[] = [];
+    for (const [repoId, list] of Object.entries(get().worktrees)) {
+      if (gitRepoIds.has(repoId)) all.push(...list);
+    }
+    const results = await Promise.all(
+      all.map(async (wt): Promise<[string, PrInfo | null]> => {
+        try {
+          return [wt.id, await invoke<PrInfo | null>("worktree_pr", { path: wt.path })];
+        } catch {
+          return [wt.id, null];
+        }
+      }),
+    );
+    set((s) => {
+      const prs = { ...s.prs };
+      for (const [id, pr] of results) prs[id] = pr;
+      return { prs };
     });
   },
 

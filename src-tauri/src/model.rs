@@ -29,6 +29,17 @@ pub struct Worktree {
     pub is_primary: bool,
 }
 
+/// Pull-request info for a worktree's branch, from the `gh` CLI.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrInfo {
+    pub number: u64,
+    pub state: String, // OPEN | MERGED | CLOSED
+    pub title: String,
+    pub url: String,
+    pub checks: String, // passing | failing | pending | none
+}
+
 /// Live status of a worktree: current branch, dirty-file count, ahead/behind
 /// vs upstream, and the last commit summary.
 #[derive(Debug, Clone, Serialize, Deserialize)]
