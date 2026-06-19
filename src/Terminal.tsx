@@ -4,6 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { invoke, Channel } from "@tauri-apps/api/core";
 import { useStore } from "./state/store";
+import { schemeBySlug, xtermThemeFor } from "./themes/apply";
 import "@xterm/xterm/css/xterm.css";
 
 /** Decode a base64 chunk from the Rust PTY into raw bytes for xterm. */
@@ -33,8 +34,10 @@ export function TerminalPane({
   initialCommand?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const termRef = useRef<Terminal | null>(null);
   const setPaneSession = useStore((s) => s.setPaneSession);
   const shell = useStore((s) => s.settings.shell);
+  const themeSlug = useStore((s) => s.settings.theme);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -44,8 +47,9 @@ export function TerminalPane({
       fontFamily: "Cascadia Code, Consolas, monospace",
       fontSize: 14,
       cursorBlink: true,
-      theme: { background: "#1e1e1e", foreground: "#d4d4d4" },
+      theme: xtermThemeFor(schemeBySlug(themeSlug)),
     });
+    termRef.current = term;
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(container);
@@ -108,8 +112,14 @@ export function TerminalPane({
       dataSub.dispose();
       if (sessionId !== null) void invoke("pty_close", { id: sessionId });
       term.dispose();
+      termRef.current = null;
     };
   }, [cwd]);
+
+  // Live-update the terminal colors when the theme changes (no remount).
+  useEffect(() => {
+    if (termRef.current) termRef.current.options.theme = xtermThemeFor(schemeBySlug(themeSlug));
+  }, [themeSlug]);
 
   return <div ref={containerRef} className="terminal-pane" />;
 }

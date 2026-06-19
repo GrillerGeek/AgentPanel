@@ -6,6 +6,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { SettingsModal } from "./components/SettingsModal";
 import { TerminalPane } from "./Terminal";
 import { useStore } from "./state/store";
+import { applyTheme, schemeBySlug } from "./themes/apply";
 import "./App.css";
 
 function App() {
@@ -15,8 +16,14 @@ function App() {
   const terminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
   const closePane = useStore((s) => s.closePane);
+  const theme = useStore((s) => s.settings.theme);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Apply the selected theme to the app chrome (CSS variables on :root).
+  useEffect(() => {
+    applyTheme(schemeBySlug(theme));
+  }, [theme]);
 
   useEffect(() => {
     void loadRepositories();

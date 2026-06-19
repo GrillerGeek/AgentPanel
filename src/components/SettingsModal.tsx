@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useStore } from "../state/store";
+import { SCHEMES } from "../themes/schemes";
 
 const SHELL_PRESETS = ["pwsh.exe", "powershell.exe", "cmd.exe"];
 
@@ -21,10 +22,38 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
     onClose();
   };
 
+  // Theme applies live on change (so the picker previews instantly).
+  const setTheme = (slug: string) => updateSettings({ theme: slug });
+
   return (
     <div className="palette-backdrop" onClick={onClose}>
       <div className="settings" onClick={(e) => e.stopPropagation()}>
         <h2>Settings</h2>
+
+        <label className="settings-field">
+          <span>Theme</span>
+          <select
+            className="settings-input"
+            value={settings.theme}
+            onChange={(e) => setTheme(e.currentTarget.value)}
+          >
+            <optgroup label="Dark">
+              {SCHEMES.filter((s) => s.variant === "dark").map((s) => (
+                <option key={s.slug} value={s.slug}>
+                  {s.name}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Light">
+              {SCHEMES.filter((s) => s.variant === "light").map((s) => (
+                <option key={s.slug} value={s.slug}>
+                  {s.name}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+          <small>Applies instantly to the whole app and all terminals.</small>
+        </label>
 
         <label className="settings-field">
           <span>Shell</span>

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Pane, PrInfo, Repository, Settings, TerminalTab, Worktree, WorktreeStatus } from "../types";
+import { DEFAULT_THEME } from "../themes/apply";
 
 let tabSeq = 0;
 const nextTabId = () => `t${++tabSeq}`;
@@ -14,7 +15,11 @@ const SESSION_KEY = "agentpanel.session";
 let hydrated = false;
 
 const SETTINGS_KEY = "agentpanel.settings";
-const DEFAULT_SETTINGS: Settings = { shell: "powershell.exe", agentCommands: ["claude", "codex"] };
+const DEFAULT_SETTINGS: Settings = {
+  shell: "powershell.exe",
+  agentCommands: ["claude", "codex"],
+  theme: DEFAULT_THEME,
+};
 function readSettings(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);

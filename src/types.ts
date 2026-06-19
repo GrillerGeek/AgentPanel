@@ -36,6 +36,7 @@ export interface TerminalTab {
 export interface Settings {
   shell: string;
   agentCommands: string[];
+  theme: string; // scheme slug
 }
 
 /** Pull-request info for a worktree branch (via gh). */
