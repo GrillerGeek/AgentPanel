@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { TabBar } from "./components/TabBar";
+import { CommandPalette } from "./components/CommandPalette";
 import { TerminalPane } from "./Terminal";
 import { useStore } from "./state/store";
 import "./App.css";
@@ -10,6 +11,7 @@ function App() {
   const refreshStatuses = useStore((s) => s.refreshStatuses);
   const terminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
     void loadRepositories();
@@ -21,9 +23,27 @@ function App() {
     return () => clearInterval(t);
   }, [refreshStatuses]);
 
+  // Global command-palette hotkey (Ctrl+Shift+P). Capture phase so it fires
+  // before xterm.js consumes the keystroke when a terminal is focused.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && (e.key === "P" || e.key === "p")) {
+        e.preventDefault();
+        e.stopPropagation();
+        setPaletteOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
+  }, []);
+
   return (
     <div className="app">
-      <header className="titlebar">AgentPanel</header>
+      <header className="titlebar">
+        <span>AgentPanel</span>
+        <span className="titlebar-hint">Ctrl+Shift+P</span>
+      </header>
+      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
       <div className="body">
         <Sidebar />
         <main className="content">

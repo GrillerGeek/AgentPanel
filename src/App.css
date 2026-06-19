@@ -20,6 +20,9 @@ body,
 
 .titlebar {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 600;
@@ -27,6 +30,90 @@ body,
   background: #252526;
   border-bottom: 1px solid #333;
   user-select: none;
+}
+
+.titlebar-hint {
+  font-weight: 400;
+  font-size: 11px;
+  color: #6b7280;
+  border: 1px solid #3a3d41;
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+
+/* ---- Command palette ---- */
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  z-index: 1000;
+}
+
+.palette {
+  width: 560px;
+  max-width: 90vw;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: #252526;
+  border: 1px solid #454545;
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.palette-input {
+  border: none;
+  border-bottom: 1px solid #3a3d41;
+  background: #1e1e1e;
+  color: #e8e8e8;
+  font-size: 15px;
+  padding: 12px 14px;
+  outline: none;
+}
+
+.palette-list {
+  overflow-y: auto;
+}
+
+.palette-empty {
+  padding: 14px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.palette-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #d4d4d4;
+}
+.palette-item.active {
+  background: #094771;
+  color: #ffffff;
+}
+
+.palette-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-subtitle {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: #8a8a8a;
+}
+.palette-item.active .palette-subtitle {
+  color: #cfe2f3;
 }
 
 .body {
