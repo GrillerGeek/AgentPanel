@@ -3,6 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { invoke, Channel } from "@tauri-apps/api/core";
+import { useStore } from "./state/store";
 import "@xterm/xterm/css/xterm.css";
 
 /** Decode a base64 chunk from the Rust PTY into raw bytes for xterm. */
@@ -22,8 +23,9 @@ function decodeBase64(b64: string): Uint8Array {
  * the selected worktree path. For the Phase 0 spike it defaults to the user's
  * home (whatever the shell opens to).
  */
-export function TerminalPane({ cwd }: { cwd?: string }) {
+export function TerminalPane({ cwd, tabId }: { cwd?: string; tabId?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const setTabSession = useStore((s) => s.setTabSession);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -67,6 +69,7 @@ export function TerminalPane({ cwd }: { cwd?: string }) {
           return;
         }
         sessionId = id;
+        if (tabId) setTabSession(tabId, id);
       })
       .catch((err) => term.writeln(`\r\n[pty_spawn error] ${err}`));
 

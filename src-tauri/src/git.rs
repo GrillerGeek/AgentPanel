@@ -97,7 +97,6 @@ pub fn list_worktrees(repo_path: &str, repo_id: &str) -> Result<Vec<Worktree>, S
 
 /// Create a new worktree on a new branch `branch` at `new_path`. If the branch
 /// already exists, check it out into the new worktree instead.
-#[allow(dead_code)] // wired into a command in P1.4 (worktree create/remove)
 pub fn add_worktree(repo_path: &str, new_path: &str, branch: &str) -> Result<(), String> {
     match run_git(repo_path, &["worktree", "add", "-b", branch, new_path]) {
         Ok(_) => Ok(()),
@@ -108,10 +107,24 @@ pub fn add_worktree(repo_path: &str, new_path: &str, branch: &str) -> Result<(),
     }
 }
 
-/// Remove a worktree (does not delete the branch).
-#[allow(dead_code)] // wired into a command in P1.4 (worktree create/remove)
+/// Remove a worktree (does not delete the branch). Uses `--force` to handle
+/// dirty/untracked files an agent may have left. If git fails (e.g. the
+/// directory is briefly still locked on Windows), fall back to pruning the
+/// registration and removing the leftover directory so we never orphan state.
 pub fn remove_worktree(repo_path: &str, worktree_path: &str) -> Result<(), String> {
-    run_git(repo_path, &["worktree", "remove", worktree_path]).map(|_| ())
+    match run_git(repo_path, &["worktree", "remove", "--force", worktree_path]) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            let _ = run_git(repo_path, &["worktree", "prune"]);
+            let _ = std::fs::remove_dir_all(worktree_path);
+            if std::path::Path::new(worktree_path).exists() {
+                Err(e) // genuinely could not remove it
+            } else {
+                let _ = run_git(repo_path, &["worktree", "prune"]);
+                Ok(())
+            }
+        }
+    }
 }
 
 #[cfg(test)]

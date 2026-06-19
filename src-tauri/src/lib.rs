@@ -30,6 +30,8 @@ pub fn run() {
             commands::list_repositories,
             commands::remove_repository,
             commands::list_worktrees,
+            commands::create_worktree,
+            commands::delete_worktree,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

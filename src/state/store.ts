@@ -16,12 +16,16 @@ interface AppState {
   /** open terminal tabs (each maps to one live PTY) */
   terminals: TerminalTab[];
   activeTabId: string | null;
+  /** tabId -> Rust PTY session id, so terminals can be closed deterministically */
+  tabSessions: Record<string, number>;
 
   loadRepositories: () => Promise<void>;
   addRepository: () => Promise<void>;
   removeRepository: (id: string) => Promise<void>;
   loadWorktrees: (repoId: string) => Promise<void>;
   toggleExpand: (repoId: string) => Promise<void>;
+  createWorktree: (repoId: string, branch: string) => Promise<void>;
+  deleteWorktree: (repoId: string, worktreePath: string) => Promise<void>;
 
   /** open (or focus the existing) terminal for a worktree */
   openWorktreeTerminal: (wt: Worktree) => void;
@@ -29,6 +33,9 @@ interface AppState {
   duplicateActiveTerminal: () => void;
   closeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
+  setTabSession: (tabId: string, sessionId: number) => void;
+  /** close (await) all terminals for a worktree so its directory is unlocked */
+  closeWorktreeTerminals: (worktreeId: string) => Promise<void>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -37,6 +44,7 @@ export const useStore = create<AppState>((set, get) => ({
   expanded: {},
   terminals: [],
   activeTabId: null,
+  tabSessions: {},
 
   loadRepositories: async () => {
     const repositories = await invoke<Repository[]>("list_repositories");
@@ -62,8 +70,12 @@ export const useStore = create<AppState>((set, get) => ({
       const wtIds = new Set((s.worktrees[id] ?? []).map((w) => w.id));
       const worktrees = { ...s.worktrees };
       delete worktrees[id];
-      // Close any terminals belonging to this repo's worktrees.
+      // Close any terminals belonging to this repo's worktrees (their panes
+      // unmount and fire pty_close).
+      const removed = s.terminals.filter((t) => wtIds.has(t.worktreeId));
       const terminals = s.terminals.filter((t) => !wtIds.has(t.worktreeId));
+      const tabSessions = { ...s.tabSessions };
+      for (const t of removed) delete tabSessions[t.id];
       const activeTabId =
         s.activeTabId && terminals.some((t) => t.id === s.activeTabId)
           ? s.activeTabId
@@ -72,6 +84,7 @@ export const useStore = create<AppState>((set, get) => ({
         repositories: s.repositories.filter((r) => r.id !== id),
         worktrees,
         terminals,
+        tabSessions,
         activeTabId,
       };
     });
@@ -93,6 +106,24 @@ export const useStore = create<AppState>((set, get) => ({
     if (willExpand && !get().worktrees[repoId]) {
       await get().loadWorktrees(repoId);
     }
+  },
+
+  createWorktree: async (repoId, branch) => {
+    const list = await invoke<Worktree[]>("create_worktree", { repoId, branch });
+    set((s) => ({
+      worktrees: { ...s.worktrees, [repoId]: list },
+      expanded: { ...s.expanded, [repoId]: true },
+    }));
+    const wt = list.find((w) => w.branch === branch);
+    if (wt) get().openWorktreeTerminal(wt);
+  },
+
+  deleteWorktree: async (repoId, worktreePath) => {
+    // Kill the worktree's terminals FIRST so the OS releases the directory
+    // (on Windows a shell's cwd locks the dir and blocks `git worktree remove`).
+    await get().closeWorktreeTerminals(worktreePath);
+    const list = await invoke<Worktree[]>("delete_worktree", { repoId, worktreePath });
+    set((s) => ({ worktrees: { ...s.worktrees, [repoId]: list } }));
   },
 
   openWorktreeTerminal: (wt) => {
@@ -122,8 +153,42 @@ export const useStore = create<AppState>((set, get) => ({
       const terminals = s.terminals.filter((t) => t.id !== id);
       const activeTabId =
         s.activeTabId === id ? (terminals.at(-1)?.id ?? null) : s.activeTabId;
-      return { terminals, activeTabId };
+      const tabSessions = { ...s.tabSessions };
+      delete tabSessions[id];
+      return { terminals, activeTabId, tabSessions };
     }),
 
   setActiveTab: (id) => set({ activeTabId: id }),
+
+  setTabSession: (tabId, sessionId) =>
+    set((s) => ({ tabSessions: { ...s.tabSessions, [tabId]: sessionId } })),
+
+  closeWorktreeTerminals: async (worktreeId) => {
+    const tabs = get().terminals.filter((t) => t.worktreeId === worktreeId);
+    // Await each PTY close so the shells are actually dead (and the directory
+    // unlocked) before the caller removes the worktree.
+    await Promise.all(
+      tabs.map(async (t) => {
+        const sid = get().tabSessions[t.id];
+        if (sid !== undefined) {
+          try {
+            await invoke("pty_close", { id: sid });
+          } catch (err) {
+            console.error(`pty_close failed for tab ${t.id}`, err);
+          }
+        }
+      }),
+    );
+    set((s) => {
+      const ids = new Set(tabs.map((t) => t.id));
+      const terminals = s.terminals.filter((t) => !ids.has(t.id));
+      const tabSessions = { ...s.tabSessions };
+      for (const t of tabs) delete tabSessions[t.id];
+      const activeTabId =
+        s.activeTabId && terminals.some((t) => t.id === s.activeTabId)
+          ? s.activeTabId
+          : (terminals.at(-1)?.id ?? null);
+      return { terminals, tabSessions, activeTabId };
+    });
+  },
 }));

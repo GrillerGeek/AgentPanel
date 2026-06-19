@@ -34,7 +34,7 @@ function App() {
                     className="terminal-host"
                     style={{ display: t.id === activeTabId ? "block" : "none" }}
                   >
-                    <TerminalPane cwd={t.cwd} />
+                    <TerminalPane cwd={t.cwd} tabId={t.id} />
                   </div>
                 ))}
               </div>

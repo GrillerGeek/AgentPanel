@@ -80,3 +80,54 @@ pub fn list_worktrees(store: State<'_, AppStore>, repo_id: String) -> Result<Vec
         }])
     }
 }
+
+/// Look up a repository's (path, id, is_git) without holding the store lock
+/// across the git subprocess call.
+fn repo_handle(store: &State<'_, AppStore>, repo_id: &str) -> Result<(String, String, bool), String> {
+    let repos = store.repos.lock().map_err(|e| e.to_string())?;
+    let repo = repos.iter().find(|r| r.id == repo_id).ok_or("repository not found")?;
+    Ok((repo.path.clone(), repo.id.clone(), repo.is_git))
+}
+
+/// Create a new worktree on a new branch. The worktree is placed in a sibling
+/// `<repo>-worktrees/<branch>` directory so it stays out of the main tree.
+/// Returns the refreshed worktree list.
+#[tauri::command]
+pub fn create_worktree(
+    store: State<'_, AppStore>,
+    repo_id: String,
+    branch: String,
+) -> Result<Vec<Worktree>, String> {
+    let (repo_path, id, is_git) = repo_handle(&store, &repo_id)?;
+    if !is_git {
+        return Err("not a git repository".into());
+    }
+    let branch = branch.trim();
+    if branch.is_empty() {
+        return Err("branch name is required".into());
+    }
+
+    let repo = Path::new(&repo_path);
+    let parent = repo.parent().ok_or("repository has no parent directory")?;
+    let repo_name = repo
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "repo".to_string());
+    let safe_branch = branch.replace(['/', '\\', ':'], "-");
+    let wt_dir = parent.join(format!("{repo_name}-worktrees")).join(&safe_branch);
+
+    git::add_worktree(&repo_path, &wt_dir.to_string_lossy(), branch)?;
+    git::list_worktrees(&repo_path, &id)
+}
+
+/// Remove a worktree (does not delete its branch). Returns the refreshed list.
+#[tauri::command]
+pub fn delete_worktree(
+    store: State<'_, AppStore>,
+    repo_id: String,
+    worktree_path: String,
+) -> Result<Vec<Worktree>, String> {
+    let (repo_path, id, _) = repo_handle(&store, &repo_id)?;
+    git::remove_worktree(&repo_path, &worktree_path)?;
+    git::list_worktrees(&repo_path, &id)
+}
