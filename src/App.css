@@ -273,6 +273,93 @@ body,
   border-color: #4b432e;
 }
 
+/* ---- Titlebar right + settings ---- */
+.titlebar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gear {
+  background: none;
+  border: none;
+  color: #9da5b4;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+}
+.gear:hover {
+  color: #fff;
+}
+
+.settings {
+  width: 480px;
+  max-width: 90vw;
+  background: #252526;
+  border: 1px solid #454545;
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  padding: 16px 18px;
+  color: #d4d4d4;
+}
+.settings h2 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+.settings-field > span {
+  font-size: 12px;
+  color: #9da5b4;
+}
+.settings-field small {
+  color: #6b7280;
+  font-size: 11px;
+}
+.settings-input {
+  background: #1e1e1e;
+  border: 1px solid #3a3d41;
+  border-radius: 4px;
+  color: #e8e8e8;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+.settings-input:focus {
+  outline: none;
+  border-color: #0e639c;
+}
+.settings-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ---- Agent quick-launch buttons ---- */
+.agent-launchers {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+}
+.agent-btn {
+  background: #2d2d2d;
+  border: 1px solid #3a3d41;
+  border-radius: 4px;
+  color: #98c379;
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.agent-btn:hover {
+  background: #333;
+  border-color: #0e639c;
+}
+
 .icon-btn {
   background: none;
   border: none;

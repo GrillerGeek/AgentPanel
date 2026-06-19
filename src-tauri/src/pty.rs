@@ -74,6 +74,7 @@ pub fn pty_spawn(
     cwd: Option<String>,
     rows: u16,
     cols: u16,
+    shell: Option<String>,
     on_output: Channel<String>,
 ) -> Result<u32, String> {
     // Hold the spawn lock across openpty + spawn (ConPTY race mitigation).
@@ -89,7 +90,10 @@ pub fn pty_spawn(
         })
         .map_err(|e| format!("openpty failed: {e}"))?;
 
-    let mut cmd = default_shell();
+    let mut cmd = match shell {
+        Some(s) if !s.trim().is_empty() => CommandBuilder::new(s),
+        _ => default_shell(),
+    };
     if let Some(dir) = cwd.filter(|d| !d.is_empty()) {
         cmd.cwd(dir);
     }

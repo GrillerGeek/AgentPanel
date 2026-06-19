@@ -23,9 +23,18 @@ function decodeBase64(b64: string): Uint8Array {
  * the selected worktree path. For the Phase 0 spike it defaults to the user's
  * home (whatever the shell opens to).
  */
-export function TerminalPane({ cwd, tabId }: { cwd?: string; tabId?: string }) {
+export function TerminalPane({
+  cwd,
+  tabId,
+  initialCommand,
+}: {
+  cwd?: string;
+  tabId?: string;
+  initialCommand?: string;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const setTabSession = useStore((s) => s.setTabSession);
+  const shell = useStore((s) => s.settings.shell);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -61,6 +70,7 @@ export function TerminalPane({ cwd, tabId }: { cwd?: string; tabId?: string }) {
       cwd: cwd ?? null,
       rows: term.rows,
       cols: term.cols,
+      shell: shell || null,
       onOutput,
     })
       .then((id) => {
@@ -70,6 +80,8 @@ export function TerminalPane({ cwd, tabId }: { cwd?: string; tabId?: string }) {
         }
         sessionId = id;
         if (tabId) setTabSession(tabId, id);
+        // Agent quick-launch: run the command once the shell is up.
+        if (initialCommand) void invoke("pty_write", { id, data: initialCommand + "\r" });
       })
       .catch((err) => term.writeln(`\r\n[pty_spawn error] ${err}`));
 

@@ -22,6 +22,14 @@ export interface TerminalTab {
   worktreeId: string;
   cwd: string;
   title: string;
+  /** command auto-run once the shell spawns (agent quick-launch) */
+  initialCommand?: string;
+}
+
+/** User settings (persisted in localStorage). */
+export interface Settings {
+  shell: string;
+  agentCommands: string[];
 }
 
 /** Pull-request info for a worktree branch (via gh). */

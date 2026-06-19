@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { PrInfo, Repository, TerminalTab, Worktree, WorktreeStatus } from "../types";
+import type { PrInfo, Repository, Settings, TerminalTab, Worktree, WorktreeStatus } from "../types";
 
 let seq = 0;
 const nextTabId = () => `t${++seq}`;
@@ -10,6 +10,17 @@ const SESSION_KEY = "agentpanel.session";
 /** Gates session persistence until restore has run, so boot-time store
  *  mutations (loading repos/worktrees) can't clobber the saved session. */
 let hydrated = false;
+
+const SETTINGS_KEY = "agentpanel.settings";
+const DEFAULT_SETTINGS: Settings = { shell: "powershell.exe", agentCommands: ["claude", "codex"] };
+function readSettings(): Settings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_SETTINGS;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
 
 interface AppState {
   repositories: Repository[];
@@ -27,6 +38,7 @@ interface AppState {
   activeTabId: string | null;
   /** tabId -> Rust PTY session id, so terminals can be closed deterministically */
   tabSessions: Record<string, number>;
+  settings: Settings;
 
   loadRepositories: () => Promise<void>;
   addRepository: () => Promise<void>;
@@ -44,7 +56,10 @@ interface AppState {
   openWorktreeTerminal: (wt: Worktree) => void;
   /** open an additional terminal for the active tab's worktree */
   duplicateActiveTerminal: () => void;
+  /** open a new terminal in the active worktree that auto-runs `command` */
+  runAgentInActive: (command: string) => void;
   closeTab: (id: string) => void;
+  updateSettings: (partial: Partial<Settings>) => void;
   setActiveTab: (id: string) => void;
   setTabSession: (tabId: string, sessionId: number) => void;
   /** close (await) all terminals for a worktree so its directory is unlocked */
@@ -60,6 +75,7 @@ export const useStore = create<AppState>((set, get) => ({
   terminals: [],
   activeTabId: null,
   tabSessions: {},
+  settings: readSettings(),
 
   loadRepositories: async () => {
     const repositories = await invoke<Repository[]>("list_repositories");
@@ -231,6 +247,30 @@ export const useStore = create<AppState>((set, get) => ({
     };
     set((s) => ({ terminals: [...s.terminals, tab], activeTabId: tab.id }));
   },
+
+  runAgentInActive: (command) => {
+    const active = get().terminals.find((t) => t.id === get().activeTabId);
+    if (!active) return;
+    const tab: TerminalTab = {
+      id: nextTabId(),
+      worktreeId: active.worktreeId,
+      cwd: active.cwd,
+      title: `${active.title} · ${command}`,
+      initialCommand: command,
+    };
+    set((s) => ({ terminals: [...s.terminals, tab], activeTabId: tab.id }));
+  },
+
+  updateSettings: (partial) =>
+    set((s) => {
+      const settings = { ...s.settings, ...partial };
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      } catch (err) {
+        console.error("settings persist failed", err);
+      }
+      return { settings };
+    }),
 
   closeTab: (id) =>
     set((s) => {

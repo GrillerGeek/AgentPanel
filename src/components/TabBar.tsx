@@ -6,6 +6,8 @@ export function TabBar() {
   const setActiveTab = useStore((s) => s.setActiveTab);
   const closeTab = useStore((s) => s.closeTab);
   const duplicateActiveTerminal = useStore((s) => s.duplicateActiveTerminal);
+  const runAgentInActive = useStore((s) => s.runAgentInActive);
+  const agentCommands = useStore((s) => s.settings.agentCommands);
 
   return (
     <div className="tabbar">
@@ -33,6 +35,20 @@ export function TabBar() {
         <button className="tab-new" title="New terminal in this worktree" onClick={() => duplicateActiveTerminal()}>
           +
         </button>
+      )}
+      {activeTabId && agentCommands.length > 0 && (
+        <span className="agent-launchers">
+          {agentCommands.map((cmd) => (
+            <button
+              key={cmd}
+              className="agent-btn"
+              title={`Run "${cmd}" in a new terminal in the active worktree`}
+              onClick={() => runAgentInActive(cmd)}
+            >
+              ▶ {cmd}
+            </button>
+          ))}
+        </span>
       )}
     </div>
   );

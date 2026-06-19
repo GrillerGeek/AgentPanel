@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { TabBar } from "./components/TabBar";
 import { CommandPalette } from "./components/CommandPalette";
+import { SettingsModal } from "./components/SettingsModal";
 import { TerminalPane } from "./Terminal";
 import { useStore } from "./state/store";
 import "./App.css";
@@ -13,6 +14,7 @@ function App() {
   const terminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     void loadRepositories();
@@ -49,9 +51,15 @@ function App() {
     <div className="app">
       <header className="titlebar">
         <span>AgentPanel</span>
-        <span className="titlebar-hint">Ctrl+Shift+P</span>
+        <span className="titlebar-right">
+          <span className="titlebar-hint">Ctrl+Shift+P</span>
+          <button className="gear" title="Settings" onClick={() => setSettingsOpen(true)}>
+            ⚙
+          </button>
+        </span>
       </header>
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
       <div className="body">
         <Sidebar />
         <main className="content">
@@ -69,7 +77,7 @@ function App() {
                     className="terminal-host"
                     style={{ display: t.id === activeTabId ? "block" : "none" }}
                   >
-                    <TerminalPane cwd={t.cwd} tabId={t.id} />
+                    <TerminalPane cwd={t.cwd} tabId={t.id} initialCommand={t.initialCommand} />
                   </div>
                 ))}
               </div>
