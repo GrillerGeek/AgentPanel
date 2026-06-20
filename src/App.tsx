@@ -263,6 +263,7 @@ function App() {
                               cwd={t.cwd}
                               paneId={pane.id}
                               initialCommand={pane.initialCommand}
+                              active={t.id === activeTabId}
                               autoFocus={t.id === activeTabId && paneIndex === 0}
                             />
                           </div>

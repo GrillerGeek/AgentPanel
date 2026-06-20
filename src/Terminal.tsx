@@ -29,19 +29,26 @@ export function TerminalPane({
   paneId,
   initialCommand,
   autoFocus,
+  active = true,
 }: {
   cwd?: string;
   paneId?: string;
   initialCommand?: string;
   autoFocus?: boolean;
+  /** True when this pane's tab is the visible one. Background panes keep their
+   *  PTY + scrollback but detach the GPU renderer to avoid WebGL-context churn. */
+  active?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const webglRef = useRef<WebglAddon | null>(null);
+  const fitRef = useRef<FitAddon | null>(null);
   const setPaneSession = useStore((s) => s.setPaneSession);
   const shell = useStore((s) => s.settings.shell);
   const themeSlug = useStore((s) => s.settings.theme);
   const webglEnabled = useStore((s) => s.settings.webgl);
+  // WebGL is attached only when the pane is both enabled and visible.
+  const webglWanted = webglEnabled && active;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -55,12 +62,14 @@ export function TerminalPane({
     });
     termRef.current = term;
     const fit = new FitAddon();
+    fitRef.current = fit;
     term.loadAddon(fit);
     term.open(container);
 
-    // WebGL is the fast renderer locally but streams poorly over remote desktop;
-    // only load it when enabled (toggled live by the effect below).
-    if (webglEnabled) {
+    // WebGL is the fast renderer locally but streams poorly over remote desktop,
+    // and each live context taxes the GPU compositor — so only attach it when
+    // this pane is enabled AND visible (toggled live by the effect below).
+    if (webglWanted) {
       try {
         const w = new WebglAddon();
         term.loadAddon(w);
@@ -103,35 +112,51 @@ export function TerminalPane({
       if (sessionId !== null) void invoke("pty_write", { id: sessionId, data });
     });
 
-    // Keep the PTY sized to the viewport. Skip while hidden (a tab on another
-    // screen has a 0x0 container; fitting to that would corrupt the layout).
+    // Keep the PTY sized to the viewport. ResizeObserver can fire many times per
+    // frame during a window drag-resize; coalesce to one fit per frame (rAF) and
+    // only round-trip pty_resize when the cell grid actually changes — otherwise
+    // a continuous resize floods the Rust IPC channel and stutters the drag.
+    // Skip while hidden (a hidden tab has a 0x0 container; fitting corrupts it).
+    let rafId = 0;
+    let lastRows = term.rows;
+    let lastCols = term.cols;
     const resize = () => {
-      if (container.clientWidth === 0 || container.clientHeight === 0) return;
-      fit.fit();
-      if (sessionId !== null) {
-        void invoke("pty_resize", { id: sessionId, rows: term.rows, cols: term.cols });
-      }
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        if (container.clientWidth === 0 || container.clientHeight === 0) return;
+        fit.fit();
+        if (sessionId !== null && (term.rows !== lastRows || term.cols !== lastCols)) {
+          lastRows = term.rows;
+          lastCols = term.cols;
+          void invoke("pty_resize", { id: sessionId, rows: term.rows, cols: term.cols });
+        }
+      });
     };
     const observer = new ResizeObserver(resize);
     observer.observe(container);
 
     return () => {
       disposed = true;
+      if (rafId) cancelAnimationFrame(rafId);
       observer.disconnect();
       dataSub.dispose();
       if (sessionId !== null) void invoke("pty_close", { id: sessionId });
       term.dispose(); // also disposes loaded addons (incl. WebGL)
       termRef.current = null;
       webglRef.current = null;
+      fitRef.current = null;
     };
   }, [cwd]);
 
-  // Live-toggle the WebGL renderer when the setting changes (no remount, so
-  // sessions/scrollback survive). Off = CPU rendering = smoother remote desktop.
+  // Attach/detach the WebGL renderer when the setting changes OR this pane's tab
+  // shows/hides (no remount, so sessions/scrollback survive). Detaching hidden
+  // panes keeps the live WebGL-context count to the visible tab, which the GPU
+  // compositor can present smoothly during window move/resize.
   useEffect(() => {
     const term = termRef.current;
     if (!term) return;
-    if (webglEnabled && !webglRef.current) {
+    if (webglWanted && !webglRef.current) {
       try {
         const w = new WebglAddon();
         term.loadAddon(w);
@@ -139,11 +164,17 @@ export function TerminalPane({
       } catch (e) {
         console.warn("WebGL addon unavailable", e);
       }
-    } else if (!webglEnabled && webglRef.current) {
+      // Becoming visible: container just went from 0x0 to sized — re-fit so the
+      // grid matches the viewport (and the freshly-attached renderer paints it).
+      requestAnimationFrame(() => {
+        const c = containerRef.current;
+        if (c && c.clientWidth > 0 && c.clientHeight > 0) fitRef.current?.fit();
+      });
+    } else if (!webglWanted && webglRef.current) {
       webglRef.current.dispose();
       webglRef.current = null;
     }
-  }, [webglEnabled]);
+  }, [webglWanted]);
 
   // Live-update the terminal colors when the theme changes (no remount).
   useEffect(() => {
