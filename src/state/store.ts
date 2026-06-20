@@ -448,13 +448,21 @@ export const useStore = create<AppState>((set, get) => ({
 export const selectActiveWorktreeId = (s: AppState): string | null =>
   s.terminals.find((t) => t.id === s.activeTabId)?.worktreeId ?? null;
 
-/** Build a `worktreeId -> { repoName, branchName }` label map for the active
- *  sessions list and the tab-bar context chip. */
-export function selectWorktreeLabels(s: AppState): Record<string, { repo: string; branch: string }> {
+/** Build a `worktreeId -> { repo, branch }` label map for the active-sessions
+ *  list and the tab-bar context chip.
+ *
+ *  NOTE: this is a plain helper, NOT a Zustand selector — it constructs a new
+ *  object, so passing it straight to `useStore` would return a fresh reference
+ *  every render and trip useSyncExternalStore's infinite-loop guard (blank app).
+ *  Call it inside `useMemo` over the stable `repositories` / `worktrees` slices. */
+export function worktreeLabels(
+  repositories: Repository[],
+  worktrees: Record<string, Worktree[]>,
+): Record<string, { repo: string; branch: string }> {
   const repoName: Record<string, string> = {};
-  for (const r of s.repositories) repoName[r.id] = r.name;
+  for (const r of repositories) repoName[r.id] = r.name;
   const out: Record<string, { repo: string; branch: string }> = {};
-  for (const [repoId, list] of Object.entries(s.worktrees)) {
+  for (const [repoId, list] of Object.entries(worktrees)) {
     for (const w of list) {
       out[w.id] = { repo: repoName[repoId] ?? repoId, branch: w.name };
     }

@@ -1,11 +1,13 @@
-import { useRef, type PointerEvent as ReactPointerEvent } from "react";
-import { useStore, selectActiveWorktreeId, selectWorktreeLabels } from "../state/store";
+import { useMemo, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { useStore, selectActiveWorktreeId, worktreeLabels } from "../state/store";
 
 export function TabBar() {
   const allTerminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
   const activeWorktreeId = useStore(selectActiveWorktreeId);
-  const labels = useStore(selectWorktreeLabels);
+  const repositories = useStore((s) => s.repositories);
+  const worktrees = useStore((s) => s.worktrees);
+  const labels = useMemo(() => worktreeLabels(repositories, worktrees), [repositories, worktrees]);
   const setActiveTab = useStore((s) => s.setActiveTab);
   const closeTab = useStore((s) => s.closeTab);
   const duplicateActiveTerminal = useStore((s) => s.duplicateActiveTerminal);

@@ -1,4 +1,5 @@
-import { useStore, selectActiveWorktreeId, selectWorktreeLabels } from "../state/store";
+import { useMemo } from "react";
+import { useStore, selectActiveWorktreeId, worktreeLabels } from "../state/store";
 
 /**
  * The "Active terminals" section pinned to the top of the sidebar: every worktree
@@ -8,7 +9,9 @@ import { useStore, selectActiveWorktreeId, selectWorktreeLabels } from "../state
  */
 export function ActiveSessions() {
   const terminals = useStore((s) => s.terminals);
-  const labels = useStore(selectWorktreeLabels);
+  const repositories = useStore((s) => s.repositories);
+  const worktrees = useStore((s) => s.worktrees);
+  const labels = useMemo(() => worktreeLabels(repositories, worktrees), [repositories, worktrees]);
   const activeWorktreeId = useStore(selectActiveWorktreeId);
   const setActiveWorktree = useStore((s) => s.setActiveWorktree);
   const closeWorktreeTerminals = useStore((s) => s.closeWorktreeTerminals);
