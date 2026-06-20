@@ -1,9 +1,11 @@
 import { useRef, type PointerEvent as ReactPointerEvent } from "react";
-import { useStore } from "../state/store";
+import { useStore, selectActiveWorktreeId, selectWorktreeLabels } from "../state/store";
 
 export function TabBar() {
-  const terminals = useStore((s) => s.terminals);
+  const allTerminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
+  const activeWorktreeId = useStore(selectActiveWorktreeId);
+  const labels = useStore(selectWorktreeLabels);
   const setActiveTab = useStore((s) => s.setActiveTab);
   const closeTab = useStore((s) => s.closeTab);
   const duplicateActiveTerminal = useStore((s) => s.duplicateActiveTerminal);
@@ -11,6 +13,11 @@ export function TabBar() {
   const reorderTab = useStore((s) => s.reorderTab);
   const runAgentInActive = useStore((s) => s.runAgentInActive);
   const agentCommands = useStore((s) => s.settings.agentCommands);
+
+  // Only the active worktree's tabs are shown — so the bar reflects the repo/
+  // branch you're working in instead of mixing every repo's terminals together.
+  const terminals = allTerminals.filter((t) => t.worktreeId === activeWorktreeId);
+  const context = activeWorktreeId ? labels[activeWorktreeId] : undefined;
 
   // Pointer-based reorder (works locally AND over remote desktop, unlike the
   // native HTML5 drag-and-drop which doesn't survive a remote session).
@@ -51,6 +58,13 @@ export function TabBar() {
 
   return (
     <div className="tabbar">
+      {context && (
+        <span className="tabbar-context" title={`${context.repo} / ${context.branch}`}>
+          <span className="ctx-repo">{context.repo}</span>
+          <span className="ctx-sep">/</span>
+          <span className="ctx-branch">{context.branch}</span>
+        </span>
+      )}
       {terminals.map((t) => (
         <div
           key={t.id}

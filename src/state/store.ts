@@ -50,6 +50,9 @@ interface AppState {
   activeTabId: string | null;
   /** paneId -> Rust PTY session id, so panes can be closed deterministically */
   paneSessions: Record<string, number>;
+  /** remembers the last-active tab per worktree, so switching back to a worktree
+   *  returns you to the tab you were on rather than its first one */
+  lastTabByWorktree: Record<string, string>;
   settings: Settings;
   /** transient error/info notifications */
   toasts: Toast[];
@@ -79,6 +82,9 @@ interface AppState {
   closeTab: (id: string) => void;
   updateSettings: (partial: Partial<Settings>) => void;
   setActiveTab: (id: string) => void;
+  /** make a worktree the active one (its tabs fill the tab bar), returning to the
+   *  tab last used in it */
+  setActiveWorktree: (worktreeId: string) => void;
   setPaneSession: (paneId: string, sessionId: number) => void;
   /** set the split ratio for a 2-pane tab (drag-resize) */
   setSplitRatio: (tabId: string, ratio: number) => void;
@@ -104,6 +110,7 @@ export const useStore = create<AppState>((set, get) => ({
   terminals: [],
   activeTabId: null,
   paneSessions: {},
+  lastTabByWorktree: {},
   settings: readSettings(),
   toasts: [],
 
@@ -319,7 +326,12 @@ export const useStore = create<AppState>((set, get) => ({
       const remaining = tab.panes.filter((p) => p.id !== paneId);
       if (remaining.length === 0) {
         const terminals = s.terminals.filter((t) => t.id !== tabId);
-        const activeTabId = s.activeTabId === tabId ? (terminals.at(-1)?.id ?? null) : s.activeTabId;
+        let activeTabId = s.activeTabId;
+        if (s.activeTabId === tabId) {
+          // Prefer staying in the same worktree; fall back to any remaining tab.
+          const sameWt = terminals.filter((t) => t.worktreeId === tab.worktreeId);
+          activeTabId = (sameWt.at(-1) ?? terminals.at(-1))?.id ?? null;
+        }
         return { terminals, activeTabId, paneSessions };
       }
       return {
@@ -332,13 +344,34 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => {
       const tab = s.terminals.find((t) => t.id === id);
       const terminals = s.terminals.filter((t) => t.id !== id);
-      const activeTabId = s.activeTabId === id ? (terminals.at(-1)?.id ?? null) : s.activeTabId;
+      let activeTabId = s.activeTabId;
+      if (s.activeTabId === id) {
+        // Prefer another tab in the same worktree so closing a tab keeps you in
+        // the same session; otherwise fall back to any remaining tab.
+        const sameWt = tab ? terminals.filter((t) => t.worktreeId === tab.worktreeId) : [];
+        activeTabId = (sameWt.at(-1) ?? terminals.at(-1))?.id ?? null;
+      }
       const paneSessions = { ...s.paneSessions };
       if (tab) for (const p of tab.panes) delete paneSessions[p.id];
       return { terminals, activeTabId, paneSessions };
     }),
 
-  setActiveTab: (id) => set({ activeTabId: id }),
+  setActiveTab: (id) =>
+    set((s) => {
+      const wt = s.terminals.find((t) => t.id === id)?.worktreeId;
+      return wt
+        ? { activeTabId: id, lastTabByWorktree: { ...s.lastTabByWorktree, [wt]: id } }
+        : { activeTabId: id };
+    }),
+
+  setActiveWorktree: (worktreeId) =>
+    set((s) => {
+      const tabs = s.terminals.filter((t) => t.worktreeId === worktreeId);
+      if (tabs.length === 0) return s;
+      const remembered = s.lastTabByWorktree[worktreeId];
+      const target = tabs.find((t) => t.id === remembered) ?? tabs[tabs.length - 1];
+      return { activeTabId: target.id };
+    }),
 
   setPaneSession: (paneId, sessionId) =>
     set((s) => ({ paneSessions: { ...s.paneSessions, [paneId]: sessionId } })),
@@ -409,6 +442,25 @@ export const useStore = create<AppState>((set, get) => ({
 
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 }));
+
+/** The worktree whose terminals are currently shown — derived from the active
+ *  tab, so it's always consistent with which tab is focused. */
+export const selectActiveWorktreeId = (s: AppState): string | null =>
+  s.terminals.find((t) => t.id === s.activeTabId)?.worktreeId ?? null;
+
+/** Build a `worktreeId -> { repoName, branchName }` label map for the active
+ *  sessions list and the tab-bar context chip. */
+export function selectWorktreeLabels(s: AppState): Record<string, { repo: string; branch: string }> {
+  const repoName: Record<string, string> = {};
+  for (const r of s.repositories) repoName[r.id] = r.name;
+  const out: Record<string, { repo: string; branch: string }> = {};
+  for (const [repoId, list] of Object.entries(s.worktrees)) {
+    for (const w of list) {
+      out[w.id] = { repo: repoName[repoId] ?? repoId, branch: w.name };
+    }
+  }
+  return out;
+}
 
 // Persist open terminal tabs (ephemeral UI session) to localStorage on change.
 // Gated by `hydrated` so boot-time store loads don't overwrite the saved session

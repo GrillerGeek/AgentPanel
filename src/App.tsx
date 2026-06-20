@@ -174,7 +174,10 @@ function App() {
       if (document.querySelector(".palette-backdrop")) return; // a modal is open
       const st = useStore.getState();
       const { terminals, activeTabId } = st;
-      const idx = terminals.findIndex((t) => t.id === activeTabId);
+      // Tab navigation is scoped to the active worktree (the tabs actually shown).
+      const activeWt = terminals.find((t) => t.id === activeTabId)?.worktreeId ?? null;
+      const wtTabs = terminals.filter((t) => t.worktreeId === activeWt);
+      const idx = wtTabs.findIndex((t) => t.id === activeTabId);
 
       const take = () => {
         e.preventDefault();
@@ -187,17 +190,17 @@ function App() {
       } else if ((e.key === "w" || e.key === "W") && activeTabId) {
         take();
         st.closeTab(activeTabId);
-      } else if (e.key === "Tab" && terminals.length > 1) {
+      } else if (e.key === "Tab" && wtTabs.length > 1) {
         take();
         const next = e.shiftKey
-          ? (idx - 1 + terminals.length) % terminals.length
-          : (idx + 1) % terminals.length;
-        st.setActiveTab(terminals[next].id);
+          ? (idx - 1 + wtTabs.length) % wtTabs.length
+          : (idx + 1) % wtTabs.length;
+        st.setActiveTab(wtTabs[next].id);
       } else if (!e.shiftKey && e.key >= "1" && e.key <= "9") {
         const n = Number(e.key) - 1;
-        if (n < terminals.length) {
+        if (n < wtTabs.length) {
           take();
-          st.setActiveTab(terminals[n].id);
+          st.setActiveTab(wtTabs[n].id);
         }
       }
     };

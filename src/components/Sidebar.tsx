@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { useStore } from "../state/store";
+import { useStore, selectActiveWorktreeId } from "../state/store";
 import { sortWorktrees } from "../state/activity";
+import { ActiveSessions } from "./ActiveSessions";
 import type { Repository } from "../types";
 
 function NewWorktreeForm({ repoId }: { repoId: string }) {
@@ -68,10 +69,7 @@ function RepoRow({ repo }: { repo: Repository }) {
   const statuses = useStore((s) => s.statuses);
   const prs = useStore((s) => s.prs);
   const terminals = useStore((s) => s.terminals);
-  const activeWorktreeId = useStore((s) => {
-    const active = s.terminals.find((t) => t.id === s.activeTabId);
-    return active?.worktreeId ?? null;
-  });
+  const activeWorktreeId = useStore(selectActiveWorktreeId);
   const toggleExpand = useStore((s) => s.toggleExpand);
   const openWorktreeTerminal = useStore((s) => s.openWorktreeTerminal);
   const removeRepository = useStore((s) => s.removeRepository);
@@ -98,7 +96,10 @@ function RepoRow({ repo }: { repo: Repository }) {
           {sorted === undefined && <div className="muted">loading…</div>}
           {sorted?.length === 0 && <div className="muted">no worktrees</div>}
           {sorted?.map((wt) => (
-            <div key={wt.id} className={`worktree-row ${activeWorktreeId === wt.id ? "selected" : ""}`}>
+            <div
+              key={wt.id}
+              className={`worktree-row ${activeWorktreeId === wt.id ? "selected active-worktree" : ""}`}
+            >
               <button
                 className="worktree"
                 onClick={() => openWorktreeTerminal(wt)}
@@ -160,6 +161,7 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
+      <ActiveSessions />
       <div className="sidebar-header">
         <span>Repositories</span>
         <button className="add-btn" onClick={() => addRepository()}>
