@@ -1,0 +1,136 @@
+# AgentPanel — Baseline Performance Metrics
+
+Captured **2026-06-19** at commit `12d7aa6` (v0.1.0). This is the reference point for
+performance work — the goal is to improve these numbers **without dropping features or
+functionality**. Re-measure with the same methodology to compare.
+
+## Environment
+
+| | |
+|---|---|
+| CPU | Intel Core i7-9700K @ 3.60 GHz (8C / 8T) |
+| RAM | 32 GB |
+| OS | Windows 11 Pro 10.0.26200 |
+| Toolchain | Rust 1.96 (stable-msvc), Node 22.22, Tauri 2.11.3, Vite 7.3 |
+
+## Key metrics at a glance
+
+| Metric | Baseline | Notes |
+|---|---|---|
+| **Startup → window** | **481 ms** | warm OS cache; release build |
+| **Idle memory (working set)** | **372 MB** | whole process tree (7 procs) |
+| **Idle memory (private)** | **178 MB** | better "true cost" number |
+| — Rust process alone | 32 MB WS / **4.9 MB private** | ~97% of memory is WebView2 |
+| **Frontend bundle (JS)** | **599 KB** raw / **168 KB** gzip | single chunk |
+| **Frontend bundle (CSS)** | 10.4 KB raw / 2.5 KB gzip | |
+| **Release binary** | 9.6 MB | `agentpanel.exe` |
+| **Installer** | 2.15 MB | NSIS, download-bootstrapper |
+| **Clean release build** | 2m 22s | 507 crates, optimized |
+| **Incremental Rust rebuild** | 6.0 s | touch 1 file, debug |
+| **Frontend prod build** | 3.6 s | tsc + vite |
+| **Frontend tests (Vitest)** | 2.8 s wall | 10 tests, ~230 ms exec |
+| **Rust tests (cargo test)** | 19.1 s | mostly test-binary compile; ~0.5 s exec |
+
+---
+
+## 1. Artifact sizes
+
+| Artifact | Raw | Gzip |
+|---|---|---|
+| `dist/assets/index.js` | 599.2 KB | 168.1 KB |
+| `dist/assets/index.css` | 10.4 KB | 2.5 KB |
+| `dist/` total | 614 KB | — |
+| `target/release/agentpanel.exe` | 9.6 MB | — |
+| `AgentPanel_0.1.0_x64-setup.exe` | 2.15 MB | — |
+
+The JS bundle is a **single chunk** (no code-splitting). Vite warns it exceeds 500 KB. xterm.js +
+addons and React dominate it.
+
+**Reproduce:** `npm run build`; sizes printed by Vite + `Get-Item` on the artifacts.
+
+## 2. Build performance
+
+| Build | Time |
+|---|---|
+| Clean release (`tauri build`, Rust release) | 142 s (2m 22s) |
+| Frontend prod build (`npm run build`) | 3.6 s |
+| Incremental Rust rebuild (1 file changed, debug) | 6.0 s |
+| Clean debug build (first ever, historical) | ~1m 48s |
+
+**Reproduce:** `Measure-Command { npm run build }`; touch `src-tauri/src/lib.rs` then
+`Measure-Command { cargo build --manifest-path src-tauri\Cargo.toml }`.
+
+## 3. Runtime — startup & memory
+
+Release build, launched fresh (session as persisted), sampled 4 s after the window appeared.
+
+**Startup to first window:** **481 ms** (warm OS cache; cold/first-boot not yet measured).
+
+**Process tree (7 processes):**
+
+| Process | Working set | Private |
+|---|---|---|
+| msedgewebview2 (renderer/gpu/etc ×6) | 340 MB total | 173 MB total |
+| agentpanel (Rust core) | 31.6 MB | **4.9 MB** |
+| **Total** | **371.9 MB** | **178.4 MB** |
+
+**Headline:** the Rust core is tiny (~5 MB private); **virtually all memory is WebView2
+(Chromium)**. This is the central tradeoff of the stack — already far lighter than Electron, but
+WebView2 has a ~150 MB floor regardless of our code.
+
+**Reproduce:** launch `target/release/agentpanel.exe`, walk the process tree via
+`Win32_Process.ParentProcessId`, sum `WorkingSet64` / `PrivateMemorySize64`.
+
+## 4. Test suite
+
+| Suite | Time | Count |
+|---|---|---|
+| Frontend (Vitest, `npm test`) | 2.8 s wall (~230 ms exec) | 10 |
+| Rust (`cargo test`, warm) | 19.1 s | 6 (exec ~0.5 s) |
+
+Rust test time is almost entirely **test-binary compile/link**, not execution — a dev-iteration
+cost, not a runtime one.
+
+## 5. Code & dependency footprint
+
+| | |
+|---|---|
+| Rust source (`src-tauri/src`, incl. tests) | 843 lines |
+| TS/TSX source (`src`, excl. tests) | 1,309 lines |
+| Cargo crates (`Cargo.lock`) | 507 |
+| npm dependencies | 10 runtime + 9 dev |
+| `node_modules` top-level dirs | 64 |
+
+---
+
+## Optimization candidates (observations, not yet acted on)
+
+Ordered by likely impact. **Nothing here should remove features.**
+
+1. **JS bundle size (599 KB / 168 KB gz, one chunk).** Code-split; lazy-load the WebGL addon and
+   the command palette/settings modals; confirm tree-shaking. Smaller bundle → faster WebView parse
+   on startup.
+2. **Memory is WebView2-bound.** Our DOM is small, so wins are limited, but: reuse one xterm
+   renderer strategy, avoid leaking detached terminals, and verify hidden tabs/panes aren't doing
+   layout work. The Rust side (4.9 MB) has essentially no headroom to reclaim.
+3. **Status/PR polling cost.** 5 s status poll + file-watcher + a 30 s `gh` poll each spawn one
+   subprocess per worktree. Measure CPU at idle with many worktrees; consider coalescing and
+   skipping when the window is hidden/unfocused.
+4. **Per-terminal scaling.** Each pane = a Rust reader thread + an xterm instance. Cost-per-terminal
+   and memory at N=10/25/50 parallel terminals is the headline scalability metric (Supacode's
+   "50 agents") — see "Not yet measured".
+5. **Startup.** 481 ms warm is good; trimming the bundle (#1) and deferring non-critical work on
+   mount (PR fetch, watcher setup) should help cold start.
+
+## Not yet measured (needs interactive driving / instrumentation)
+
+These require opening terminals / feeding input, which couldn't be automated headlessly. Define and
+capture next:
+
+- **Cold startup** (first boot, cleared OS cache).
+- **Memory with N parallel terminals** (N = 1, 10, 25, 50) — the key scalability number.
+- **Per-terminal overhead** (Δ memory + Δ threads per pane).
+- **Keystroke → echo latency** (input responsiveness).
+- **Terminal render throughput** (e.g. `cat`/`Get-Content` of a large file → MB/s, dropped frames).
+- **Idle CPU** (status poll + watcher overhead, with many worktrees).
+- **Status-update latency** (file change → sidebar badge update, watcher path).
