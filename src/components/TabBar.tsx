@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { useStore } from "../state/store";
 
 export function TabBar() {
@@ -11,7 +11,40 @@ export function TabBar() {
   const reorderTab = useStore((s) => s.reorderTab);
   const runAgentInActive = useStore((s) => s.runAgentInActive);
   const agentCommands = useStore((s) => s.settings.agentCommands);
-  const dragId = useRef<string | null>(null);
+
+  // Pointer-based reorder (works locally AND over remote desktop, unlike the
+  // native HTML5 drag-and-drop which doesn't survive a remote session).
+  const drag = useRef<{ id: string; startX: number; active: boolean } | null>(null);
+  const suppressClick = useRef(false);
+
+  const onPointerDown = (e: ReactPointerEvent, id: string) => {
+    if (e.button !== 0) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    drag.current = { id, startX: e.clientX, active: false };
+  };
+  const onPointerMove = (e: ReactPointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    if (!d.active) {
+      if (Math.abs(e.clientX - d.startX) < 5) return; // movement threshold
+      d.active = true;
+    }
+    const overId = document
+      .elementFromPoint(e.clientX, e.clientY)
+      ?.closest<HTMLElement>("[data-tabid]")?.dataset.tabid;
+    if (overId && overId !== d.id) reorderTab(d.id, overId);
+  };
+  const onPointerUp = () => {
+    if (drag.current?.active) suppressClick.current = true;
+    drag.current = null;
+  };
+  const onClickTab = (id: string) => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return; // this "click" was the end of a drag
+    }
+    setActiveTab(id);
+  };
 
   const activeTab = terminals.find((t) => t.id === activeTabId);
   const canSplit = !!activeTab && activeTab.panes.length < 2;
@@ -21,23 +54,19 @@ export function TabBar() {
       {terminals.map((t) => (
         <div
           key={t.id}
+          data-tabid={t.id}
           className={`tab ${t.id === activeTabId ? "active" : ""}`}
-          onClick={() => setActiveTab(t.id)}
           title={t.cwd}
-          draggable
-          onDragStart={() => {
-            dragId.current = t.id;
-          }}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={() => {
-            if (dragId.current) reorderTab(dragId.current, t.id);
-            dragId.current = null;
-          }}
+          onClick={() => onClickTab(t.id)}
+          onPointerDown={(e) => onPointerDown(e, t.id)}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
         >
           <span className="tab-title">{t.title}</span>
           <button
             className="tab-close"
             title="Close terminal"
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               closeTab(t.id);
