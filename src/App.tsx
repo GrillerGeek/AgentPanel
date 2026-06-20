@@ -128,17 +128,25 @@ function App() {
     return () => clearInterval(t);
   }, [refreshPrs]);
 
-  // Catch up immediately when the window becomes visible / regains focus.
+  // Catch up when the window becomes visible / regains focus. Debounced: moving
+  // or resizing the window makes WebView2 fire a burst of focus/visibility events
+  // during the modal drag loop, and we don't want each one kicking off a git/gh
+  // refresh. One refresh ~300ms after the activity settles is plenty.
   useEffect(() => {
+    let timer: number | undefined;
     const onActive = () => {
-      if (!document.hidden) {
-        void refreshStatuses();
-        void refreshPrs();
-      }
+      if (timer) clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (!document.hidden) {
+          void refreshStatuses();
+          void refreshPrs();
+        }
+      }, 300);
     };
     document.addEventListener("visibilitychange", onActive);
     window.addEventListener("focus", onActive);
     return () => {
+      if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", onActive);
       window.removeEventListener("focus", onActive);
     };
