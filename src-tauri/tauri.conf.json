@@ -14,7 +14,9 @@
       {
         "title": "AgentPanel",
         "width": 1000,
-        "height": 700
+        "height": 700,
+        "minWidth": 760,
+        "minHeight": 480
       }
     ],
     "security": {
@@ -23,13 +25,23 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
+    "publisher": "Jason Robey",
+    "copyright": "Copyright © 2026 Jason Robey",
+    "category": "DeveloperTool",
+    "shortDescription": "Worktree command center for coding agents",
+    "longDescription": "AgentPanel runs multiple AI coding agents in parallel, each isolated in its own git worktree with its own terminal — a native Windows command center.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
   }
 }
