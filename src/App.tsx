@@ -1,11 +1,13 @@
 import { Fragment, lazy, Suspense, useEffect, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Sidebar } from "./components/Sidebar";
 import { TabBar } from "./components/TabBar";
 import { Toasts } from "./components/Toasts";
 import { useStore } from "./state/store";
 import { applyTheme, schemeBySlug } from "./themes/apply";
+import { runBenchmark } from "./lib/bench";
 import "./App.css";
 
 // Lazy-loaded so the heavy xterm engine and on-demand modals are split out of
@@ -46,6 +48,7 @@ function App() {
   const activeTabId = useStore((s) => s.activeTabId);
   const closePane = useStore((s) => s.closePane);
   const setSplitRatio = useStore((s) => s.setSplitRatio);
+  const pushToast = useStore((s) => s.pushToast);
   const theme = useStore((s) => s.settings.theme);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -55,24 +58,57 @@ function App() {
     applyTheme(schemeBySlug(theme));
   }, [theme]);
 
+  // Perf benchmark: auto-run when launched with AGENTPANEL_BENCH=1, or on
+  // Ctrl+Shift+B. Reports input-latency p95 + 25-terminal spawn responsiveness.
+  useEffect(() => {
+    const run = async () => {
+      pushToast("Running perf benchmark…", "info");
+      const r = (await runBenchmark()) as {
+        latency: { p50: number; p95: number };
+        spawn: { totalMs: number; maxFrameGapMs: number };
+      };
+      pushToast(
+        `Latency p50 ${r.latency.p50}ms / p95 ${r.latency.p95}ms · 25 terms ${r.spawn.totalMs}ms, max frame gap ${r.spawn.maxFrameGapMs}ms`,
+        "info",
+      );
+    };
+    void invoke<boolean>("bench_requested").then((req) => {
+      if (req) void run();
+    });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && (e.key === "B" || e.key === "b")) {
+        e.preventDefault();
+        e.stopPropagation();
+        void run();
+      }
+    };
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
+  }, [pushToast]);
+
   useEffect(() => {
     void loadRepositories();
   }, [loadRepositories]);
 
-  // Poll worktree status as a safety net (the file watcher drives instant
-  // updates; this catches anything the throttle's trailing edge misses).
+  // Status poll as a safety net — only while the window is visible (no git
+  // subprocess churn when backgrounded). Relaxed to 10s since the file watcher
+  // drives instant updates while active.
   useEffect(() => {
-    const t = setInterval(() => void refreshStatuses(), 5000);
+    const t = setInterval(() => {
+      if (!document.hidden) void refreshStatuses();
+    }, 10000);
     return () => clearInterval(t);
   }, [refreshStatuses]);
 
-  // Instant status refresh on file changes, debounced to coalesce bursts.
+  // Instant status refresh on file changes, debounced; skip while hidden.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let timer: number | undefined;
     void listen("worktrees-changed", () => {
       if (timer) clearTimeout(timer);
-      timer = window.setTimeout(() => void refreshStatuses(), 200);
+      timer = window.setTimeout(() => {
+        if (!document.hidden) void refreshStatuses();
+      }, 200);
     }).then((un) => {
       unlisten = un;
     });
@@ -82,12 +118,31 @@ function App() {
     };
   }, [refreshStatuses]);
 
-  // Poll PR/CI status less often (slower-changing, hits the network via gh).
+  // Poll PR/CI status less often (slower-changing, hits the network via gh),
+  // and only while visible.
   useEffect(() => {
     void refreshPrs();
-    const t = setInterval(() => void refreshPrs(), 30000);
+    const t = setInterval(() => {
+      if (!document.hidden) void refreshPrs();
+    }, 30000);
     return () => clearInterval(t);
   }, [refreshPrs]);
+
+  // Catch up immediately when the window becomes visible / regains focus.
+  useEffect(() => {
+    const onActive = () => {
+      if (!document.hidden) {
+        void refreshStatuses();
+        void refreshPrs();
+      }
+    };
+    document.addEventListener("visibilitychange", onActive);
+    window.addEventListener("focus", onActive);
+    return () => {
+      document.removeEventListener("visibilitychange", onActive);
+      window.removeEventListener("focus", onActive);
+    };
+  }, [refreshStatuses, refreshPrs]);
 
   // Global command-palette hotkey (Ctrl+Shift+P). Capture phase so it fires
   // before xterm.js consumes the keystroke when a terminal is focused.

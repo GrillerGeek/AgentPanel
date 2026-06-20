@@ -10,6 +10,19 @@ use store::AppStore;
 use tauri::Manager;
 use watcher::WatcherState;
 
+/// True when launched with AGENTPANEL_BENCH=1 — the frontend then auto-runs the
+/// perf benchmark and reports results via `write_bench`.
+#[tauri::command]
+fn bench_requested() -> bool {
+    std::env::var("AGENTPANEL_BENCH").map(|v| v == "1").unwrap_or(false)
+}
+
+/// Write benchmark results (JSON) to a temp file for external collection.
+#[tauri::command]
+fn write_bench(data: String) {
+    let _ = std::fs::write(std::env::temp_dir().join("agentpanel_bench.json"), data);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -39,6 +52,8 @@ pub fn run() {
             commands::worktree_status,
             commands::worktree_pr,
             watcher::set_watched_paths,
+            bench_requested,
+            write_bench,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
