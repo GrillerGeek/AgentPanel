@@ -17,6 +17,28 @@ function decodeBase64(b64: string): Uint8Array {
   return bytes;
 }
 
+// Nerd Fonts that carry the powerline / icon glyphs (private-use area) used by
+// modern prompts. Appended after the user's chosen font so missing icon glyphs
+// fall through to whichever of these is installed — that's what makes powerline
+// icons appear without forcing a Nerd Font as the primary face.
+const NERD_FALLBACK = [
+  "Symbols Nerd Font",
+  "CaskaydiaCove Nerd Font",
+  "Caskaydia Cove Nerd Font",
+  "FiraCode Nerd Font",
+  "JetBrainsMono Nerd Font",
+  "MesloLGS Nerd Font",
+]
+  .map((f) => `'${f}'`)
+  .join(", ");
+
+/** Compose the effective xterm font-family: user's primary, then the Nerd Font
+ *  icon fallback, then plain monospace as the last resort. */
+function composeFont(primary: string): string {
+  const p = (primary || "").trim() || "Cascadia Code";
+  return `${p}, ${NERD_FALLBACK}, Consolas, monospace`;
+}
+
 /**
  * A single terminal pane bound to one Rust PTY session.
  *
@@ -43,10 +65,13 @@ export function TerminalPane({
   const termRef = useRef<Terminal | null>(null);
   const webglRef = useRef<WebglAddon | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const sessionRef = useRef<number | null>(null);
   const setPaneSession = useStore((s) => s.setPaneSession);
   const shell = useStore((s) => s.settings.shell);
   const themeSlug = useStore((s) => s.settings.theme);
   const webglEnabled = useStore((s) => s.settings.webgl);
+  const fontFamily = useStore((s) => s.settings.fontFamily);
+  const fontSize = useStore((s) => s.settings.fontSize);
   // WebGL is attached only when the pane is both enabled and visible.
   const webglWanted = webglEnabled && active;
 
@@ -55,8 +80,8 @@ export function TerminalPane({
     if (!container) return;
 
     const term = new Terminal({
-      fontFamily: "Cascadia Code, Consolas, monospace",
-      fontSize: 14,
+      fontFamily: composeFont(fontFamily),
+      fontSize,
       cursorBlink: true,
       theme: xtermThemeFor(schemeBySlug(themeSlug)),
     });
@@ -101,6 +126,7 @@ export function TerminalPane({
           return;
         }
         sessionId = id;
+        sessionRef.current = id;
         if (paneId) setPaneSession(paneId, id);
         // Agent quick-launch: run the command once the shell is up.
         if (initialCommand) void invoke("pty_write", { id, data: initialCommand + "\r" });
@@ -146,8 +172,28 @@ export function TerminalPane({
       termRef.current = null;
       webglRef.current = null;
       fitRef.current = null;
+      sessionRef.current = null;
     };
   }, [cwd]);
+
+  // Live-apply font changes (no remount, so scrollback survives). Font metrics
+  // change the cell grid even though the container size doesn't, so the
+  // ResizeObserver won't fire — re-fit and resize the PTY explicitly here.
+  useEffect(() => {
+    const term = termRef.current;
+    if (!term) return;
+    term.options.fontFamily = composeFont(fontFamily);
+    term.options.fontSize = fontSize;
+    const id = requestAnimationFrame(() => {
+      const c = containerRef.current;
+      if (!c || c.clientWidth === 0 || c.clientHeight === 0) return;
+      fitRef.current?.fit();
+      if (sessionRef.current !== null) {
+        void invoke("pty_resize", { id: sessionRef.current, rows: term.rows, cols: term.cols });
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [fontFamily, fontSize]);
 
   // Attach/detach the WebGL renderer when the setting changes OR this pane's tab
   // shows/hides (no remount, so sessions/scrollback survive). Detaching hidden

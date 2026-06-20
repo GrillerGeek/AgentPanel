@@ -22,9 +22,10 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [shell, setShell] = useState(settings.shell);
   const [shells, setShells] = useState<ShellInfo[]>([]);
   const [customShell, setCustomShell] = useState(false);
+  const [fonts, setFonts] = useState<string[]>([]);
   const [agents, setAgents] = useState(settings.agentCommands.join(", "));
 
-  // Detect installed shells once when Settings opens.
+  // Detect installed shells + fonts once when Settings opens.
   useEffect(() => {
     let alive = true;
     void invoke<ShellInfo[]>("list_shells")
@@ -34,6 +35,9 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         // If the saved shell isn't one we detected, surface it as a custom entry.
         setCustomShell(!list.some((s) => shellMatches(s.path, settings.shell)));
       })
+      .catch(() => {});
+    void invoke<string[]>("list_fonts")
+      .then((list) => alive && setFonts(list))
       .catch(() => {});
     return () => {
       alive = false;
@@ -124,6 +128,43 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             Detected shells on this machine. New terminals use this shell; existing terminals keep
             theirs.
           </small>
+        </label>
+
+        <label className="settings-field">
+          <span>Terminal font</span>
+          <input
+            className="settings-input"
+            value={settings.fontFamily}
+            onChange={(e) => updateSettings({ fontFamily: e.currentTarget.value })}
+            list="font-list"
+            placeholder="Cascadia Code"
+          />
+          <datalist id="font-list">
+            {fonts.map((f) => (
+              <option key={f} value={f} />
+            ))}
+          </datalist>
+          <small>
+            Pick a Nerd Font (e.g. <code>FiraCode Nerd Font</code>, <code>CaskaydiaCove Nerd Font</code>)
+            for powerline / icon glyphs. Applies instantly. Ligatures aren&apos;t supported by the
+            terminal engine in a desktop webview.
+          </small>
+        </label>
+
+        <label className="settings-field">
+          <span>Font size</span>
+          <input
+            className="settings-input"
+            type="number"
+            min={8}
+            max={32}
+            value={settings.fontSize}
+            onChange={(e) => {
+              const n = Number(e.currentTarget.value);
+              if (Number.isFinite(n) && n >= 8 && n <= 32) updateSettings({ fontSize: n });
+            }}
+          />
+          <small>Terminal text size, 8–32 px. Applies instantly.</small>
         </label>
 
         <label className="settings-field">

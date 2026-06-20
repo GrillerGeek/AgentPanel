@@ -29,3 +29,7 @@ portable-pty = "0.8"
 base64 = "0.22"
 # Worktree file watching (Phase 2): emit change events to refresh status.
 notify = "6"
+
+[target.'cfg(windows)'.dependencies]
+# Enumerate installed font families (for the terminal-font picker in Settings).
+winreg = "0.52"

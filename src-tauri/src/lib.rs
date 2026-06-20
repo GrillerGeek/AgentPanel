@@ -1,4 +1,5 @@
 mod commands;
+mod fonts;
 mod gh;
 mod git;
 mod model;
@@ -54,6 +55,7 @@ pub fn run() {
             commands::worktree_pr,
             watcher::set_watched_paths,
             shells::list_shells,
+            fonts::list_fonts,
             bench_requested,
             write_bench,
         ])

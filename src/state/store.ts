@@ -22,6 +22,8 @@ const DEFAULT_SETTINGS: Settings = {
   agentCommands: ["claude", "codex"],
   theme: DEFAULT_THEME,
   webgl: true,
+  fontFamily: "Cascadia Code",
+  fontSize: 14,
 };
 function readSettings(): Settings {
   try {

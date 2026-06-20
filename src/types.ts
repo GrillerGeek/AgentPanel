@@ -41,6 +41,10 @@ export interface Settings {
   theme: string; // scheme slug
   /** xterm WebGL renderer — fast locally; turn off for smoother remote desktop */
   webgl: boolean;
+  /** primary terminal font family; a Nerd Font fallback is appended for icons */
+  fontFamily: string;
+  /** terminal font size in px */
+  fontSize: number;
 }
 
 /** An interactive shell detected on the machine (from the Rust `list_shells`). */
