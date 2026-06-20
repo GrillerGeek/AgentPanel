@@ -37,9 +37,11 @@ export function TerminalPane({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
+  const webglRef = useRef<WebglAddon | null>(null);
   const setPaneSession = useStore((s) => s.setPaneSession);
   const shell = useStore((s) => s.settings.shell);
   const themeSlug = useStore((s) => s.settings.theme);
+  const webglEnabled = useStore((s) => s.settings.webgl);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -56,11 +58,16 @@ export function TerminalPane({
     term.loadAddon(fit);
     term.open(container);
 
-    // WebGL is the fast renderer but can fail on some GPUs / headless setups.
-    try {
-      term.loadAddon(new WebglAddon());
-    } catch (e) {
-      console.warn("WebGL addon unavailable, falling back to canvas/DOM", e);
+    // WebGL is the fast renderer locally but streams poorly over remote desktop;
+    // only load it when enabled (toggled live by the effect below).
+    if (webglEnabled) {
+      try {
+        const w = new WebglAddon();
+        term.loadAddon(w);
+        webglRef.current = w;
+      } catch (e) {
+        console.warn("WebGL addon unavailable, falling back to canvas/DOM", e);
+      }
     }
 
     fit.fit();
@@ -113,10 +120,30 @@ export function TerminalPane({
       observer.disconnect();
       dataSub.dispose();
       if (sessionId !== null) void invoke("pty_close", { id: sessionId });
-      term.dispose();
+      term.dispose(); // also disposes loaded addons (incl. WebGL)
       termRef.current = null;
+      webglRef.current = null;
     };
   }, [cwd]);
+
+  // Live-toggle the WebGL renderer when the setting changes (no remount, so
+  // sessions/scrollback survive). Off = CPU rendering = smoother remote desktop.
+  useEffect(() => {
+    const term = termRef.current;
+    if (!term) return;
+    if (webglEnabled && !webglRef.current) {
+      try {
+        const w = new WebglAddon();
+        term.loadAddon(w);
+        webglRef.current = w;
+      } catch (e) {
+        console.warn("WebGL addon unavailable", e);
+      }
+    } else if (!webglEnabled && webglRef.current) {
+      webglRef.current.dispose();
+      webglRef.current = null;
+    }
+  }, [webglEnabled]);
 
   // Live-update the terminal colors when the theme changes (no remount).
   useEffect(() => {

@@ -39,6 +39,8 @@ export interface Settings {
   shell: string;
   agentCommands: string[];
   theme: string; // scheme slug
+  /** xterm WebGL renderer — fast locally; turn off for smoother remote desktop */
+  webgl: boolean;
 }
 
 /** A transient notification (e.g. a failed git/gh op). */

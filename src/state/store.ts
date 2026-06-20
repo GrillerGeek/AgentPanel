@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS: Settings = {
   shell: "powershell.exe",
   agentCommands: ["claude", "codex"],
   theme: DEFAULT_THEME,
+  webgl: true,
 };
 function readSettings(): Settings {
   try {

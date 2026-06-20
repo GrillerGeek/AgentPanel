@@ -83,6 +83,18 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           <small>Comma-separated. Shown as quick-launch buttons on the tab bar.</small>
         </label>
 
+        <div className="settings-field">
+          <label className="settings-check">
+            <input
+              type="checkbox"
+              checked={settings.webgl}
+              onChange={(e) => updateSettings({ webgl: e.currentTarget.checked })}
+            />
+            <span>GPU acceleration (WebGL)</span>
+          </label>
+          <small>On = fastest locally. Turn off for smoother remote desktop (RustDesk / RDP).</small>
+        </div>
+
         <div className="settings-actions">
           <button className="add-btn" onClick={save}>
             Save

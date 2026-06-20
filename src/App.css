@@ -352,6 +352,19 @@ body,
   outline: none;
   border-color: var(--accent);
 }
+.settings-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--fg);
+}
+.settings-check input {
+  cursor: pointer;
+}
+
 .settings-actions {
   display: flex;
   gap: 8px;
