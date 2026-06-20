@@ -39,6 +39,13 @@ export interface Settings {
   theme: string; // scheme slug
 }
 
+/** A transient notification (e.g. a failed git/gh op). */
+export interface Toast {
+  id: number;
+  message: string;
+  kind: "error" | "info";
+}
+
 /** Pull-request info for a worktree branch (via gh). */
 export interface PrInfo {
   number: number;

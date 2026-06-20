@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { Sidebar } from "./components/Sidebar";
 import { TabBar } from "./components/TabBar";
+import { Toasts } from "./components/Toasts";
 import { useStore } from "./state/store";
 import { applyTheme, schemeBySlug } from "./themes/apply";
 import "./App.css";
@@ -130,6 +131,7 @@ function App() {
           </button>
         </span>
       </header>
+      <Toasts />
       {paletteOpen && (
         <Suspense fallback={null}>
           <CommandPalette onClose={() => setPaletteOpen(false)} />
@@ -159,7 +161,7 @@ function App() {
                     className="terminal-host"
                     style={{ display: t.id === activeTabId ? "flex" : "none" }}
                   >
-                    {t.panes.map((pane) => (
+                    {t.panes.map((pane, paneIndex) => (
                       <div key={pane.id} className="pane-wrap">
                         {t.panes.length > 1 && (
                           <button
@@ -170,7 +172,12 @@ function App() {
                             ✕
                           </button>
                         )}
-                        <TerminalPane cwd={t.cwd} paneId={pane.id} initialCommand={pane.initialCommand} />
+                        <TerminalPane
+                          cwd={t.cwd}
+                          paneId={pane.id}
+                          initialCommand={pane.initialCommand}
+                          autoFocus={t.id === activeTabId && paneIndex === 0}
+                        />
                       </div>
                     ))}
                   </div>

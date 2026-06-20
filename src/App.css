@@ -603,3 +603,33 @@ body,
   width: 100%;
   height: 100%;
 }
+
+/* ---- Toasts ---- */
+.toasts {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 380px;
+}
+.toast {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 12px;
+  color: var(--fg);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  word-break: break-word;
+}
+.toast-error {
+  border-left-color: var(--red);
+}
+.toast-info {
+  border-left-color: var(--accent);
+}

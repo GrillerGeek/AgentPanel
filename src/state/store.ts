@@ -1,8 +1,10 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { Pane, PrInfo, Repository, Settings, TerminalTab, Worktree, WorktreeStatus } from "../types";
+import type { Pane, PrInfo, Repository, Settings, TerminalTab, Toast, Worktree, WorktreeStatus } from "../types";
 import { DEFAULT_THEME } from "../themes/apply";
+
+let toastSeq = 0;
 
 let tabSeq = 0;
 const nextTabId = () => `t${++tabSeq}`;
@@ -46,6 +48,8 @@ interface AppState {
   /** paneId -> Rust PTY session id, so panes can be closed deterministically */
   paneSessions: Record<string, number>;
   settings: Settings;
+  /** transient error/info notifications */
+  toasts: Toast[];
 
   loadRepositories: () => Promise<void>;
   addRepository: () => Promise<void>;
@@ -75,6 +79,8 @@ interface AppState {
   setPaneSession: (paneId: string, sessionId: number) => void;
   /** close (await) all panes for a worktree so its directory is unlocked */
   closeWorktreeTerminals: (worktreeId: string) => Promise<void>;
+  pushToast: (message: string, kind?: Toast["kind"]) => void;
+  dismissToast: (id: number) => void;
 }
 
 /** Build a fresh single-pane tab for a worktree. */
@@ -92,6 +98,7 @@ export const useStore = create<AppState>((set, get) => ({
   activeTabId: null,
   paneSessions: {},
   settings: readSettings(),
+  toasts: [],
 
   loadRepositories: async () => {
     const repositories = await invoke<Repository[]>("list_repositories");
@@ -104,7 +111,13 @@ export const useStore = create<AppState>((set, get) => ({
   addRepository: async () => {
     const path = await open({ directory: true, multiple: false, title: "Add repository or folder" });
     if (typeof path !== "string") return; // cancelled
-    const repo = await invoke<Repository>("add_repository", { path });
+    let repo: Repository;
+    try {
+      repo = await invoke<Repository>("add_repository", { path });
+    } catch (err) {
+      get().pushToast(`Couldn't add repository: ${err}`);
+      return;
+    }
     set((s) =>
       s.repositories.some((r) => r.id === repo.id)
         ? s
@@ -114,7 +127,12 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   removeRepository: async (id) => {
-    await invoke("remove_repository", { id });
+    try {
+      await invoke("remove_repository", { id });
+    } catch (err) {
+      get().pushToast(`Couldn't remove repository: ${err}`);
+      return;
+    }
     set((s) => {
       const wtIds = new Set((s.worktrees[id] ?? []).map((w) => w.id));
       const worktrees = { ...s.worktrees };
@@ -245,8 +263,12 @@ export const useStore = create<AppState>((set, get) => ({
     // Kill the worktree's terminals FIRST so the OS releases the directory
     // (on Windows a shell's cwd locks the dir and blocks `git worktree remove`).
     await get().closeWorktreeTerminals(worktreePath);
-    const list = await invoke<Worktree[]>("delete_worktree", { repoId, worktreePath });
-    set((s) => ({ worktrees: { ...s.worktrees, [repoId]: list } }));
+    try {
+      const list = await invoke<Worktree[]>("delete_worktree", { repoId, worktreePath });
+      set((s) => ({ worktrees: { ...s.worktrees, [repoId]: list } }));
+    } catch (err) {
+      get().pushToast(`Couldn't remove worktree: ${err}`);
+    }
   },
 
   openWorktreeTerminal: (wt) => {
@@ -354,6 +376,14 @@ export const useStore = create<AppState>((set, get) => ({
       return { terminals, paneSessions, activeTabId };
     });
   },
+
+  pushToast: (message, kind = "error") => {
+    const id = ++toastSeq;
+    set((s) => ({ toasts: [...s.toasts, { id, message, kind }] }));
+    setTimeout(() => get().dismissToast(id), 6000);
+  },
+
+  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 }));
 
 // Persist open terminal tabs (ephemeral UI session) to localStorage on change.

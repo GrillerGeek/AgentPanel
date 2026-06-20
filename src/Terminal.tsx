@@ -28,10 +28,12 @@ export function TerminalPane({
   cwd,
   paneId,
   initialCommand,
+  autoFocus,
 }: {
   cwd?: string;
   paneId?: string;
   initialCommand?: string;
+  autoFocus?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
@@ -120,6 +122,14 @@ export function TerminalPane({
   useEffect(() => {
     if (termRef.current) termRef.current.options.theme = xtermThemeFor(schemeBySlug(themeSlug));
   }, [themeSlug]);
+
+  // Focus this terminal when its tab becomes active, so keystrokes go straight
+  // to it without a click. (A short rAF lets the host become visible first.)
+  useEffect(() => {
+    if (!autoFocus) return;
+    const id = requestAnimationFrame(() => termRef.current?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [autoFocus]);
 
   return <div ref={containerRef} className="terminal-pane" />;
 }
