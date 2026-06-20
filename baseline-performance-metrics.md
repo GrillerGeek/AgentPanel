@@ -181,3 +181,21 @@ drag-to-reorder tabs.
   — it's unreliable under the headless Session-0 WebView2 used for automated runs (the release
   webview doesn't paint without an interactive desktop). Measure time-to-interactive on a real
   desktop (DevTools Performance / `performance.now()` at first paint).
+
+### Regression caught & fixed — UI-thread blocking on window drag (`eff75e0`)
+
+While verifying perf on a real desktop, window **move/resize froze for ~2s and stalled the
+whole desktop** — a regression introduced by the G3 catch-up refresh, not an environment issue
+(RustDesk / GPU / occlusion were all ruled out; a bisect against pre-perf code located it).
+
+- **Cause:** `worktree_status` / `worktree_pr` / `list_worktrees` were *synchronous* Tauri
+  commands. Tauri runs sync commands **on the main UI thread**, and `worktree_pr` calls `gh`
+  (a 1–2s network round-trip). G3's new `focus`/`visibilitychange` catch-up fired those
+  refreshes, and WebView2 emits a **burst of focus/visibility events during the modal
+  window-drag loop** → blocking git/gh on the UI thread mid-drag → window (and desktop input
+  queue) frozen for the duration of the `gh` call.
+- **Fix:** those three commands are now `async` + `tauri::async_runtime::spawn_blocking`, so the
+  blocking subprocess work never touches the UI thread; the catch-up is debounced ~300ms so a
+  drag collapses to one refresh. Drag confirmed smooth on the real desktop. No test regressions.
+- **Rule of thumb for this codebase:** any `#[tauri::command]` that shells out to git/gh (or does
+  other blocking I/O) MUST be `async` + `spawn_blocking` — a sync command blocks the window.
