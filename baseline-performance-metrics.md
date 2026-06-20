@@ -134,3 +134,28 @@ capture next:
 - **Terminal render throughput** (e.g. `cat`/`Get-Content` of a large file → MB/s, dropped frames).
 - **Idle CPU** (status poll + watcher overhead, with many worktrees).
 - **Status-update latency** (file change → sidebar badge update, watcher path).
+
+---
+
+## Goal progress (perf + UX optimization)
+
+| Target | Baseline | Current | Status |
+|---|---|---|---|
+| Initial JS ≤ 80 KB gz | 168 KB (1 chunk) | **68.84 KB** | ✅ |
+| Warm startup → window ≤ 350 ms | 481 ms (cold anomaly) | **47 ms** (window-handle, warm) | ✅ literal target; time-to-interactive needs a real-desktop measure |
+| Idle CPU < 1% @ 10 worktrees | unmeasured | — | pending (G3) |
+| Responsive @ 25 terminals | unmeasured | — | pending (harness) |
+| Input latency p95 ≤ 16 ms | unmeasured | — | pending (harness) |
+| UX: auto-focus / toasts / drag-resize / drag-reorder | — | — | pending (G4–G7) |
+
+### G1 — lazy-load xterm + code-split (done)
+
+- Initial JS: **599 KB → 216 KB raw / 168 KB → 68.84 KB gzip** (2.4× smaller). xterm.js moved to a
+  98 KB-gz `Terminal` chunk that loads on first terminal; command palette / settings are
+  <1.2 KB-gz on-demand chunks. CSS also split (Terminal CSS deferred).
+- Verified: identical frontend renders correctly (dev Tauri webview wrote a startup marker;
+  Playwright snapshot of the shell). No test regressions (10 frontend + 6 Rust).
+- Method note: a temp-file startup marker was trialed for a time-to-interactive number but **removed**
+  — it's unreliable under the headless Session-0 WebView2 used for automated runs (the release
+  webview doesn't paint without an interactive desktop). Measure time-to-interactive on a real
+  desktop (DevTools Performance / `performance.now()` at first paint).

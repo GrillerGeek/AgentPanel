@@ -1,13 +1,20 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { Sidebar } from "./components/Sidebar";
 import { TabBar } from "./components/TabBar";
-import { CommandPalette } from "./components/CommandPalette";
-import { SettingsModal } from "./components/SettingsModal";
-import { TerminalPane } from "./Terminal";
 import { useStore } from "./state/store";
 import { applyTheme, schemeBySlug } from "./themes/apply";
 import "./App.css";
+
+// Lazy-loaded so the heavy xterm engine and on-demand modals are split out of
+// the initial bundle (they only matter once a terminal opens / a modal opens).
+const TerminalPane = lazy(() => import("./Terminal").then((m) => ({ default: m.TerminalPane })));
+const CommandPalette = lazy(() =>
+  import("./components/CommandPalette").then((m) => ({ default: m.CommandPalette })),
+);
+const SettingsModal = lazy(() =>
+  import("./components/SettingsModal").then((m) => ({ default: m.SettingsModal })),
+);
 
 function App() {
   const loadRepositories = useStore((s) => s.loadRepositories);
@@ -123,8 +130,16 @@ function App() {
           </button>
         </span>
       </header>
-      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
-      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      {paletteOpen && (
+        <Suspense fallback={null}>
+          <CommandPalette onClose={() => setPaletteOpen(false)} />
+        </Suspense>
+      )}
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <SettingsModal onClose={() => setSettingsOpen(false)} />
+        </Suspense>
+      )}
       <div className="body">
         <Sidebar />
         <main className="content">
@@ -135,7 +150,9 @@ function App() {
               <TabBar />
               <div className="terminal-stack">
                 {/* All tabs (and their panes) stay mounted so PTYs keep running
-                    in parallel; only the active tab is visible. */}
+                    in parallel; only the active tab is visible. The xterm chunk
+                    loads on first terminal (Suspense). */}
+                <Suspense fallback={null}>
                 {terminals.map((t) => (
                   <div
                     key={t.id}
@@ -158,6 +175,7 @@ function App() {
                     ))}
                   </div>
                 ))}
+                </Suspense>
               </div>
             </>
           )}
