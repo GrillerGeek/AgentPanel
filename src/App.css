@@ -577,8 +577,14 @@ body,
   min-width: 0;
   height: 100%;
 }
-.pane-wrap + .pane-wrap {
-  border-left: 1px solid var(--border);
+.pane-divider {
+  flex: 0 0 5px;
+  align-self: stretch;
+  cursor: col-resize;
+  background: var(--border);
+}
+.pane-divider:hover {
+  background: var(--accent);
 }
 
 .pane-close {

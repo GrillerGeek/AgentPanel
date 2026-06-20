@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useStore } from "../state/store";
 
 export function TabBar() {
@@ -7,8 +8,10 @@ export function TabBar() {
   const closeTab = useStore((s) => s.closeTab);
   const duplicateActiveTerminal = useStore((s) => s.duplicateActiveTerminal);
   const splitActiveTab = useStore((s) => s.splitActiveTab);
+  const reorderTab = useStore((s) => s.reorderTab);
   const runAgentInActive = useStore((s) => s.runAgentInActive);
   const agentCommands = useStore((s) => s.settings.agentCommands);
+  const dragId = useRef<string | null>(null);
 
   const activeTab = terminals.find((t) => t.id === activeTabId);
   const canSplit = !!activeTab && activeTab.panes.length < 2;
@@ -21,6 +24,15 @@ export function TabBar() {
           className={`tab ${t.id === activeTabId ? "active" : ""}`}
           onClick={() => setActiveTab(t.id)}
           title={t.cwd}
+          draggable
+          onDragStart={() => {
+            dragId.current = t.id;
+          }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={() => {
+            if (dragId.current) reorderTab(dragId.current, t.id);
+            dragId.current = null;
+          }}
         >
           <span className="tab-title">{t.title}</span>
           <button

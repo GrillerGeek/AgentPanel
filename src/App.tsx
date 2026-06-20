@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Fragment, lazy, Suspense, useEffect, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { Sidebar } from "./components/Sidebar";
 import { TabBar } from "./components/TabBar";
@@ -17,6 +18,26 @@ const SettingsModal = lazy(() =>
   import("./components/SettingsModal").then((m) => ({ default: m.SettingsModal })),
 );
 
+/** Draggable divider between the two panes of a split tab. */
+function PaneDivider({ onResize }: { onResize: (ratio: number) => void }) {
+  const onPointerDown = (e: ReactPointerEvent) => {
+    e.preventDefault();
+    const host = e.currentTarget.parentElement as HTMLElement;
+    const rect = host.getBoundingClientRect();
+    const move = (ev: PointerEvent) => {
+      const r = (ev.clientX - rect.left) / rect.width;
+      onResize(Math.min(0.85, Math.max(0.15, r)));
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  return <div className="pane-divider" onPointerDown={onPointerDown} title="Drag to resize" />;
+}
+
 function App() {
   const loadRepositories = useStore((s) => s.loadRepositories);
   const refreshStatuses = useStore((s) => s.refreshStatuses);
@@ -24,6 +45,7 @@ function App() {
   const terminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
   const closePane = useStore((s) => s.closePane);
+  const setSplitRatio = useStore((s) => s.setSplitRatio);
   const theme = useStore((s) => s.settings.theme);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -161,25 +183,37 @@ function App() {
                     className="terminal-host"
                     style={{ display: t.id === activeTabId ? "flex" : "none" }}
                   >
-                    {t.panes.map((pane, paneIndex) => (
-                      <div key={pane.id} className="pane-wrap">
-                        {t.panes.length > 1 && (
-                          <button
-                            className="pane-close"
-                            title="Close pane"
-                            onClick={() => closePane(t.id, pane.id)}
+                    {t.panes.map((pane, paneIndex) => {
+                      const ratio = t.splitRatio ?? 0.5;
+                      const split = t.panes.length === 2;
+                      return (
+                        <Fragment key={pane.id}>
+                          {paneIndex === 1 && (
+                            <PaneDivider onResize={(r) => setSplitRatio(t.id, r)} />
+                          )}
+                          <div
+                            className="pane-wrap"
+                            style={split ? { flexGrow: paneIndex === 0 ? ratio : 1 - ratio } : undefined}
                           >
-                            ✕
-                          </button>
-                        )}
-                        <TerminalPane
-                          cwd={t.cwd}
-                          paneId={pane.id}
-                          initialCommand={pane.initialCommand}
-                          autoFocus={t.id === activeTabId && paneIndex === 0}
-                        />
-                      </div>
-                    ))}
+                            {t.panes.length > 1 && (
+                              <button
+                                className="pane-close"
+                                title="Close pane"
+                                onClick={() => closePane(t.id, pane.id)}
+                              >
+                                ✕
+                              </button>
+                            )}
+                            <TerminalPane
+                              cwd={t.cwd}
+                              paneId={pane.id}
+                              initialCommand={pane.initialCommand}
+                              autoFocus={t.id === activeTabId && paneIndex === 0}
+                            />
+                          </div>
+                        </Fragment>
+                      );
+                    })}
                   </div>
                 ))}
                 </Suspense>

@@ -77,6 +77,10 @@ interface AppState {
   updateSettings: (partial: Partial<Settings>) => void;
   setActiveTab: (id: string) => void;
   setPaneSession: (paneId: string, sessionId: number) => void;
+  /** set the split ratio for a 2-pane tab (drag-resize) */
+  setSplitRatio: (tabId: string, ratio: number) => void;
+  /** move tab `fromId` to the position of `toId` (drag-reorder) */
+  reorderTab: (fromId: string, toId: string) => void;
   /** close (await) all panes for a worktree so its directory is unlocked */
   closeWorktreeTerminals: (worktreeId: string) => Promise<void>;
   pushToast: (message: string, kind?: Toast["kind"]) => void;
@@ -335,6 +339,23 @@ export const useStore = create<AppState>((set, get) => ({
 
   setPaneSession: (paneId, sessionId) =>
     set((s) => ({ paneSessions: { ...s.paneSessions, [paneId]: sessionId } })),
+
+  setSplitRatio: (tabId, ratio) =>
+    set((s) => ({
+      terminals: s.terminals.map((t) => (t.id === tabId ? { ...t, splitRatio: ratio } : t)),
+    })),
+
+  reorderTab: (fromId, toId) =>
+    set((s) => {
+      if (fromId === toId) return s;
+      const arr = [...s.terminals];
+      const from = arr.findIndex((t) => t.id === fromId);
+      const to = arr.findIndex((t) => t.id === toId);
+      if (from < 0 || to < 0) return s;
+      const [moved] = arr.splice(from, 1);
+      arr.splice(to, 0, moved);
+      return { terminals: arr };
+    }),
 
   updateSettings: (partial) =>
     set((s) => {

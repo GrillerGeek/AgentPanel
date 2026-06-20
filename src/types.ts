@@ -30,6 +30,8 @@ export interface TerminalTab {
   cwd: string;
   title: string;
   panes: Pane[];
+  /** for a 2-pane split: fraction of width given to the first pane (0.15–0.85) */
+  splitRatio?: number;
 }
 
 /** User settings (persisted in localStorage). */
