@@ -43,6 +43,14 @@ export interface Settings {
   webgl: boolean;
 }
 
+/** An interactive shell detected on the machine (from the Rust `list_shells`). */
+export interface ShellInfo {
+  /** Friendly name shown in Settings, e.g. "PowerShell 7". */
+  label: string;
+  /** Resolved path (or bare command) passed to the PTY. */
+  path: string;
+}
+
 /** A transient notification (e.g. a failed git/gh op). */
 export interface Toast {
   id: number;

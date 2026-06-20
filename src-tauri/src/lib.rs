@@ -3,6 +3,7 @@ mod gh;
 mod git;
 mod model;
 mod pty;
+mod shells;
 mod store;
 mod watcher;
 
@@ -52,6 +53,7 @@ pub fn run() {
             commands::worktree_status,
             commands::worktree_pr,
             watcher::set_watched_paths,
+            shells::list_shells,
             bench_requested,
             write_bench,
         ])

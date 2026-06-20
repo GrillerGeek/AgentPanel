@@ -1,15 +1,57 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "../state/store";
 import { SCHEMES } from "../themes/schemes";
+import type { ShellInfo } from "../types";
 
-const SHELL_PRESETS = ["pwsh.exe", "powershell.exe", "cmd.exe"];
+const CUSTOM = "__custom__";
+
+/** A saved shell matches a detected one by full path or by bare exe name (so a
+ *  legacy "powershell.exe" still resolves to the detected "Windows PowerShell"). */
+function shellMatches(detectedPath: string, saved: string): boolean {
+  const norm = (s: string) => s.toLowerCase();
+  if (norm(detectedPath) === norm(saved)) return true;
+  const base = detectedPath.split(/[\\/]/).pop() ?? detectedPath;
+  return norm(base) === norm(saved);
+}
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const settings = useStore((s) => s.settings);
   const updateSettings = useStore((s) => s.updateSettings);
 
   const [shell, setShell] = useState(settings.shell);
+  const [shells, setShells] = useState<ShellInfo[]>([]);
+  const [customShell, setCustomShell] = useState(false);
   const [agents, setAgents] = useState(settings.agentCommands.join(", "));
+
+  // Detect installed shells once when Settings opens.
+  useEffect(() => {
+    let alive = true;
+    void invoke<ShellInfo[]>("list_shells")
+      .then((list) => {
+        if (!alive) return;
+        setShells(list);
+        // If the saved shell isn't one we detected, surface it as a custom entry.
+        setCustomShell(!list.some((s) => shellMatches(s.path, settings.shell)));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [settings.shell]);
+
+  const onPickShell = (value: string) => {
+    if (value === CUSTOM) {
+      setCustomShell(true);
+    } else {
+      setCustomShell(false);
+      setShell(value);
+    }
+  };
+
+  const shellSelectValue = customShell
+    ? CUSTOM
+    : (shells.find((s) => shellMatches(s.path, shell))?.path ?? CUSTOM);
 
   const save = () => {
     updateSettings({
@@ -57,19 +99,31 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 
         <label className="settings-field">
           <span>Shell</span>
-          <input
+          <select
             className="settings-input"
-            value={shell}
-            onChange={(e) => setShell(e.currentTarget.value)}
-            list="shell-presets"
-            placeholder="powershell.exe"
-          />
-          <datalist id="shell-presets">
-            {SHELL_PRESETS.map((s) => (
-              <option key={s} value={s} />
+            value={shellSelectValue}
+            onChange={(e) => onPickShell(e.currentTarget.value)}
+          >
+            {shells.map((s) => (
+              <option key={s.path} value={s.path}>
+                {s.label}
+              </option>
             ))}
-          </datalist>
-          <small>New terminals use this shell. Existing terminals keep theirs.</small>
+            <option value={CUSTOM}>Custom…</option>
+          </select>
+          {customShell && (
+            <input
+              className="settings-input"
+              style={{ marginTop: 6 }}
+              value={shell}
+              onChange={(e) => setShell(e.currentTarget.value)}
+              placeholder="full path to a shell executable"
+            />
+          )}
+          <small>
+            Detected shells on this machine. New terminals use this shell; existing terminals keep
+            theirs.
+          </small>
         </label>
 
         <label className="settings-field">
