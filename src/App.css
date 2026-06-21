@@ -228,7 +228,8 @@ body,
 .session-branch {
   min-width: 0;
   font-size: 13px;
-  color: var(--fg-strong);
+  color: var(--accent);
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -805,6 +806,8 @@ kbd {
 }
 
 .wt-name {
+  color: var(--accent);
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
