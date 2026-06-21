@@ -5,11 +5,12 @@ import { listen } from "@tauri-apps/api/event";
 import { Sidebar } from "./components/Sidebar";
 import { TabBar } from "./components/TabBar";
 import { Toasts } from "./components/Toasts";
-import { useStore } from "./state/store";
+import { useStore, worktreeLabels } from "./state/store";
 import { snapshotStates } from "./state/agentRuntime";
 import type { AgentState } from "./state/activity";
 import { applyTheme, schemeBySlug } from "./themes/apply";
 import { runBenchmark } from "./lib/bench";
+import { notify } from "./lib/notify";
 import "./App.css";
 
 /** Shallow-equal two paneId->state maps, to skip no-op ticker updates. */
@@ -106,7 +107,33 @@ function App() {
     const t = setInterval(() => {
       const next = snapshotStates(Date.now());
       const st = useStore.getState();
-      if (!sameAgentStatus(st.agentStatus, next)) st.setAgentStatus(next);
+      const prev = st.agentStatus;
+      if (sameAgentStatus(prev, next)) return;
+
+      // Notify (OS + clickable in-app toast) when a NON-active agent newly needs
+      // input or finishes — that's the keystone from the UX study.
+      if (st.settings.notifications) {
+        const activePanes = new Set(
+          (st.terminals.find((tt) => tt.id === st.activeTabId)?.panes ?? []).map((p) => p.id),
+        );
+        for (const paneId of Object.keys(next)) {
+          const state = next[paneId];
+          if (
+            (state === "awaiting" || state === "exited") &&
+            prev[paneId] !== state &&
+            !activePanes.has(paneId)
+          ) {
+            const tab = st.terminals.find((tt) => tt.panes.some((p) => p.id === paneId));
+            if (!tab) continue;
+            const lbl = worktreeLabels(st.repositories, st.worktrees)[tab.worktreeId];
+            const where = lbl ? `${lbl.repo} / ${lbl.branch}` : tab.title;
+            const msg = state === "awaiting" ? `Agent needs input — ${where}` : `Agent finished — ${where}`;
+            st.pushToast(msg, "info", tab.id);
+            void notify("AgentPanel", msg);
+          }
+        }
+      }
+      st.setAgentStatus(next);
     }, 1000);
     return () => clearInterval(t);
   }, []);

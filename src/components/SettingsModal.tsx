@@ -190,6 +190,21 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           <small>On = fastest locally. Turn off for smoother remote desktop (RustDesk / RDP).</small>
         </div>
 
+        <div className="settings-field">
+          <label className="settings-check">
+            <input
+              type="checkbox"
+              checked={settings.notifications}
+              onChange={(e) => updateSettings({ notifications: e.currentTarget.checked })}
+            />
+            <span>Agent notifications</span>
+          </label>
+          <small>
+            Notify (OS + in-app) when a background agent finishes or needs input. Click the in-app
+            toast to jump to that terminal.
+          </small>
+        </div>
+
         <div className="settings-actions">
           <button className="add-btn" onClick={save}>
             Save

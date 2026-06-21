@@ -25,6 +25,7 @@ const DEFAULT_SETTINGS: Settings = {
   webgl: true,
   fontFamily: "Cascadia Code",
   fontSize: 14,
+  notifications: true,
 };
 function readSettings(): Settings {
   try {
@@ -98,7 +99,7 @@ interface AppState {
   reorderTab: (fromId: string, toId: string) => void;
   /** close (await) all panes for a worktree so its directory is unlocked */
   closeWorktreeTerminals: (worktreeId: string) => Promise<void>;
-  pushToast: (message: string, kind?: Toast["kind"]) => void;
+  pushToast: (message: string, kind?: Toast["kind"], focusTabId?: string) => void;
   dismissToast: (id: number) => void;
 }
 
@@ -443,9 +444,9 @@ export const useStore = create<AppState>((set, get) => ({
     });
   },
 
-  pushToast: (message, kind = "error") => {
+  pushToast: (message, kind = "error", focusTabId) => {
     const id = ++toastSeq;
-    set((s) => ({ toasts: [...s.toasts, { id, message, kind }] }));
+    set((s) => ({ toasts: [...s.toasts, { id, message, kind, focusTabId }] }));
     setTimeout(() => get().dismissToast(id), 6000);
   },
 

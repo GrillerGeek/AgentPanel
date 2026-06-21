@@ -791,3 +791,6 @@ body,
 .toast-info {
   border-left-color: var(--accent);
 }
+.toast-action:hover {
+  border-color: var(--accent);
+}

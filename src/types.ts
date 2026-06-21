@@ -45,6 +45,8 @@ export interface Settings {
   fontFamily: string;
   /** terminal font size in px */
   fontSize: number;
+  /** OS + in-app notifications when a background agent finishes / needs input */
+  notifications: boolean;
 }
 
 /** An interactive shell detected on the machine (from the Rust `list_shells`). */
@@ -55,11 +57,13 @@ export interface ShellInfo {
   path: string;
 }
 
-/** A transient notification (e.g. a failed git/gh op). */
+/** A transient notification (e.g. a failed git/gh op, or an agent update). */
 export interface Toast {
   id: number;
   message: string;
   kind: "error" | "info";
+  /** if set, clicking the toast activates this tab (jump-to-session) */
+  focusTabId?: string;
 }
 
 /** Pull-request info for a worktree branch (via gh). */

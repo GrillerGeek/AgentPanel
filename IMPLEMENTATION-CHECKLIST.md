@@ -46,12 +46,12 @@ follow in parallel. Theme 4 depends on Theme 1's state.
 - [ ] (optional) indicator on the worktree row in `src/components/Sidebar.tsx`
 
 ### 1E · Notifications (depends on 1C)
-- [ ] Add `tauri-plugin-notification` (Rust dep + `@tauri-apps/plugin-notification` + capability/permission entry)
-- [ ] Request notification permission on first use
-- [ ] Fire an OS notification on transition to `awaiting-input` and to `exited` **for non-active sessions only**; clicking it focuses that session (`setActiveWorktree` + `setActiveTab` + window focus)
-- [ ] Mirror as an in-app toast (reuse `src/components/Toasts.tsx`)
-- [ ] Add a Settings toggle for notifications (default on)
-- [ ] **Acceptance:** run an agent that prints a `(y/n)` prompt in a background worktree → its dot shows "awaiting input" and a notification fires; clicking it jumps to that session
+- [x] Add `tauri-plugin-notification` (Rust dep + `@tauri-apps/plugin-notification` + `notification:default` capability)
+- [x] Request notification permission on first use (`src/lib/notify.ts`, cached)
+- [x] Fire an OS notification on transition to `awaiting` and `exited` **for non-active sessions only**; the clickable in-app toast activates that session's tab (`setActiveTab`)
+- [x] Mirror as an in-app toast (`src/components/Toasts.tsx`, now clickable via `focusTabId`)
+- [x] Add a Settings toggle for notifications (default on)
+- [ ] **Acceptance (manual — needs a real agent):** run an agent that prints a `(y/n)` prompt in a background worktree → its dot shows "awaiting input" and a notification fires; clicking the toast jumps to that session
 
 ---
 
