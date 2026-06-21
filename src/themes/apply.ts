@@ -52,6 +52,9 @@ const VAR_MAP: ReadonlyArray<readonly [string, number]> = [
   ["--fg-strong", 6],
   ["--white", 6],
   ["--accent", 13],
+  // A second, distinct accent (base0E — purple/magenta) for repo names, so they
+  // read as a different hue from the branch's blue accent.
+  ["--accent2", 14],
   ["--selection", 2],
   ["--selection-fg", 6],
   ["--green", 11],

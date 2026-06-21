@@ -14,6 +14,7 @@
   --fg-muted: #a9b1d6;
   --fg-dim: #565f89;
   --accent: #7aa2f7;
+  --accent2: #bb9af7;
   --accent-fg: #0b0c14;
   --selection: #292e42;
   --selection-fg: #cbd0e8;
@@ -237,7 +238,7 @@ body,
 .session-repo {
   min-width: 0;
   font-size: 11px;
-  color: color-mix(in srgb, var(--accent) 55%, var(--fg-strong));
+  color: var(--accent2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -304,7 +305,7 @@ body,
 }
 
 .repo-name {
-  color: color-mix(in srgb, var(--accent) 55%, var(--fg-strong));
+  color: var(--accent2);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -855,7 +856,7 @@ kbd {
   white-space: nowrap;
 }
 .ctx-repo {
-  color: color-mix(in srgb, var(--accent) 55%, var(--fg-strong));
+  color: var(--accent2);
 }
 .ctx-sep {
   color: var(--fg-dim);
