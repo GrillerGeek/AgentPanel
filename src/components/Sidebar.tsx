@@ -3,6 +3,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useStore, selectActiveWorktreeId } from "../state/store";
 import { sortWorktrees, aggregateAgentState, type AgentState } from "../state/activity";
 import { ActiveSessions } from "./ActiveSessions";
+import logoIcon from "../../resources/AgentPanelIcon-NoText.png";
 import type { Repository, Worktree } from "../types";
 
 function NewWorktreeForm({ repo }: { repo: Repository }) {
@@ -294,6 +295,7 @@ export function Sidebar() {
       <div className="repo-list">
         {repositories.length === 0 && (
           <div className="first-run">
+            <img className="first-run-logo" src={logoIcon} alt="AgentPanel" />
             <p className="first-run-title">Run AI coding agents in parallel.</p>
             <p className="first-run-sub">
               Each agent gets its own git worktree (an isolated branch + folder) and its own

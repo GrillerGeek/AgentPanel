@@ -12,6 +12,7 @@ import type { AgentState } from "./state/activity";
 import { applyTheme, schemeBySlug } from "./themes/apply";
 import { runBenchmark } from "./lib/bench";
 import { notify } from "./lib/notify";
+import logoIcon from "../resources/AgentPanelIcon-NoText.png";
 import "./App.css";
 
 /** Shallow-equal two paneId->state maps, to skip no-op ticker updates. */
@@ -280,7 +281,10 @@ function App() {
   return (
     <div className="app">
       <header className="titlebar">
-        <span>AgentPanel</span>
+        <span className="titlebar-brand">
+          <img className="app-logo" src={logoIcon} alt="" />
+          AgentPanel
+        </span>
         <span className="titlebar-right">
           <span className="titlebar-hint">Ctrl+Shift+P</span>
           <button className="gear" title="Settings" onClick={() => setSettingsOpen(true)}>

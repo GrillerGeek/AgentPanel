@@ -63,6 +63,26 @@ body,
   padding: 1px 6px;
 }
 
+.titlebar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--fg-strong);
+}
+.app-logo {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  display: block;
+}
+.first-run-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  display: block;
+  margin-bottom: 10px;
+}
+
 /* ---- Command palette ---- */
 .palette-backdrop {
   position: fixed;
