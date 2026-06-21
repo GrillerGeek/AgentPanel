@@ -65,19 +65,33 @@ export function TabBar() {
   const setTabColor = useStore((s) => s.setTabColor);
 
   // Right-click context menu (rename + color), positioned at the cursor.
-  const [menu, setMenu] = useState<{ tabId: string; x: number; y: number } | null>(null);
+  const [menu, setMenu] = useState<{
+    tabId: string;
+    x: number;
+    y: number;
+    original: string;
+  } | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const openMenu = (e: ReactMouseEvent, tabId: string, label: string) => {
     e.preventDefault();
     setRenameValue(label);
-    setMenu({ tabId, x: e.clientX, y: e.clientY });
+    setMenu({ tabId, x: e.clientX, y: e.clientY, original: label });
   };
+  // Commit a pending rename and close. Only renames if the text actually changed
+  // from the prefill, so clicking a color on an un-renamed tab doesn't pin its
+  // auto-generated label (e.g. "Terminal 2") as a custom name.
   const commitRename = () => {
     if (menu) {
       const name = renameValue.trim();
-      if (name) renameTab(menu.tabId, name);
+      if (name && name !== menu.original) renameTab(menu.tabId, name);
     }
     setMenu(null);
+  };
+  // Applying a color also commits whatever the user typed (the reported bug:
+  // typing a name then clicking a swatch used to drop the name).
+  const applyColor = (color: string | undefined) => {
+    if (menu) setTabColor(menu.tabId, color);
+    commitRename();
   };
 
   // Only the active worktree's tabs are shown — so the bar reflects the repo/
@@ -210,10 +224,10 @@ export function TabBar() {
         <>
           <div
             className="ctx-menu-backdrop"
-            onClick={() => setMenu(null)}
+            onClick={() => commitRename()}
             onContextMenu={(e) => {
               e.preventDefault();
-              setMenu(null);
+              commitRename();
             }}
           />
           <div className="tab-menu" style={{ left: menu.x, top: menu.y }}>
@@ -225,7 +239,7 @@ export function TabBar() {
               onChange={(e) => setRenameValue(e.currentTarget.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") commitRename();
-                if (e.key === "Escape") setMenu(null);
+                if (e.key === "Escape") setMenu(null); // Esc cancels (no rename)
               }}
             />
             <div className="tab-menu-colors">
@@ -235,19 +249,13 @@ export function TabBar() {
                   className="tab-swatch"
                   style={{ background: c }}
                   title="Set tab color"
-                  onClick={() => {
-                    setTabColor(menu.tabId, c);
-                    setMenu(null);
-                  }}
+                  onClick={() => applyColor(c)}
                 />
               ))}
               <button
                 className="tab-swatch tab-swatch-none"
                 title="No color"
-                onClick={() => {
-                  setTabColor(menu.tabId, undefined);
-                  setMenu(null);
-                }}
+                onClick={() => applyColor(undefined)}
               >
                 ✕
               </button>
