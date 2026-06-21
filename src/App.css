@@ -237,7 +237,7 @@ body,
 .session-repo {
   min-width: 0;
   font-size: 11px;
-  color: var(--fg-dim);
+  color: color-mix(in srgb, var(--accent) 55%, var(--fg-strong));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -304,6 +304,8 @@ body,
 }
 
 .repo-name {
+  color: color-mix(in srgb, var(--accent) 55%, var(--fg-strong));
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -853,7 +855,7 @@ kbd {
   white-space: nowrap;
 }
 .ctx-repo {
-  color: var(--fg-dim);
+  color: color-mix(in srgb, var(--accent) 55%, var(--fg-strong));
 }
 .ctx-sep {
   color: var(--fg-dim);
