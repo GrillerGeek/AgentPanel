@@ -11,6 +11,20 @@ import { aggregateAgentState, agentStateLabel, type AgentState } from "../state/
 // Tab color swatches for the right-click menu.
 const TAB_COLORS = ["#f7768e", "#e0af68", "#9ece6a", "#7dcfff", "#7aa2f7", "#bb9af7"];
 
+/**
+ * Tab label for display. The branch/worktree is already shown permanently in the
+ * tab-bar context chip on the left, so we don't repeat it on each tab:
+ *  - a default tab (title == branch)        -> "Terminal"
+ *  - an agent tab  (title == "branch · cmd")-> "cmd"
+ *  - a custom-renamed tab                   -> shown as-is
+ */
+function tabLabel(title: string, branch?: string): string {
+  if (!branch) return title;
+  if (title === branch) return "Terminal";
+  const prefix = `${branch} · `;
+  return title.startsWith(prefix) ? title.slice(prefix.length) : title;
+}
+
 export function TabBar() {
   const allTerminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
@@ -33,10 +47,10 @@ export function TabBar() {
   // Right-click context menu (rename + color), positioned at the cursor.
   const [menu, setMenu] = useState<{ tabId: string; x: number; y: number } | null>(null);
   const [renameValue, setRenameValue] = useState("");
-  const openMenu = (e: ReactMouseEvent, t: { id: string; title: string }) => {
+  const openMenu = (e: ReactMouseEvent, tabId: string, label: string) => {
     e.preventDefault();
-    setRenameValue(t.title);
-    setMenu({ tabId: t.id, x: e.clientX, y: e.clientY });
+    setRenameValue(label);
+    setMenu({ tabId, x: e.clientX, y: e.clientY });
   };
   const commitRename = () => {
     if (menu) {
@@ -101,6 +115,7 @@ export function TabBar() {
         const tabState = aggregateAgentState(
           t.panes.map((p) => agentStatus[p.id]).filter(Boolean) as AgentState[],
         );
+        const label = tabLabel(t.title, context?.branch);
         return (
         <div
           key={t.id}
@@ -109,13 +124,13 @@ export function TabBar() {
           style={t.color ? { boxShadow: `inset 3px 0 0 0 ${t.color}` } : undefined}
           title={t.cwd + (tabState ? ` — ${agentStateLabel(tabState)}` : "") + "  ·  right-click to rename / color"}
           onClick={() => onClickTab(t.id)}
-          onContextMenu={(e) => openMenu(e, t)}
+          onContextMenu={(e) => openMenu(e, t.id, label)}
           onPointerDown={(e) => onPointerDown(e, t.id)}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
         >
           {tabState && <span className={`agent-dot agent-${tabState}`} aria-hidden />}
-          <span className="tab-title">{t.title}</span>
+          <span className="tab-title">{label}</span>
           <button
             className="tab-close"
             title="Close terminal"
@@ -125,7 +140,7 @@ export function TabBar() {
               if (tabState === "running" || tabState === "awaiting") {
                 if (
                   !(await requestConfirm({
-                    message: `Close "${t.title}"?`,
+                    message: `Close "${label}"?`,
                     detail: `An agent here is ${agentStateLabel(tabState)} — closing ends its session.`,
                     confirmLabel: "Close",
                     danger: true,
