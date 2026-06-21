@@ -6,9 +6,18 @@ import { Sidebar } from "./components/Sidebar";
 import { TabBar } from "./components/TabBar";
 import { Toasts } from "./components/Toasts";
 import { useStore } from "./state/store";
+import { snapshotStates } from "./state/agentRuntime";
+import type { AgentState } from "./state/activity";
 import { applyTheme, schemeBySlug } from "./themes/apply";
 import { runBenchmark } from "./lib/bench";
 import "./App.css";
+
+/** Shallow-equal two paneId->state maps, to skip no-op ticker updates. */
+function sameAgentStatus(a: Record<string, AgentState>, b: Record<string, AgentState>): boolean {
+  const ak = Object.keys(a);
+  if (ak.length !== Object.keys(b).length) return false;
+  return ak.every((k) => a[k] === b[k]);
+}
 
 // Lazy-loaded so the heavy xterm engine and on-demand modals are split out of
 // the initial bundle (they only matter once a terminal opens / a modal opens).
@@ -89,6 +98,18 @@ function App() {
   useEffect(() => {
     void loadRepositories();
   }, [loadRepositories]);
+
+  // Recompute live agent states (running/idle/awaiting/exited) once a second and
+  // push to the store only when something changed. Runs even while hidden, so a
+  // background agent finishing/needing input is still detected (for notifications).
+  useEffect(() => {
+    const t = setInterval(() => {
+      const next = snapshotStates(Date.now());
+      const st = useStore.getState();
+      if (!sameAgentStatus(st.agentStatus, next)) st.setAgentStatus(next);
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
 
   // Status poll as a safety net — only while the window is visible (no git
   // subprocess churn when backgrounded). Relaxed to 10s since the file watcher

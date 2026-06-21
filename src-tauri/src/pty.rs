@@ -11,13 +11,22 @@
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 use base64::Engine;
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use tauri::ipc::Channel;
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
+
+/// Emitted to the frontend when a PTY's child exits on its own (not via
+/// `pty_close`). Drives the "agent finished" status + notification.
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PtyExit {
+    session_id: u32,
+    code: Option<u32>,
+}
 
 /// One live terminal session: the master side (for resize), a writer (for
 /// keystrokes), the child handle, and its pid (to kill the whole process tree
@@ -48,7 +57,9 @@ fn kill_process_tree(_pid: u32) {}
 pub struct PtyManager {
     /// Serializes spawns: ConPTY can stall an output pipe on concurrent spawn.
     spawn_lock: Mutex<()>,
-    sessions: Mutex<HashMap<u32, PtySession>>,
+    /// `Arc` so the per-session reader thread can claim the session on EOF to
+    /// report the child's exit (see `pty_spawn`).
+    sessions: Arc<Mutex<HashMap<u32, PtySession>>>,
     next_id: Mutex<u32>,
 }
 
@@ -70,6 +81,7 @@ fn default_shell() -> CommandBuilder {
 /// Returns an opaque session id used by the other commands.
 #[tauri::command]
 pub fn pty_spawn(
+    app: AppHandle,
     state: State<'_, PtyManager>,
     cwd: Option<String>,
     rows: u16,
@@ -122,8 +134,24 @@ pub fn pty_spawn(
         *n
     };
 
-    // Reader thread: pump bytes -> base64 -> frontend until EOF.
+    // Insert the session BEFORE starting the reader, so a fast-exiting child
+    // can't race the reader's EOF cleanup ahead of the session existing.
+    state.sessions.lock().map_err(|e| e.to_string())?.insert(
+        id,
+        PtySession {
+            master: pair.master,
+            writer,
+            child,
+            pid,
+        },
+    );
+
+    // Reader thread: pump bytes -> base64 -> frontend until EOF, then report the
+    // child's exit. On EOF we claim the session and `wait()` for its code; if it
+    // was already removed (pty_close took it) the close was intentional, so we
+    // stay silent — "agent finished" only fires on a natural exit.
     let channel = on_output.clone();
+    let sessions = Arc::clone(&state.sessions);
     thread::spawn(move || {
         let mut reader = reader;
         let mut buf = [0u8; 8192];
@@ -139,17 +167,12 @@ pub fn pty_spawn(
                 Err(_) => break,
             }
         }
+        let exited = sessions.lock().ok().and_then(|mut s| s.remove(&id));
+        if let Some(mut session) = exited {
+            let code = session.child.wait().ok().map(|s| s.exit_code());
+            let _ = app.emit("pty-exit", PtyExit { session_id: id, code });
+        }
     });
-
-    state.sessions.lock().map_err(|e| e.to_string())?.insert(
-        id,
-        PtySession {
-            master: pair.master,
-            writer,
-            child,
-            pid,
-        },
-    );
 
     Ok(id)
 }

@@ -3,9 +3,15 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { invoke, Channel } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useStore } from "./state/store";
+import { noteOutput, noteExit, forgetPane } from "./state/agentRuntime";
 import { schemeBySlug, xtermThemeFor } from "./themes/apply";
 import "@xterm/xterm/css/xterm.css";
+
+// Reused decoder for the activity tail (lossy is fine — it only feeds ASCII
+// prompt matching; the terminal itself still renders the raw bytes).
+const tailDecoder = new TextDecoder();
 
 /** Decode a base64 chunk from the Rust PTY into raw bytes for xterm. */
 function decodeBase64(b64: string): Uint8Array {
@@ -109,9 +115,25 @@ export function TerminalPane({
     let sessionId: number | null = null;
     let disposed = false;
 
-    // Stream PTY output -> xterm.
+    // Stream PTY output -> xterm, and feed the activity tracker (drives the
+    // agent running/idle/awaiting status dots).
     const onOutput = new Channel<string>();
-    onOutput.onmessage = (chunk) => term.write(decodeBase64(chunk));
+    onOutput.onmessage = (chunk) => {
+      const bytes = decodeBase64(chunk);
+      term.write(bytes);
+      if (paneId) noteOutput(paneId, tailDecoder.decode(bytes));
+    };
+
+    // The child exiting on its own (not via pty_close) -> mark the agent done.
+    let unlistenExit: (() => void) | undefined;
+    void listen<{ sessionId: number; code: number | null }>("pty-exit", (e) => {
+      if (paneId && e.payload.sessionId === sessionRef.current) {
+        noteExit(paneId, e.payload.code ?? undefined);
+      }
+    }).then((u) => {
+      if (disposed) u();
+      else unlistenExit = u;
+    });
 
     invoke<number>("pty_spawn", {
       cwd: cwd ?? null,
@@ -167,6 +189,8 @@ export function TerminalPane({
       if (rafId) cancelAnimationFrame(rafId);
       observer.disconnect();
       dataSub.dispose();
+      unlistenExit?.();
+      if (paneId) forgetPane(paneId);
       if (sessionId !== null) void invoke("pty_close", { id: sessionId });
       term.dispose(); // also disposes loaded addons (incl. WebGL)
       termRef.current = null;

@@ -617,6 +617,47 @@ body,
   font-weight: 600;
 }
 
+/* ---- Agent state dots (running / idle / awaiting / exited) ---- */
+.agent-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fg-dim);
+  display: inline-block;
+  align-self: center;
+}
+.tab .agent-dot {
+  margin-right: 1px;
+}
+.session .agent-dot {
+  margin-right: 2px;
+}
+.agent-running {
+  background: var(--green);
+}
+.agent-idle {
+  background: var(--fg-dim);
+}
+.agent-exited {
+  background: var(--accent);
+}
+.agent-awaiting {
+  background: var(--yellow);
+  animation: agent-pulse 1.6s ease-out infinite;
+}
+@keyframes agent-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--yellow), transparent 25%);
+  }
+  70% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--yellow), transparent 100%);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--yellow), transparent 100%);
+  }
+}
+
 .tab {
   display: flex;
   align-items: center;

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Pane, PrInfo, Repository, Settings, TerminalTab, Toast, Worktree, WorktreeStatus } from "../types";
+import type { AgentState } from "./activity";
 import { DEFAULT_THEME } from "../themes/apply";
 
 let toastSeq = 0;
@@ -53,6 +54,9 @@ interface AppState {
   /** remembers the last-active tab per worktree, so switching back to a worktree
    *  returns you to the tab you were on rather than its first one */
   lastTabByWorktree: Record<string, string>;
+  /** live per-pane agent state (running/idle/awaiting/exited), keyed by paneId;
+   *  recomputed by a 1s ticker from agentRuntime.ts */
+  agentStatus: Record<string, AgentState>;
   settings: Settings;
   /** transient error/info notifications */
   toasts: Toast[];
@@ -85,6 +89,8 @@ interface AppState {
   /** make a worktree the active one (its tabs fill the tab bar), returning to the
    *  tab last used in it */
   setActiveWorktree: (worktreeId: string) => void;
+  /** replace the derived per-pane agent-state map (called by the 1s ticker) */
+  setAgentStatus: (status: Record<string, AgentState>) => void;
   setPaneSession: (paneId: string, sessionId: number) => void;
   /** set the split ratio for a 2-pane tab (drag-resize) */
   setSplitRatio: (tabId: string, ratio: number) => void;
@@ -111,6 +117,7 @@ export const useStore = create<AppState>((set, get) => ({
   activeTabId: null,
   paneSessions: {},
   lastTabByWorktree: {},
+  agentStatus: {},
   settings: readSettings(),
   toasts: [],
 
@@ -363,6 +370,8 @@ export const useStore = create<AppState>((set, get) => ({
         ? { activeTabId: id, lastTabByWorktree: { ...s.lastTabByWorktree, [wt]: id } }
         : { activeTabId: id };
     }),
+
+  setAgentStatus: (agentStatus) => set({ agentStatus }),
 
   setActiveWorktree: (worktreeId) =>
     set((s) => {

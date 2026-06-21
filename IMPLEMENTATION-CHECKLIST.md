@@ -26,23 +26,23 @@ follow in parallel. Theme 4 depends on Theme 1's state.
 ## Theme 1 — Make agents observable (KEYSTONE — do first, unblocks all 5 personas)
 
 ### 1A · PTY exit + lifecycle signal from Rust (`src-tauri/src/pty.rs`, `lib.rs`)
-- [ ] Pass `AppHandle` into `pty_spawn` so the session can emit events
-- [ ] When the reader thread hits EOF, `child.wait()` for the exit status and emit a `pty-exit` event `{ sessionId, code }`
-- [ ] Ensure intentional close (`pty_close` / taskkill) is distinguishable from a natural agent exit (flag the session as closing before kill)
+- [x] Pass `AppHandle` into `pty_spawn` so the session can emit events
+- [x] When the reader thread hits EOF, `child.wait()` for the exit status and emit a `pty-exit` event `{ sessionId, code }`
+- [x] Ensure intentional close (`pty_close` / taskkill) is distinguishable from a natural agent exit — the reader claims the session on EOF; if `pty_close` already removed it, no event fires
 
 ### 1B · Per-session activity capture (`src/Terminal.tsx`)
-- [ ] On each decoded PTY output chunk, record a last-output timestamp and keep a small rolling tail buffer (~2 KB) per session for prompt detection; write to the store keyed by `paneId`/`sessionId`
-- [ ] Subscribe to `pty-exit`; mark that session `exited` with its code
+- [x] On each decoded PTY output chunk, record a last-output timestamp and keep a small rolling tail buffer (~2 KB) per pane for prompt detection (in `src/state/agentRuntime.ts`, off-store so it doesn't re-render)
+- [x] Subscribe to `pty-exit`; mark that session `exited` with its code
 
-### 1C · State derivation (`src/state/activity.ts` — replace the existing busy/idle TODO)
-- [ ] Implement states: `running` (output within ~1.5 s), `idle` (quiet + tail looks like a shell prompt), `awaiting-input` (tail matches a maintainable prompt-pattern list: `(y/n)`, `[Y/n]`, `Do you want`, `Press Enter`, `Continue?`, trailing `?`, agent permission prompts, `❯`), `exited(code)`
-- [ ] Store `agentStatus: Record<paneId, { state, since, code? }>` in `src/state/store.ts`
-- [ ] Add a 1 s visibility-gated ticker to recompute `running → idle` transitions
-- [ ] Surface honestly (report's tension): label with confidence/age ("idle 2m", "looks like it's waiting") — never silently misreport
+### 1C · State derivation (`src/state/activity.ts` — replaced the busy/idle TODO)
+- [x] Implement states: `running` (output within ~1.5 s), `idle` (quiet at a normal prompt), `awaiting` (tail matches a maintainable confirmation-prompt list, ANSI-stripped), `exited` — with unit tests
+- [x] Store `agentStatus: Record<paneId, AgentState>` in `src/state/store.ts`
+- [x] Add a 1 s ticker (ungated so background agents are still tracked for notifications) that pushes state only when it changes
+- [x] Surface honestly: states carry plain labels ("running"/"waiting for input"/"exited"/"idle"); conservative awaiting patterns avoid false positives
 
 ### 1D · Surface state in the UI
-- [ ] Status dot per session in `src/components/ActiveSessions.tsx` (color + tooltip per state)
-- [ ] Status badge in `src/components/TabBar.tsx` tab titles
+- [x] Status dot per session in `src/components/ActiveSessions.tsx` (color + tooltip per state, pulsing for "awaiting")
+- [x] Status badge (dot) in `src/components/TabBar.tsx` tab titles
 - [ ] (optional) indicator on the worktree row in `src/components/Sidebar.tsx`
 
 ### 1E · Notifications (depends on 1C)

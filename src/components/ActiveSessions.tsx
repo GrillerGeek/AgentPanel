@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useStore, selectActiveWorktreeId, worktreeLabels } from "../state/store";
+import { aggregateAgentState, agentStateLabel, type AgentState } from "../state/activity";
 
 /**
  * The "Active terminals" section pinned to the top of the sidebar: every worktree
@@ -13,15 +14,26 @@ export function ActiveSessions() {
   const worktrees = useStore((s) => s.worktrees);
   const labels = useMemo(() => worktreeLabels(repositories, worktrees), [repositories, worktrees]);
   const activeWorktreeId = useStore(selectActiveWorktreeId);
+  const agentStatus = useStore((s) => s.agentStatus);
   const setActiveWorktree = useStore((s) => s.setActiveWorktree);
   const closeWorktreeTerminals = useStore((s) => s.closeWorktreeTerminals);
 
-  // Distinct worktrees with terminals, in first-appearance order, with tab counts.
+  // Distinct worktrees with terminals, in first-appearance order, with tab counts
+  // and an aggregated agent state (most attention-worthy pane wins).
   const counts = new Map<string, number>();
   const order: string[] = [];
+  const stateByWorktree: Record<string, AgentState> = {};
   for (const t of terminals) {
     if (!counts.has(t.worktreeId)) order.push(t.worktreeId);
     counts.set(t.worktreeId, (counts.get(t.worktreeId) ?? 0) + 1);
+  }
+  for (const wtId of order) {
+    const states = terminals
+      .filter((t) => t.worktreeId === wtId)
+      .flatMap((t) => t.panes.map((p) => agentStatus[p.id]))
+      .filter(Boolean) as AgentState[];
+    const agg = aggregateAgentState(states);
+    if (agg) stateByWorktree[wtId] = agg;
   }
 
   if (order.length === 0) return null;
@@ -40,8 +52,17 @@ export function ActiveSessions() {
               <button
                 className="session"
                 onClick={() => setActiveWorktree(worktreeId)}
-                title={label ? `${label.repo} / ${label.branch}` : worktreeId}
+                title={
+                  (label ? `${label.repo} / ${label.branch}` : worktreeId) +
+                  (stateByWorktree[worktreeId] ? ` — ${agentStateLabel(stateByWorktree[worktreeId])}` : "")
+                }
               >
+                {stateByWorktree[worktreeId] && (
+                  <span
+                    className={`agent-dot agent-${stateByWorktree[worktreeId]}`}
+                    aria-label={agentStateLabel(stateByWorktree[worktreeId])}
+                  />
+                )}
                 <span className="session-branch">{label?.branch ?? "terminal"}</span>
                 {label?.repo && <span className="session-repo">{label.repo}</span>}
                 <span className="session-count" title={`${counts.get(worktreeId)} terminal(s)`}>

@@ -1,5 +1,6 @@
 import { useMemo, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { useStore, selectActiveWorktreeId, worktreeLabels } from "../state/store";
+import { aggregateAgentState, agentStateLabel, type AgentState } from "../state/activity";
 
 export function TabBar() {
   const allTerminals = useStore((s) => s.terminals);
@@ -15,6 +16,7 @@ export function TabBar() {
   const reorderTab = useStore((s) => s.reorderTab);
   const runAgentInActive = useStore((s) => s.runAgentInActive);
   const agentCommands = useStore((s) => s.settings.agentCommands);
+  const agentStatus = useStore((s) => s.agentStatus);
 
   // Only the active worktree's tabs are shown — so the bar reflects the repo/
   // branch you're working in instead of mixing every repo's terminals together.
@@ -67,17 +69,22 @@ export function TabBar() {
           <span className="ctx-branch">{context.branch}</span>
         </span>
       )}
-      {terminals.map((t) => (
+      {terminals.map((t) => {
+        const tabState = aggregateAgentState(
+          t.panes.map((p) => agentStatus[p.id]).filter(Boolean) as AgentState[],
+        );
+        return (
         <div
           key={t.id}
           data-tabid={t.id}
           className={`tab ${t.id === activeTabId ? "active" : ""}`}
-          title={t.cwd}
+          title={t.cwd + (tabState ? ` — ${agentStateLabel(tabState)}` : "")}
           onClick={() => onClickTab(t.id)}
           onPointerDown={(e) => onPointerDown(e, t.id)}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
         >
+          {tabState && <span className={`agent-dot agent-${tabState}`} aria-hidden />}
           <span className="tab-title">{t.title}</span>
           <button
             className="tab-close"
@@ -91,7 +98,8 @@ export function TabBar() {
             ✕
           </button>
         </div>
-      ))}
+        );
+      })}
       {terminals.length > 0 && (
         <button className="tab-new" title="New terminal in this worktree" onClick={() => duplicateActiveTerminal()}>
           +

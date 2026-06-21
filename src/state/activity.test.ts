@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { worktreeActivityScore, sortWorktrees } from "./activity";
+import {
+  worktreeActivityScore,
+  sortWorktrees,
+  detectAgentState,
+  aggregateAgentState,
+  type PaneRuntime,
+} from "./activity";
 import type { Worktree, WorktreeStatus } from "../types";
 
 function wt(id: string, opts: Partial<Worktree> = {}): Worktree {
@@ -46,5 +52,53 @@ describe("sortWorktrees", () => {
     const list = [wt("feature"), wt("main", { isPrimary: true })];
     const sorted = sortWorktrees(list, new Set(), {});
     expect(sorted[0].id).toBe("main");
+  });
+});
+
+describe("detectAgentState", () => {
+  const NOW = 100_000;
+  const rt = (o: Partial<PaneRuntime>): PaneRuntime => ({
+    lastOutputAt: NOW,
+    tail: "",
+    exited: false,
+    ...o,
+  });
+
+  it("reports exited regardless of timing", () => {
+    expect(detectAgentState(rt({ exited: true, lastOutputAt: NOW }), NOW)).toBe("exited");
+  });
+
+  it("reports running while output is recent", () => {
+    expect(detectAgentState(rt({ lastOutputAt: NOW - 500 }), NOW)).toBe("running");
+  });
+
+  it("reports idle once output goes quiet at a normal prompt", () => {
+    expect(detectAgentState(rt({ lastOutputAt: NOW - 5000, tail: "PS C:\\repo> " }), NOW)).toBe(
+      "idle",
+    );
+  });
+
+  it("detects a (y/n) confirmation prompt as awaiting", () => {
+    const r = rt({ lastOutputAt: NOW - 5000, tail: "Apply this change? (y/n) " });
+    expect(detectAgentState(r, NOW)).toBe("awaiting");
+  });
+
+  it("detects awaiting through surrounding ANSI color codes", () => {
+    const r = rt({ lastOutputAt: NOW - 5000, tail: "[33mDo you want to proceed?[0m " });
+    expect(detectAgentState(r, NOW)).toBe("awaiting");
+  });
+
+  it("does not treat a literal [y/n] as an ANSI sequence", () => {
+    const r = rt({ lastOutputAt: NOW - 5000, tail: "Continue [y/n]" });
+    expect(detectAgentState(r, NOW)).toBe("awaiting");
+  });
+});
+
+describe("aggregateAgentState", () => {
+  it("returns the most attention-worthy state", () => {
+    expect(aggregateAgentState(["idle", "running", "awaiting"])).toBe("awaiting");
+    expect(aggregateAgentState(["idle", "exited", "running"])).toBe("exited");
+    expect(aggregateAgentState(["idle", "running"])).toBe("running");
+    expect(aggregateAgentState([])).toBeNull();
   });
 });
