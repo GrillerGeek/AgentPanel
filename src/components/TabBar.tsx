@@ -12,17 +12,37 @@ import { aggregateAgentState, agentStateLabel, type AgentState } from "../state/
 const TAB_COLORS = ["#f7768e", "#e0af68", "#9ece6a", "#7dcfff", "#7aa2f7", "#bb9af7"];
 
 /**
- * Tab label for display. The branch/worktree is already shown permanently in the
- * tab-bar context chip on the left, so we don't repeat it on each tab:
- *  - a default tab (title == branch)        -> "Terminal"
- *  - an agent tab  (title == "branch · cmd")-> "cmd"
- *  - a custom-renamed tab                   -> shown as-is
+ * Base tab label. The branch/worktree is already shown permanently in the tab-bar
+ * context chip on the left, so we don't repeat it on each tab:
+ *  - a default tab (title == branch)        -> "Terminal" (generic)
+ *  - an agent tab  (title == "branch · cmd")-> "cmd"      (generic)
+ *  - a custom-renamed tab                   -> shown as-is (not generic)
+ *
+ * `generic` labels get numbered when several share the same text; custom names
+ * are left exactly as the user typed them.
  */
-function tabLabel(title: string, branch?: string): string {
-  if (!branch) return title;
-  if (title === branch) return "Terminal";
+function labelInfo(title: string, branch?: string): { text: string; generic: boolean } {
+  if (!branch) return { text: title, generic: false };
+  if (title === branch) return { text: "Terminal", generic: true };
   const prefix = `${branch} · `;
-  return title.startsWith(prefix) ? title.slice(prefix.length) : title;
+  if (title.startsWith(prefix)) return { text: title.slice(prefix.length), generic: true };
+  return { text: title, generic: false };
+}
+
+/** Resolve display labels for a worktree's tabs, numbering repeated generic ones. */
+export function displayLabels(titles: string[], branch?: string): string[] {
+  const infos = titles.map((t) => labelInfo(t, branch));
+  const counts = new Map<string, number>();
+  for (const i of infos) if (i.generic) counts.set(i.text, (counts.get(i.text) ?? 0) + 1);
+  const seen = new Map<string, number>();
+  return infos.map((i) => {
+    if (i.generic && (counts.get(i.text) ?? 0) > 1) {
+      const n = (seen.get(i.text) ?? 0) + 1;
+      seen.set(i.text, n);
+      return `${i.text} ${n}`;
+    }
+    return i.text;
+  });
 }
 
 export function TabBar() {
@@ -64,6 +84,10 @@ export function TabBar() {
   // branch you're working in instead of mixing every repo's terminals together.
   const terminals = allTerminals.filter((t) => t.worktreeId === activeWorktreeId);
   const context = activeWorktreeId ? labels[activeWorktreeId] : undefined;
+  const tabLabels = displayLabels(
+    terminals.map((t) => t.title),
+    context?.branch,
+  );
 
   // Pointer-based reorder (works locally AND over remote desktop, unlike the
   // native HTML5 drag-and-drop which doesn't survive a remote session).
@@ -111,11 +135,11 @@ export function TabBar() {
           <span className="ctx-branch">{context.branch}</span>
         </span>
       )}
-      {terminals.map((t) => {
+      {terminals.map((t, i) => {
         const tabState = aggregateAgentState(
           t.panes.map((p) => agentStatus[p.id]).filter(Boolean) as AgentState[],
         );
-        const label = tabLabel(t.title, context?.branch);
+        const label = tabLabels[i];
         return (
         <div
           key={t.id}
