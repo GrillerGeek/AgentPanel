@@ -47,6 +47,18 @@ export interface Settings {
   fontSize: number;
   /** OS + in-app notifications when a background agent finishes / needs input */
   notifications: boolean;
+  /** dontAskKeys the user dismissed via "don't ask again" on a confirm dialog */
+  confirmsDisabled: string[];
+}
+
+/** A pending confirmation prompt (driven through the store, resolved by a Promise). */
+export interface ConfirmRequest {
+  message: string;
+  detail?: string;
+  confirmLabel?: string;
+  danger?: boolean;
+  /** when set, offers "don't ask again" and remembers the choice in settings */
+  dontAskKey?: string;
 }
 
 /** An interactive shell detected on the machine (from the Rust `list_shells`). */

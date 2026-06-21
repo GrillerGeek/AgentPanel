@@ -17,6 +17,7 @@ export function TabBar() {
   const runAgentInActive = useStore((s) => s.runAgentInActive);
   const agentCommands = useStore((s) => s.settings.agentCommands);
   const agentStatus = useStore((s) => s.agentStatus);
+  const requestConfirm = useStore((s) => s.requestConfirm);
 
   // Only the active worktree's tabs are shown — so the bar reflects the repo/
   // branch you're working in instead of mixing every repo's terminals together.
@@ -90,8 +91,20 @@ export function TabBar() {
             className="tab-close"
             title="Close terminal"
             onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
+            onClick={async (e) => {
               e.stopPropagation();
+              if (tabState === "running" || tabState === "awaiting") {
+                if (
+                  !(await requestConfirm({
+                    message: `Close "${t.title}"?`,
+                    detail: `An agent here is ${agentStateLabel(tabState)} — closing ends its session.`,
+                    confirmLabel: "Close",
+                    danger: true,
+                    dontAskKey: "close-running-tab",
+                  }))
+                )
+                  return;
+              }
               closeTab(t.id);
             }}
           >

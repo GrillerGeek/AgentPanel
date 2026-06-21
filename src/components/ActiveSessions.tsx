@@ -17,6 +17,7 @@ export function ActiveSessions() {
   const agentStatus = useStore((s) => s.agentStatus);
   const setActiveWorktree = useStore((s) => s.setActiveWorktree);
   const closeWorktreeTerminals = useStore((s) => s.closeWorktreeTerminals);
+  const requestConfirm = useStore((s) => s.requestConfirm);
 
   // Distinct worktrees with terminals, in first-appearance order, with tab counts
   // and an aggregated agent state (most attention-worthy pane wins).
@@ -72,7 +73,23 @@ export function ActiveSessions() {
               <button
                 className="icon-btn"
                 title="Close all terminals in this worktree"
-                onClick={() => void closeWorktreeTerminals(worktreeId)}
+                onClick={async () => {
+                  const running =
+                    stateByWorktree[worktreeId] === "running" ||
+                    stateByWorktree[worktreeId] === "awaiting";
+                  if (
+                    await requestConfirm({
+                      message: `Close all terminals in "${label?.branch ?? "this worktree"}"?`,
+                      detail: running
+                        ? "An agent is still active here — closing ends its session. Your code isn't affected."
+                        : "Ends the shell sessions in this worktree. Your code isn't affected.",
+                      confirmLabel: "Close",
+                      danger: true,
+                      dontAskKey: "close-session",
+                    })
+                  )
+                    void closeWorktreeTerminals(worktreeId);
+                }}
               >
                 ✕
               </button>

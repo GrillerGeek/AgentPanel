@@ -5,6 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import { Sidebar } from "./components/Sidebar";
 import { TabBar } from "./components/TabBar";
 import { Toasts } from "./components/Toasts";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { useStore, worktreeLabels } from "./state/store";
 import { snapshotStates } from "./state/agentRuntime";
 import type { AgentState } from "./state/activity";
@@ -268,6 +269,7 @@ function App() {
         </span>
       </header>
       <Toasts />
+      <ConfirmDialog />
       {paletteOpen && (
         <Suspense fallback={null}>
           <CommandPalette onClose={() => setPaletteOpen(false)} />

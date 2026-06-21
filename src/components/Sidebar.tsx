@@ -74,6 +74,7 @@ function RepoRow({ repo }: { repo: Repository }) {
   const openWorktreeTerminal = useStore((s) => s.openWorktreeTerminal);
   const removeRepository = useStore((s) => s.removeRepository);
   const deleteWorktree = useStore((s) => s.deleteWorktree);
+  const requestConfirm = useStore((s) => s.requestConfirm);
 
   const openWorktreeIds = new Set(terminals.map((t) => t.worktreeId));
   const sorted = worktrees ? sortWorktrees(worktrees, openWorktreeIds, statuses) : worktrees;
@@ -86,7 +87,23 @@ function RepoRow({ repo }: { repo: Repository }) {
           <span className="repo-name">{repo.name}</span>
           {!repo.isGit && <span className="badge">folder</span>}
         </button>
-        <button className="icon-btn" title="Remove repository" onClick={() => removeRepository(repo.id)}>
+        <button
+          className="icon-btn"
+          title="Remove repository"
+          onClick={async () => {
+            if (
+              await requestConfirm({
+                message: `Remove "${repo.name}" from AgentPanel?`,
+                detail:
+                  "This only removes it from the app's list. Your folder, code, and git history are untouched.",
+                confirmLabel: "Remove",
+                danger: true,
+                dontAskKey: "remove-repo",
+              })
+            )
+              removeRepository(repo.id);
+          }}
+        >
           ✕
         </button>
       </div>
@@ -141,7 +158,18 @@ function RepoRow({ repo }: { repo: Repository }) {
                 <button
                   className="icon-btn"
                   title="Remove worktree"
-                  onClick={() => deleteWorktree(repo.id, wt.path)}
+                  onClick={async () => {
+                    if (
+                      await requestConfirm({
+                        message: `Remove worktree "${wt.name}"?`,
+                        detail: `Deletes this worktree's working directory on disk. The branch "${wt.branch ?? wt.name}" itself is kept; your commits are safe.`,
+                        confirmLabel: "Remove worktree",
+                        danger: true,
+                        dontAskKey: "remove-worktree",
+                      })
+                    )
+                      deleteWorktree(repo.id, wt.path);
+                  }}
                 >
                   ✕
                 </button>

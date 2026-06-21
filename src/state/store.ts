@@ -1,11 +1,23 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { Pane, PrInfo, Repository, Settings, TerminalTab, Toast, Worktree, WorktreeStatus } from "../types";
+import type {
+  ConfirmRequest,
+  Pane,
+  PrInfo,
+  Repository,
+  Settings,
+  TerminalTab,
+  Toast,
+  Worktree,
+  WorktreeStatus,
+} from "../types";
 import type { AgentState } from "./activity";
 import { DEFAULT_THEME } from "../themes/apply";
 
 let toastSeq = 0;
+// Resolver for the in-flight confirmation Promise (kept off-store; not serializable).
+let confirmResolver: ((ok: boolean) => void) | null = null;
 
 let tabSeq = 0;
 const nextTabId = () => `t${++tabSeq}`;
@@ -26,6 +38,7 @@ const DEFAULT_SETTINGS: Settings = {
   fontFamily: "Cascadia Code",
   fontSize: 14,
   notifications: true,
+  confirmsDisabled: [],
 };
 function readSettings(): Settings {
   try {
@@ -61,6 +74,8 @@ interface AppState {
   settings: Settings;
   /** transient error/info notifications */
   toasts: Toast[];
+  /** the pending confirmation prompt, if any (rendered by ConfirmDialog) */
+  confirmState: ConfirmRequest | null;
 
   loadRepositories: () => Promise<void>;
   addRepository: () => Promise<void>;
@@ -101,6 +116,11 @@ interface AppState {
   closeWorktreeTerminals: (worktreeId: string) => Promise<void>;
   pushToast: (message: string, kind?: Toast["kind"], focusTabId?: string) => void;
   dismissToast: (id: number) => void;
+  /** show a confirmation dialog; resolves true if confirmed. Auto-true if the
+   *  request's dontAskKey was previously dismissed. */
+  requestConfirm: (req: ConfirmRequest) => Promise<boolean>;
+  /** resolve the open confirmation (called by ConfirmDialog) */
+  resolveConfirm: (ok: boolean, dontAskAgain?: boolean) => void;
 }
 
 /** Build a fresh single-pane tab for a worktree. */
@@ -121,6 +141,7 @@ export const useStore = create<AppState>((set, get) => ({
   agentStatus: {},
   settings: readSettings(),
   toasts: [],
+  confirmState: null,
 
   loadRepositories: async () => {
     const repositories = await invoke<Repository[]>("list_repositories");
@@ -451,6 +472,32 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+
+  requestConfirm: (req) => {
+    const s = get();
+    // Honor a previous "don't ask again" for this action.
+    if (req.dontAskKey && s.settings.confirmsDisabled.includes(req.dontAskKey)) {
+      return Promise.resolve(true);
+    }
+    // Replace any stale dialog (resolve it false first).
+    confirmResolver?.(false);
+    return new Promise<boolean>((resolve) => {
+      confirmResolver = resolve;
+      set({ confirmState: req });
+    });
+  },
+
+  resolveConfirm: (ok, dontAskAgain) => {
+    const s = get();
+    const key = s.confirmState?.dontAskKey;
+    if (ok && dontAskAgain && key && !s.settings.confirmsDisabled.includes(key)) {
+      get().updateSettings({ confirmsDisabled: [...s.settings.confirmsDisabled, key] });
+    }
+    set({ confirmState: null });
+    const resolve = confirmResolver;
+    confirmResolver = null;
+    resolve?.(ok);
+  },
 }));
 
 /** The worktree whose terminals are currently shown — derived from the active
