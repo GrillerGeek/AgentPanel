@@ -205,6 +205,17 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </small>
         </div>
 
+        <div className="settings-field">
+          <span>Keyboard shortcuts</span>
+          <ul className="shortcut-list">
+            <li><kbd>Ctrl+Shift+P</kbd> Command palette</li>
+            <li><kbd>Ctrl+T</kbd> New terminal · <kbd>Ctrl+W</kbd> Close terminal</li>
+            <li><kbd>Ctrl+Tab</kbd> Next tab · <kbd>Ctrl+1–9</kbd> Select tab</li>
+            <li><kbd>Ctrl+Shift+↓ / ↑</kbd> Switch session (worktree)</li>
+            <li><kbd>Ctrl+F</kbd> Find in terminal</li>
+          </ul>
+        </div>
+
         <div className="settings-actions">
           <button className="add-btn" onClick={save}>
             Save

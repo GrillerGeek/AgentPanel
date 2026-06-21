@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useStore } from "../state/store";
+import { useStore, selectActiveWorktreeId, worktreeLabels } from "../state/store";
 import { fuzzyScore } from "../lib/fuzzy";
+import { SCHEMES } from "../themes/schemes";
 
 interface Command {
   id: string;
@@ -9,13 +10,27 @@ interface Command {
   run: () => void | Promise<void>;
 }
 
-export function CommandPalette({ onClose }: { onClose: () => void }) {
+export function CommandPalette({
+  onClose,
+  onOpenSettings,
+}: {
+  onClose: () => void;
+  onOpenSettings: () => void;
+}) {
   const repositories = useStore((s) => s.repositories);
   const worktrees = useStore((s) => s.worktrees);
+  const terminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
+  const activeWorktreeId = useStore(selectActiveWorktreeId);
+  const agentCommands = useStore((s) => s.settings.agentCommands);
   const addRepository = useStore((s) => s.addRepository);
   const openWorktreeTerminal = useStore((s) => s.openWorktreeTerminal);
   const duplicateActiveTerminal = useStore((s) => s.duplicateActiveTerminal);
+  const splitActiveTab = useStore((s) => s.splitActiveTab);
+  const runAgentInActive = useStore((s) => s.runAgentInActive);
+  const setActiveWorktree = useStore((s) => s.setActiveWorktree);
+  const closeWorktreeTerminals = useStore((s) => s.closeWorktreeTerminals);
+  const updateSettings = useStore((s) => s.updateSettings);
   const closeTab = useStore((s) => s.closeTab);
 
   const [query, setQuery] = useState("");
@@ -23,23 +38,65 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const listRef = useRef<HTMLDivElement>(null);
 
   const commands = useMemo<Command[]>(() => {
-    const cmds: Command[] = [{ id: "add-repo", title: "Add repository…", run: addRepository }];
+    const cmds: Command[] = [
+      { id: "add-repo", title: "Add repository…", run: addRepository },
+      { id: "settings", title: "Open settings…", run: onOpenSettings },
+    ];
     if (activeTabId) {
       cmds.push({ id: "new-term", title: "New terminal (current worktree)", run: duplicateActiveTerminal });
+      cmds.push({ id: "split", title: "Split: second terminal beside this one", run: splitActiveTab });
+      for (const cmd of agentCommands) {
+        cmds.push({ id: `agent:${cmd}`, title: `Run ▶ ${cmd} in a new terminal`, run: () => runAgentInActive(cmd) });
+      }
       cmds.push({ id: "close-term", title: "Close active terminal", run: () => closeTab(activeTabId) });
-    }
-    for (const repo of repositories) {
-      for (const wt of worktrees[repo.id] ?? []) {
+      if (activeWorktreeId) {
         cmds.push({
-          id: `wt:${wt.id}`,
-          title: `Open ${wt.name}`,
-          subtitle: repo.name,
-          run: () => openWorktreeTerminal(wt),
+          id: "close-session",
+          title: "Close current session (all its terminals)",
+          run: () => void closeWorktreeTerminals(activeWorktreeId),
         });
       }
     }
+    // Jump to an active session (worktree with terminals).
+    const labels = worktreeLabels(repositories, worktrees);
+    for (const wtId of [...new Set(terminals.map((t) => t.worktreeId))]) {
+      const l = labels[wtId];
+      cmds.push({
+        id: `session:${wtId}`,
+        title: `Go to ${l?.branch ?? "session"}`,
+        subtitle: l?.repo ? `session · ${l.repo}` : "session",
+        run: () => setActiveWorktree(wtId),
+      });
+    }
+    // Switch theme.
+    for (const sc of SCHEMES) {
+      cmds.push({ id: `theme:${sc.slug}`, title: `Theme: ${sc.name}`, subtitle: sc.variant, run: () => updateSettings({ theme: sc.slug }) });
+    }
+    // Open any worktree (creates/focuses a terminal).
+    for (const repo of repositories) {
+      for (const wt of worktrees[repo.id] ?? []) {
+        cmds.push({ id: `wt:${wt.id}`, title: `Open ${wt.name}`, subtitle: repo.name, run: () => openWorktreeTerminal(wt) });
+      }
+    }
     return cmds;
-  }, [repositories, worktrees, activeTabId, addRepository, duplicateActiveTerminal, closeTab, openWorktreeTerminal]);
+  }, [
+    repositories,
+    worktrees,
+    terminals,
+    activeTabId,
+    activeWorktreeId,
+    agentCommands,
+    addRepository,
+    onOpenSettings,
+    duplicateActiveTerminal,
+    splitActiveTab,
+    runAgentInActive,
+    setActiveWorktree,
+    closeWorktreeTerminals,
+    updateSettings,
+    closeTab,
+    openWorktreeTerminal,
+  ]);
 
   const filtered = useMemo(() => {
     const scored = commands

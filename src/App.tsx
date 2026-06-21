@@ -233,6 +233,22 @@ function App() {
         e.stopPropagation();
       };
 
+      // Ctrl+Shift+Down / Up: jump across worktrees (sessions), not just tabs.
+      if (e.shiftKey && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+        const order = [...new Set(terminals.map((tt) => tt.worktreeId))];
+        if (order.length > 1) {
+          take();
+          const cur = terminals.find((tt) => tt.id === activeTabId)?.worktreeId ?? "";
+          const ci = order.indexOf(cur);
+          const ni =
+            e.key === "ArrowDown"
+              ? (ci + 1) % order.length
+              : (ci - 1 + order.length) % order.length;
+          st.setActiveWorktree(order[ni]);
+        }
+        return;
+      }
+
       if ((e.key === "t" || e.key === "T") && activeTabId) {
         take();
         st.duplicateActiveTerminal();
@@ -272,7 +288,13 @@ function App() {
       <ConfirmDialog />
       {paletteOpen && (
         <Suspense fallback={null}>
-          <CommandPalette onClose={() => setPaletteOpen(false)} />
+          <CommandPalette
+            onClose={() => setPaletteOpen(false)}
+            onOpenSettings={() => {
+              setPaletteOpen(false);
+              setSettingsOpen(true);
+            }}
+          />
         </Suspense>
       )}
       {settingsOpen && (

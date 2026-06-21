@@ -73,13 +73,13 @@ follow in parallel. Theme 4 depends on Theme 1's state.
 
 ## Theme 3 — Keyboard / palette completeness (cheap power-user wins)
 
-- [ ] Expand `src/components/CommandPalette.tsx` to cover all primary actions: split pane, run-agent (one per `agentCommands`), switch theme, open settings, new/close terminal, close worktree/session
-- [ ] Add **jump-to-session** entries (list active sessions, filterable by repo/branch query)
-- [ ] **Global cross-worktree session switching** via a keystroke (e.g. `Ctrl+Shift+Tab` cycles worktrees) + next/prev-session actions using `setActiveWorktree`; keep the existing within-worktree `Ctrl+Tab`
-- [ ] **Remappable keybindings**: centralize a default keymap (action → chord), load overrides from settings (exportable/file-based escape hatch), and replace the hardcoded handlers in `src/App.tsx` with a keymap lookup
-- [ ] Make chord interception configurable so `Ctrl+W` / `Ctrl+T` can be released to reach the shell/TUI when unbound
-- [ ] Settings: at minimum view current bindings + reset to defaults (full editor optional)
-- [ ] **Acceptance:** every primary action is reachable from the palette; rebinding persists; cross-worktree jump works by keyboard
+- [x] Expand `src/components/CommandPalette.tsx` to all primary actions: split pane, run-agent (one per `agentCommands`), switch theme (all schemes), open settings, new/close terminal, close session
+- [x] Add **jump-to-session** entries (active sessions, filtered by the palette's fuzzy query)
+- [x] **Global cross-worktree session switching**: `Ctrl+Shift+↓ / ↑` cycles worktrees via `setActiveWorktree`; within-worktree `Ctrl+Tab` kept
+- [ ] **Remappable keybindings** (full action→chord config + overrides) — DEFERRED: larger than the rest of the theme and lower ROI than palette+global-switch, which cover the personas' core ask. Tracked as a follow-up.
+- [~] Chord interception: `Ctrl+F` is intercepted via xterm's `attachCustomKeyEventHandler` (released to find, not the shell); a general per-chord toggle is part of the deferred remap config
+- [x] Settings: a **Keyboard shortcuts** reference section lists the active bindings (full remap editor deferred with the item above)
+- [ ] **Acceptance (manual):** every primary action is reachable from the palette; cross-worktree jump works by keyboard
 
 ---
 
