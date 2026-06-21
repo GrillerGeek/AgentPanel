@@ -22,9 +22,16 @@ const ANSI = /\[[0-9;?]*[ -/]*[@-~]|\][^]*|[@-Z\\-_]/g;
 
 // Treat output within this window as "still working".
 const RUNNING_MS = 1500;
+// A detected prompt flips to "awaiting" after this much quiet — short, so it fires
+// even if the agent repaints its prompt periodically, but non-zero so we don't
+// flag mid-render.
+const SETTLE_MS = 400;
 
-// Explicit confirmation prompts only — NOT generic shell prompts. Conservative
-// on purpose so an idle shell never reads as "needs input".
+// Prompts that mean "an agent is waiting on you". Tuned against real Claude Code
+// / Codex permission prompts (a question header above a "❯ 1. Yes / 2. … / 3. No"
+// menu) plus classic shell confirmations. Still avoids matching a bare idle shell
+// prompt — note the menu pattern requires a numbered option after the selector,
+// which a starship/zsh "❯ " prompt never has.
 const AWAITING_PATTERNS: RegExp[] = [
   /\(y\/n\)/i,
   /\[y\/n\]/i,
@@ -32,13 +39,19 @@ const AWAITING_PATTERNS: RegExp[] = [
   /\[yes\/no\]/i,
   /press\s+enter\s+to\s+continue/i,
   /press\s+any\s+key/i,
-  /\bcontinue\?\s*$/i,
-  /\bproceed\?\s*$/i,
+  /\bproceed\?/i,
+  /\bcontinue\?/i,
   /\boverwrite\b[^?\n]*\?/i,
-  /do you want to (proceed|continue|allow)/i,
   /are you sure/i,
   /\bconfirm\b[^?\n]*\?/i,
-  /allow this (action|command|tool)/i,
+  // Claude Code / Codex style: a "Do you want to …?" header (make this edit /
+  // create / run this command / proceed / allow …).
+  /do you want to\b/i,
+  /allow (this|the|command|tool|agent)/i,
+  /\bapprove\b[^?\n]*\?/i,
+  // The interactive menu itself: "❯ 1. Yes", "1. Yes" + "2. …", "y/n" toggles.
+  /[❯>]\s*\d+\.\s/,
+  /\b1\.\s*yes\b/i,
 ];
 
 export interface PaneRuntime {
@@ -51,10 +64,16 @@ export interface PaneRuntime {
 /** Derive an agent's state from its runtime snapshot at time `now`. */
 export function detectAgentState(r: PaneRuntime, now: number): AgentState {
   if (r.exited) return "exited";
-  if (now - r.lastOutputAt < RUNNING_MS) return "running";
+  const quietMs = now - r.lastOutputAt;
+  // Search a wider window than a single prompt line: agent permission prompts are
+  // multi-line boxes where the question sits several lines above the menu.
   const tail = r.tail.replace(ANSI, "");
-  const lastLines = tail.split(/\r?\n/).slice(-3).join("\n").trimEnd();
-  if (AWAITING_PATTERNS.some((re) => re.test(lastLines))) return "awaiting";
+  const window = tail.split(/\r?\n/).slice(-14).join("\n");
+  const promptDetected = AWAITING_PATTERNS.some((re) => re.test(window));
+  // A detected prompt that has briefly settled = awaiting (even if still < the
+  // running window, since the agent may repaint the prompt periodically).
+  if (promptDetected && quietMs >= SETTLE_MS) return "awaiting";
+  if (quietMs < RUNNING_MS) return "running";
   return "idle";
 }
 

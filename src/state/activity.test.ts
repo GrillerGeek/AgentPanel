@@ -92,6 +92,28 @@ describe("detectAgentState", () => {
     const r = rt({ lastOutputAt: NOW - 5000, tail: "Continue [y/n]" });
     expect(detectAgentState(r, NOW)).toBe("awaiting");
   });
+
+  it("detects a Claude Code permission prompt (question above a numbered menu)", () => {
+    const tail = [
+      "Do you want to make this edit to App.tsx?",
+      "",
+      "❯ 1. Yes",
+      "  2. Yes, allow all edits this session",
+      "  3. No, and tell Claude what to do differently",
+      "",
+    ].join("\n");
+    expect(detectAgentState(rt({ lastOutputAt: NOW - 5000, tail }), NOW)).toBe("awaiting");
+  });
+
+  it("does NOT flag a bare starship prompt as awaiting", () => {
+    const r = rt({ lastOutputAt: NOW - 5000, tail: "user@host ~/repo on  main\n❯ " });
+    expect(detectAgentState(r, NOW)).toBe("idle");
+  });
+
+  it("stays running while output is still streaming", () => {
+    const tail = "Do you want to proceed?\n❯ 1. Yes\n";
+    expect(detectAgentState(rt({ lastOutputAt: NOW - 200, tail }), NOW)).toBe("running");
+  });
 });
 
 describe("aggregateAgentState", () => {
