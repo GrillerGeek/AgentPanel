@@ -601,6 +601,68 @@ body,
   line-height: 1.3;
 }
 
+.wt-explainer {
+  margin: 0 0 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--fg-dim);
+}
+.wt-path-preview {
+  font-size: 11px;
+  color: var(--fg-dim);
+  font-family: "Cascadia Code", Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Sidebar header legend + first-run ---- */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.legend-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  color: var(--fg-dim);
+  font-size: 10px;
+  cursor: help;
+}
+.legend-help:hover {
+  color: var(--fg-strong);
+  border-color: var(--accent);
+}
+.first-run {
+  padding: 12px;
+  color: var(--fg-muted);
+}
+.first-run-title {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-strong);
+}
+.first-run-sub {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.first-run-steps {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.first-run-steps li {
+  margin-bottom: 2px;
+}
+
 .wt-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -797,9 +859,54 @@ body,
   color: var(--red);
 }
 
+.terminal-pane-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
 .terminal-pane {
   width: 100%;
   height: 100%;
+}
+
+/* ---- In-terminal find (Ctrl+F) ---- */
+.term-search {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 10;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+.term-search-input {
+  background: var(--bg);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 4px;
+  color: var(--fg-strong);
+  padding: 3px 6px;
+  font-size: 12px;
+  outline: none;
+  width: 160px;
+}
+.term-search-input:focus {
+  border-color: var(--accent);
+}
+.term-search-btn {
+  background: none;
+  border: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 3px;
+}
+.term-search-btn:hover {
+  color: var(--fg-strong);
 }
 
 /* ---- Toasts ---- */

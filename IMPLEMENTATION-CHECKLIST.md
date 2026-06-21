@@ -57,17 +57,17 @@ follow in parallel. Theme 4 depends on Theme 1's state.
 
 ## Theme 2 — Safe & learnable (cheap trust/clarity wins)
 
-- [ ] Reusable `ConfirmDialog` component (message, confirm/cancel, optional "don't ask again")
-- [ ] Confirmation on **Remove repository**, **Remove worktree**, and **Close-all-terminals (✕)** in `Sidebar.tsx` / `ActiveSessions.tsx`; copy states exactly what is removed and that **the branch and on-disk code are not deleted** (worktree remove deletes the worktree dir only)
-- [ ] Confirm-on-close when a tab/pane has a **running agent** (uses Theme 1 state)
-- [ ] Guardrails are **dismissible**: "don't ask again" preference persisted in settings (resolves junior-vs-power-user tension)
-- [ ] Undo toast for reversible actions (e.g. closed tab) where feasible; otherwise confirm only
-- [ ] **"What is a worktree?" explainer** — a `?`/info affordance near "+ new worktree" and worktree rows, plain-English: what it is, where it lands on disk (sibling `<repo>-worktrees/<branch>`), what base branch it forks from, and that it won't touch your files
-- [ ] Show the target disk path + base branch in the new-worktree form/tooltip
-- [ ] Plain-language git status: keep the glyphs but add words ("2 commits not pushed", "3 changed files") and a small legend for ↑↓● + PR colors (hover legend or a `?` in the sidebar header)
-- [ ] **First-run tour**: 3 dismissible cards (what AgentPanel is → add a repo → launch an agent), shown when no repos exist; persist a "seen" flag
-- [ ] **Surface terminal find/search**: wire the already-bundled `@xterm/addon-search` — `Ctrl+F` opens an in-terminal search box in `Terminal.tsx`
-- [ ] **Acceptance:** a git novice can tell what "remove worktree" will and won't delete; `Ctrl+F` searches terminal scrollback; first launch explains itself
+- [x] Reusable `ConfirmDialog` component (message, confirm/cancel, optional "don't ask again")
+- [x] Confirmation on **Remove repository**, **Remove worktree**, and **Close-all-terminals (✕)** in `Sidebar.tsx` / `ActiveSessions.tsx`; copy states exactly what is removed and that **the branch and on-disk code are not deleted**
+- [x] Confirm-on-close when a tab/pane has a **running agent** (uses Theme 1 state, in `TabBar.tsx`)
+- [x] Guardrails are **dismissible**: "don't ask again" persisted in `settings.confirmsDisabled`
+- [ ] Undo toast for reversible actions (skipped for now — confirm-only, which the personas asked for)
+- [x] **"What is a worktree?" explainer** — blurb + `?` tooltip in the new-worktree form; plain-English (isolated branch, sibling dir, removing it keeps your branch/commits)
+- [x] Show the target disk path preview in the new-worktree form (live `<repo>-worktrees/<branch>`)
+- [x] Plain-language git status: a `?` legend in the Repositories header (↑↓● meanings + PR colors); glyph tooltips already carry words
+- [x] **First-run guidance**: an enhanced empty state (what AgentPanel is → add a repo → create a worktree → launch an agent), shown when no repos exist
+- [x] **Surface terminal find/search**: wired `@xterm/addon-search` — `Ctrl+F` opens an in-terminal find box (next/prev/Esc) in `Terminal.tsx`
+- [ ] **Acceptance (manual):** a git novice can tell what "remove worktree" will/won't delete; `Ctrl+F` searches scrollback; first launch explains itself
 
 ---
 

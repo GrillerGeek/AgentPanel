@@ -5,7 +5,7 @@ import { sortWorktrees } from "../state/activity";
 import { ActiveSessions } from "./ActiveSessions";
 import type { Repository } from "../types";
 
-function NewWorktreeForm({ repoId }: { repoId: string }) {
+function NewWorktreeForm({ repo }: { repo: Repository }) {
   const createWorktree = useStore((s) => s.createWorktree);
   const [open, setOpen] = useState(false);
   const [branch, setBranch] = useState("");
@@ -14,11 +14,19 @@ function NewWorktreeForm({ repoId }: { repoId: string }) {
 
   if (!open) {
     return (
-      <button className="new-worktree-toggle" onClick={() => setOpen(true)}>
+      <button
+        className="new-worktree-toggle"
+        title="A worktree is a separate working copy of this repo on its own branch, so an agent can work in isolation."
+        onClick={() => setOpen(true)}
+      >
         ＋ new worktree
       </button>
     );
   }
+
+  const safeBranch = branch.trim().replace(/[/\\:]/g, "-");
+  // Mirrors the Rust placement: a sibling "<repo>-worktrees/<branch>" directory.
+  const pathPreview = `${repo.name}-worktrees\\${safeBranch || "<branch>"}`;
 
   const submit = async () => {
     const name = branch.trim();
@@ -26,7 +34,7 @@ function NewWorktreeForm({ repoId }: { repoId: string }) {
     setBusy(true);
     setError(null);
     try {
-      await createWorktree(repoId, name);
+      await createWorktree(repo.id, name);
       setBranch("");
       setOpen(false);
     } catch (e) {
@@ -38,6 +46,11 @@ function NewWorktreeForm({ repoId }: { repoId: string }) {
 
   return (
     <div className="new-worktree">
+      <p className="wt-explainer">
+        A <strong>worktree</strong> is a separate checkout of this repo on a new branch — an agent
+        can work here without touching your main checkout. Removing it later deletes only this folder,
+        never your branch or commits.
+      </p>
       <input
         autoFocus
         className="wt-input"
@@ -50,6 +63,9 @@ function NewWorktreeForm({ repoId }: { repoId: string }) {
           if (e.key === "Escape") setOpen(false);
         }}
       />
+      <div className="wt-path-preview" title="Where this worktree will be created on disk">
+        ↳ {pathPreview}
+      </div>
       <div className="new-worktree-actions">
         <button className="add-btn" disabled={busy} onClick={() => void submit()}>
           {busy ? "…" : "Create"}
@@ -176,7 +192,7 @@ function RepoRow({ repo }: { repo: Repository }) {
               )}
             </div>
           ))}
-          {repo.isGit && <NewWorktreeForm repoId={repo.id} />}
+          {repo.isGit && <NewWorktreeForm repo={repo} />}
         </div>
       )}
     </div>
@@ -192,13 +208,44 @@ export function Sidebar() {
       <ActiveSessions />
       <div className="sidebar-header">
         <span>Repositories</span>
-        <button className="add-btn" onClick={() => addRepository()}>
-          + Add
-        </button>
+        <span className="header-actions">
+          <span
+            className="legend-help"
+            title={
+              "Status legend:\n↑ commits ahead of upstream\n↓ commits behind upstream\n● changed (uncommitted) files\n\nPR badge color:\ngreen = checks passing · red = failing · yellow = pending"
+            }
+          >
+            ?
+          </span>
+          <button className="add-btn" onClick={() => addRepository()}>
+            + Add
+          </button>
+        </span>
       </div>
       <div className="repo-list">
         {repositories.length === 0 && (
-          <div className="empty">No repositories yet. Click <strong>+ Add</strong> to pick a folder.</div>
+          <div className="first-run">
+            <p className="first-run-title">Run AI coding agents in parallel.</p>
+            <p className="first-run-sub">
+              Each agent gets its own git worktree (an isolated branch + folder) and its own
+              terminal. To get started:
+            </p>
+            <ol className="first-run-steps">
+              <li>
+                <strong>+ Add</strong> a repository or folder.
+              </li>
+              <li>
+                Create a <strong>worktree</strong> (a new branch to work in) or click it to open a
+                terminal.
+              </li>
+              <li>
+                Launch an agent with the <strong>▶ claude</strong> / <strong>▶ codex</strong> buttons.
+              </li>
+            </ol>
+            <button className="add-btn" onClick={() => addRepository()}>
+              + Add your first repository
+            </button>
+          </div>
         )}
         {repositories.map((repo) => (
           <RepoRow key={repo.id} repo={repo} />

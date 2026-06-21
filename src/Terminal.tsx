@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { SearchAddon } from "@xterm/addon-search";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { invoke, Channel } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -71,7 +72,10 @@ export function TerminalPane({
   const termRef = useRef<Terminal | null>(null);
   const webglRef = useRef<WebglAddon | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const searchRef = useRef<SearchAddon | null>(null);
   const sessionRef = useRef<number | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const setPaneSession = useStore((s) => s.setPaneSession);
   const shell = useStore((s) => s.settings.shell);
   const themeSlug = useStore((s) => s.settings.theme);
@@ -95,7 +99,19 @@ export function TerminalPane({
     const fit = new FitAddon();
     fitRef.current = fit;
     term.loadAddon(fit);
+    const search = new SearchAddon();
+    term.loadAddon(search);
+    searchRef.current = search;
     term.open(container);
+
+    // Ctrl+F opens the in-terminal find box (don't pass the chord to the shell).
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.type === "keydown" && e.ctrlKey && !e.altKey && (e.key === "f" || e.key === "F")) {
+        setSearchOpen(true);
+        return false;
+      }
+      return true;
+    });
 
     // WebGL is the fast renderer locally but streams poorly over remote desktop,
     // and each live context taxes the GPU compositor — so only attach it when
@@ -192,10 +208,11 @@ export function TerminalPane({
       unlistenExit?.();
       if (paneId) forgetPane(paneId);
       if (sessionId !== null) void invoke("pty_close", { id: sessionId });
-      term.dispose(); // also disposes loaded addons (incl. WebGL)
+      term.dispose(); // also disposes loaded addons (incl. WebGL, search)
       termRef.current = null;
       webglRef.current = null;
       fitRef.current = null;
+      searchRef.current = null;
       sessionRef.current = null;
     };
   }, [cwd]);
@@ -259,5 +276,48 @@ export function TerminalPane({
     return () => cancelAnimationFrame(id);
   }, [autoFocus]);
 
-  return <div ref={containerRef} className="terminal-pane" />;
+  const runSearch = (q: string, prev = false) => {
+    if (!q) return;
+    if (prev) searchRef.current?.findPrevious(q);
+    else searchRef.current?.findNext(q);
+  };
+  const closeSearch = () => {
+    setSearchOpen(false);
+    searchRef.current?.clearDecorations?.();
+    termRef.current?.focus();
+  };
+
+  return (
+    <div className="terminal-pane-wrap">
+      {searchOpen && (
+        <div className="term-search" onPointerDown={(e) => e.stopPropagation()}>
+          <input
+            autoFocus
+            className="term-search-input"
+            placeholder="Find in terminal"
+            value={query}
+            onChange={(e) => {
+              const v = e.currentTarget.value;
+              setQuery(v);
+              runSearch(v);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") runSearch(query, e.shiftKey);
+              if (e.key === "Escape") closeSearch();
+            }}
+          />
+          <button className="term-search-btn" title="Previous (Shift+Enter)" onClick={() => runSearch(query, true)}>
+            ↑
+          </button>
+          <button className="term-search-btn" title="Next (Enter)" onClick={() => runSearch(query)}>
+            ↓
+          </button>
+          <button className="term-search-btn" title="Close (Esc)" onClick={closeSearch}>
+            ✕
+          </button>
+        </div>
+      )}
+      <div ref={containerRef} className="terminal-pane" />
+    </div>
+  );
 }
