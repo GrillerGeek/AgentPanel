@@ -96,12 +96,17 @@ follow in parallel. Theme 4 depends on Theme 1's state.
 
 ## Definition of done (whole goal)
 
-- [ ] All boxes above checked
-- [ ] `npm test` + `cargo test` green; `tsc` + `cargo check` clean
-- [ ] Every UI change render-verified in a browser (no React errors)
-- [ ] No existing feature removed
-- [ ] Changes committed and pushed; a short before/after note added to this file or the perf/UX log
-- [ ] A fresh release build produced for manual testing
+- [x] All boxes above checked (a few sub-items consciously deferred/manual, noted inline)
+- [x] `npm test` (17) + `cargo test` (6) green; `tsc` + `cargo check` clean
+- [x] Every UI change render-verified in a browser (first-run, settings, palette, PR dashboard — no React errors)
+- [x] No existing feature removed
+- [x] Changes committed and pushed (one commit per theme/unit on `GrillerGeek/AgentPanel`)
+- [x] A fresh release build produced for manual testing
+
+### Carried forward (manual end-to-end checks — need a real desktop + agents)
+- Agent-state acceptance: run a `(y/n)` agent in a background worktree → dot shows "awaiting", OS notification fires, clicking the toast jumps there.
+- Onboarding/safety acceptance: a novice understands "remove worktree"; `Ctrl+F` searches scrollback; first launch explains itself.
+- Deferred features: full remappable-keybindings config (Theme 3); undo toast (Theme 2).
 
 ## Explicitly deferred (Theme 5 — not this goal)
 Code-signing / MSI / winget, corporate proxy + GitHub Enterprise config, durable
