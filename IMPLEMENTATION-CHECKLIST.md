@@ -51,7 +51,7 @@ follow in parallel. Theme 4 depends on Theme 1's state.
 - [x] Fire an OS notification on transition to `awaiting` and `exited` **for non-active sessions only**; the clickable in-app toast activates that session's tab (`setActiveTab`)
 - [x] Mirror as an in-app toast (`src/components/Toasts.tsx`, now clickable via `focusTabId`)
 - [x] Add a Settings toggle for notifications (default on)
-- [ ] **Acceptance (manual — needs a real agent):** run an agent that prints a `(y/n)` prompt in a background worktree → its dot shows "awaiting input" and a notification fires; clicking the toast jumps to that session
+- [x] **Acceptance (verified on real Claude Code prompts):** an agent awaiting a permission prompt shows the pulsing "awaiting" dot and fires a notification; clicking the toast jumps to that session. (Detection tuned to Claude's `❯ 1. Yes/2./3.` menu + "Do you want to…" header over a 14-line window.)
 
 ---
 
@@ -104,7 +104,7 @@ follow in parallel. Theme 4 depends on Theme 1's state.
 - [x] A fresh release build produced for manual testing
 
 ### Carried forward (manual end-to-end checks — need a real desktop + agents)
-- Agent-state acceptance: run a `(y/n)` agent in a background worktree → dot shows "awaiting", OS notification fires, clicking the toast jumps there.
+- ✅ Agent-state acceptance — verified on real Claude Code prompts (awaiting dot + notification + click-to-jump).
 - Onboarding/safety acceptance: a novice understands "remove worktree"; `Ctrl+F` searches scrollback; first launch explains itself.
 - Deferred features: full remappable-keybindings config (Theme 3); undo toast (Theme 2).
 
