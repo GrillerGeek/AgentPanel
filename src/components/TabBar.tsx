@@ -1,6 +1,15 @@
-import { useMemo, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { useStore, selectActiveWorktreeId, worktreeLabels } from "../state/store";
 import { aggregateAgentState, agentStateLabel, type AgentState } from "../state/activity";
+
+// Tab color swatches for the right-click menu.
+const TAB_COLORS = ["#f7768e", "#e0af68", "#9ece6a", "#7dcfff", "#7aa2f7", "#bb9af7"];
 
 export function TabBar() {
   const allTerminals = useStore((s) => s.terminals);
@@ -18,6 +27,24 @@ export function TabBar() {
   const agentCommands = useStore((s) => s.settings.agentCommands);
   const agentStatus = useStore((s) => s.agentStatus);
   const requestConfirm = useStore((s) => s.requestConfirm);
+  const renameTab = useStore((s) => s.renameTab);
+  const setTabColor = useStore((s) => s.setTabColor);
+
+  // Right-click context menu (rename + color), positioned at the cursor.
+  const [menu, setMenu] = useState<{ tabId: string; x: number; y: number } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const openMenu = (e: ReactMouseEvent, t: { id: string; title: string }) => {
+    e.preventDefault();
+    setRenameValue(t.title);
+    setMenu({ tabId: t.id, x: e.clientX, y: e.clientY });
+  };
+  const commitRename = () => {
+    if (menu) {
+      const name = renameValue.trim();
+      if (name) renameTab(menu.tabId, name);
+    }
+    setMenu(null);
+  };
 
   // Only the active worktree's tabs are shown — so the bar reflects the repo/
   // branch you're working in instead of mixing every repo's terminals together.
@@ -79,8 +106,10 @@ export function TabBar() {
           key={t.id}
           data-tabid={t.id}
           className={`tab ${t.id === activeTabId ? "active" : ""}`}
-          title={t.cwd + (tabState ? ` — ${agentStateLabel(tabState)}` : "")}
+          style={t.color ? { boxShadow: `inset 3px 0 0 0 ${t.color}` } : undefined}
+          title={t.cwd + (tabState ? ` — ${agentStateLabel(tabState)}` : "") + "  ·  right-click to rename / color"}
           onClick={() => onClickTab(t.id)}
+          onContextMenu={(e) => openMenu(e, t)}
           onPointerDown={(e) => onPointerDown(e, t.id)}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -136,6 +165,56 @@ export function TabBar() {
             </button>
           ))}
         </span>
+      )}
+
+      {menu && (
+        <>
+          <div
+            className="ctx-menu-backdrop"
+            onClick={() => setMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setMenu(null);
+            }}
+          />
+          <div className="tab-menu" style={{ left: menu.x, top: menu.y }}>
+            <input
+              autoFocus
+              className="tab-menu-input"
+              value={renameValue}
+              placeholder="Tab name"
+              onChange={(e) => setRenameValue(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitRename();
+                if (e.key === "Escape") setMenu(null);
+              }}
+            />
+            <div className="tab-menu-colors">
+              {TAB_COLORS.map((c) => (
+                <button
+                  key={c}
+                  className="tab-swatch"
+                  style={{ background: c }}
+                  title="Set tab color"
+                  onClick={() => {
+                    setTabColor(menu.tabId, c);
+                    setMenu(null);
+                  }}
+                />
+              ))}
+              <button
+                className="tab-swatch tab-swatch-none"
+                title="No color"
+                onClick={() => {
+                  setTabColor(menu.tabId, undefined);
+                  setMenu(null);
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

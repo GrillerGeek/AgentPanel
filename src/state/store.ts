@@ -112,6 +112,10 @@ interface AppState {
   setPaneSession: (paneId: string, sessionId: number) => void;
   /** set the split ratio for a 2-pane tab (drag-resize) */
   setSplitRatio: (tabId: string, ratio: number) => void;
+  /** rename a tab (right-click → rename) */
+  renameTab: (tabId: string, title: string) => void;
+  /** assign or clear a tab's color (right-click → color) */
+  setTabColor: (tabId: string, color: string | undefined) => void;
   /** move tab `fromId` to the position of `toId` (drag-reorder) */
   reorderTab: (fromId: string, toId: string) => void;
   /** close (await) all panes for a worktree so its directory is unlocked */
@@ -276,7 +280,13 @@ export const useStore = create<AppState>((set, get) => ({
       const raw = localStorage.getItem(SESSION_KEY);
       const saved = raw
         ? (JSON.parse(raw) as {
-            tabs: Array<{ worktreeId: string; cwd: string; title: string; panes?: number }>;
+            tabs: Array<{
+              worktreeId: string;
+              cwd: string;
+              title: string;
+              panes?: number;
+              color?: string;
+            }>;
             activeIndex: number;
           })
         : null;
@@ -288,7 +298,14 @@ export const useStore = create<AppState>((set, get) => ({
           const tabs: TerminalTab[] = valid.map((t) => {
             const count = Math.max(1, Math.min(2, t.panes ?? 1));
             const panes: Pane[] = Array.from({ length: count }, () => ({ id: nextPaneId() }));
-            return { id: nextTabId(), worktreeId: t.worktreeId, cwd: t.cwd, title: t.title, panes };
+            return {
+              id: nextTabId(),
+              worktreeId: t.worktreeId,
+              cwd: t.cwd,
+              title: t.title,
+              panes,
+              color: t.color,
+            };
           });
           const activeSaved = saved.tabs[saved.activeIndex] ?? saved.tabs[0];
           const activeTabId = tabs.find((t) => t.worktreeId === activeSaved?.worktreeId)?.id ?? tabs[0].id;
@@ -421,6 +438,16 @@ export const useStore = create<AppState>((set, get) => ({
       terminals: s.terminals.map((t) => (t.id === tabId ? { ...t, splitRatio: ratio } : t)),
     })),
 
+  renameTab: (tabId, title) =>
+    set((s) => ({
+      terminals: s.terminals.map((t) => (t.id === tabId ? { ...t, title } : t)),
+    })),
+
+  setTabColor: (tabId, color) =>
+    set((s) => ({
+      terminals: s.terminals.map((t) => (t.id === tabId ? { ...t, color } : t)),
+    })),
+
   reorderTab: (fromId, toId) =>
     set((s) => {
       if (fromId === toId) return s;
@@ -543,7 +570,13 @@ let lastSessionSnapshot = "";
 useStore.subscribe((s) => {
   if (!hydrated) return;
   const snapshot = JSON.stringify({
-    tabs: s.terminals.map((t) => ({ worktreeId: t.worktreeId, cwd: t.cwd, title: t.title, panes: t.panes.length })),
+    tabs: s.terminals.map((t) => ({
+      worktreeId: t.worktreeId,
+      cwd: t.cwd,
+      title: t.title,
+      panes: t.panes.length,
+      color: t.color,
+    })),
     activeIndex: s.terminals.findIndex((t) => t.id === s.activeTabId),
   });
   if (snapshot !== lastSessionSnapshot) {
