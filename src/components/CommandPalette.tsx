@@ -13,9 +13,11 @@ interface Command {
 export function CommandPalette({
   onClose,
   onOpenSettings,
+  onOpenPrDashboard,
 }: {
   onClose: () => void;
   onOpenSettings: () => void;
+  onOpenPrDashboard: () => void;
 }) {
   const repositories = useStore((s) => s.repositories);
   const worktrees = useStore((s) => s.worktrees);
@@ -40,6 +42,7 @@ export function CommandPalette({
   const commands = useMemo<Command[]>(() => {
     const cmds: Command[] = [
       { id: "add-repo", title: "Add repository…", run: addRepository },
+      { id: "pr-dash", title: "Pull requests across all repos…", run: onOpenPrDashboard },
       { id: "settings", title: "Open settings…", run: onOpenSettings },
     ];
     if (activeTabId) {
@@ -88,6 +91,7 @@ export function CommandPalette({
     agentCommands,
     addRepository,
     onOpenSettings,
+    onOpenPrDashboard,
     duplicateActiveTerminal,
     splitActiveTab,
     runAgentInActive,

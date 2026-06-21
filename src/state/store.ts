@@ -82,6 +82,8 @@ interface AppState {
   removeRepository: (id: string) => Promise<void>;
   loadWorktrees: (repoId: string) => Promise<void>;
   toggleExpand: (repoId: string) => Promise<void>;
+  /** expand or collapse every repository at once */
+  setAllExpanded: (expanded: boolean) => void;
   refreshStatuses: () => Promise<void>;
   refreshPrs: () => Promise<void>;
   /** reopen previously-open worktree terminals (fresh shells) */
@@ -217,6 +219,13 @@ export const useStore = create<AppState>((set, get) => ({
       await get().loadWorktrees(repoId);
     }
   },
+
+  setAllExpanded: (expanded) =>
+    set((s) => {
+      const next: Record<string, boolean> = {};
+      for (const r of s.repositories) next[r.id] = expanded;
+      return { expanded: next };
+    }),
 
   refreshStatuses: async () => {
     const gitRepoIds = new Set(get().repositories.filter((r) => r.isGit).map((r) => r.id));

@@ -1,6 +1,11 @@
 import { useMemo } from "react";
 import { useStore, selectActiveWorktreeId, worktreeLabels } from "../state/store";
-import { aggregateAgentState, agentStateLabel, type AgentState } from "../state/activity";
+import {
+  aggregateAgentState,
+  agentStateLabel,
+  AGENT_STATE_RANK,
+  type AgentState,
+} from "../state/activity";
 
 /**
  * The "Active terminals" section pinned to the top of the sidebar: every worktree
@@ -39,13 +44,22 @@ export function ActiveSessions() {
 
   if (order.length === 0) return null;
 
+  // Attention queue: float the neediest sessions (awaiting > exited > running >
+  // idle) to the top, keeping first-appearance order for ties so it doesn't jitter.
+  const sortedOrder = [...order].sort((a, b) => {
+    const ra = stateByWorktree[a] ? AGENT_STATE_RANK[stateByWorktree[a]] : -1;
+    const rb = stateByWorktree[b] ? AGENT_STATE_RANK[stateByWorktree[b]] : -1;
+    if (ra !== rb) return rb - ra;
+    return order.indexOf(a) - order.indexOf(b);
+  });
+
   return (
     <div className="sessions">
       <div className="sidebar-header">
         <span>Active terminals</span>
       </div>
       <div className="session-list">
-        {order.map((worktreeId) => {
+        {sortedOrder.map((worktreeId) => {
           const label = labels[worktreeId];
           const active = worktreeId === activeWorktreeId;
           return (

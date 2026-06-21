@@ -370,6 +370,84 @@ body,
   border-color: color-mix(in srgb, var(--yellow), var(--bg) 60%);
 }
 
+/* ---- PR dashboard (cross-repo roll-up) ---- */
+.pr-dashboard {
+  width: 640px;
+  max-width: 92vw;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  padding: 16px 18px;
+  color: var(--fg);
+}
+.pr-dashboard h2 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+.pr-rows {
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+.pr-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.pr-row:hover {
+  background: var(--bg-hover);
+}
+.pr-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: var(--fg-dim);
+}
+.pr-dot.pr-passing {
+  background: var(--green);
+}
+.pr-dot.pr-failing {
+  background: var(--red);
+}
+.pr-dot.pr-pending {
+  background: var(--yellow);
+}
+.pr-num {
+  color: var(--fg-muted);
+  flex: 0 0 auto;
+}
+.pr-branch {
+  color: var(--fg-strong);
+  flex: 0 0 auto;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-repo {
+  color: var(--fg-dim);
+  flex: 0 0 auto;
+}
+.pr-state {
+  color: var(--fg-dim);
+  flex: 0 0 auto;
+}
+.pr-title {
+  color: var(--fg-muted);
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ---- Titlebar right + settings ---- */
 .titlebar-right {
   display: flex;
@@ -654,6 +732,51 @@ kbd {
 }
 .legend-help:hover {
   color: var(--fg-strong);
+  border-color: var(--accent);
+}
+.collapse-all {
+  font-size: 12px;
+}
+
+/* ---- Sidebar search + filter (fleet scale) ---- */
+.sidebar-filter {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.sidebar-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 4px;
+  color: var(--fg);
+  padding: 4px 6px;
+  font-size: 12px;
+  outline: none;
+}
+.sidebar-search:focus {
+  border-color: var(--accent);
+}
+.filter-chip {
+  flex: 0 0 auto;
+  background: var(--bg-tab);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 10px;
+  color: var(--fg-muted);
+  font-size: 10px;
+  padding: 2px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.filter-chip:hover {
+  border-color: var(--accent);
+}
+.filter-chip.active {
+  background: var(--accent);
+  color: var(--accent-fg);
   border-color: var(--accent);
 }
 .first-run {

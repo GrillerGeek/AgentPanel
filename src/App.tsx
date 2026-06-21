@@ -30,6 +30,9 @@ const CommandPalette = lazy(() =>
 const SettingsModal = lazy(() =>
   import("./components/SettingsModal").then((m) => ({ default: m.SettingsModal })),
 );
+const PrDashboard = lazy(() =>
+  import("./components/PrDashboard").then((m) => ({ default: m.PrDashboard })),
+);
 
 /** Draggable divider between the two panes of a split tab. */
 function PaneDivider({ onResize }: { onResize: (ratio: number) => void }) {
@@ -63,6 +66,7 @@ function App() {
   const theme = useStore((s) => s.settings.theme);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [prDashOpen, setPrDashOpen] = useState(false);
 
   // Apply the selected theme to the app chrome (CSS variables on :root).
   useEffect(() => {
@@ -294,12 +298,21 @@ function App() {
               setPaletteOpen(false);
               setSettingsOpen(true);
             }}
+            onOpenPrDashboard={() => {
+              setPaletteOpen(false);
+              setPrDashOpen(true);
+            }}
           />
         </Suspense>
       )}
       {settingsOpen && (
         <Suspense fallback={null}>
           <SettingsModal onClose={() => setSettingsOpen(false)} />
+        </Suspense>
+      )}
+      {prDashOpen && (
+        <Suspense fallback={null}>
+          <PrDashboard onClose={() => setPrDashOpen(false)} />
         </Suspense>
       )}
       <div className="body">

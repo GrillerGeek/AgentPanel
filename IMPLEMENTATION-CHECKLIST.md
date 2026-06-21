@@ -85,12 +85,12 @@ follow in parallel. Theme 4 depends on Theme 1's state.
 
 ## Theme 4 — Fleet scale (maintainer; depends on Theme 1 state)
 
-- [ ] **Search box** in `Sidebar.tsx` filtering repos/worktrees by name/branch
-- [ ] **Filters** (chips/toggles): only worktrees with a running agent / dirty / open PR / red CI — wired to `statuses`, `prs`, and `agentStatus`
-- [ ] **Attention-queue sort** in `ActiveSessions.tsx`: auto-float `awaiting-input` and `exited`/finished sessions to the top (currently first-appearance order)
-- [ ] **Collapse-all / expand-all** repos in the sidebar
-- [ ] **Cross-repo PR/CI roll-up**: one sortable view listing every open PR + check state across all repos (reuse the already-polled `prs` data; surface as a modal or palette-accessible panel)
-- [ ] **Acceptance:** with many worktrees open, search/filters narrow the list, the neediest agents sort to the top, and the roll-up lists every open PR across repos
+- [x] **Search box** in `Sidebar.tsx` filtering repos/worktrees by name/branch (hides non-matching repos while searching)
+- [x] **Filter**: a "Needs attention" toggle = worktrees with a running/awaiting agent, dirty files, or failing CI (wired to `agentStatus`, `statuses`, `prs`). Consolidated the four chip ideas into one high-signal toggle.
+- [x] **Attention-queue sort** in `ActiveSessions.tsx`: awaiting > exited > running > idle float to the top, stable for ties
+- [x] **Collapse-all / expand-all** repos via a header toggle (`setAllExpanded`)
+- [x] **Cross-repo PR/CI roll-up**: `PrDashboard` modal (palette → "Pull requests across all repos…") lists every open PR sorted failing→pending→passing, click-through to GitHub
+- [ ] **Acceptance (manual):** with many worktrees open, search/filter narrow the list, neediest agents sort to top, roll-up lists every open PR
 
 ---
 

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useStore, selectActiveWorktreeId } from "../state/store";
-import { sortWorktrees } from "../state/activity";
+import { sortWorktrees, aggregateAgentState, type AgentState } from "../state/activity";
 import { ActiveSessions } from "./ActiveSessions";
-import type { Repository } from "../types";
+import type { Repository, Worktree } from "../types";
 
 function NewWorktreeForm({ repo }: { repo: Repository }) {
   const createWorktree = useStore((s) => s.createWorktree);
@@ -79,12 +79,21 @@ function NewWorktreeForm({ repo }: { repo: Repository }) {
   );
 }
 
-function RepoRow({ repo }: { repo: Repository }) {
+function RepoRow({
+  repo,
+  query,
+  attentionOnly,
+}: {
+  repo: Repository;
+  query: string;
+  attentionOnly: boolean;
+}) {
   const expanded = useStore((s) => s.expanded[repo.id] ?? false);
   const worktrees = useStore((s) => s.worktrees[repo.id]);
   const statuses = useStore((s) => s.statuses);
   const prs = useStore((s) => s.prs);
   const terminals = useStore((s) => s.terminals);
+  const agentStatus = useStore((s) => s.agentStatus);
   const activeWorktreeId = useStore(selectActiveWorktreeId);
   const toggleExpand = useStore((s) => s.toggleExpand);
   const openWorktreeTerminal = useStore((s) => s.openWorktreeTerminal);
@@ -94,6 +103,34 @@ function RepoRow({ repo }: { repo: Repository }) {
 
   const openWorktreeIds = new Set(terminals.map((t) => t.worktreeId));
   const sorted = worktrees ? sortWorktrees(worktrees, openWorktreeIds, statuses) : worktrees;
+
+  // Search + "needs attention" filtering (Theme 4 — fleet scale).
+  const q = query.trim().toLowerCase();
+  const filtering = q !== "" || attentionOnly;
+  const wtAgentState = (wtId: string): AgentState | null =>
+    aggregateAgentState(
+      terminals
+        .filter((t) => t.worktreeId === wtId)
+        .flatMap((t) => t.panes.map((p) => agentStatus[p.id]))
+        .filter(Boolean) as AgentState[],
+    );
+  const matches = (wt: Worktree): boolean => {
+    if (q && !`${wt.name} ${wt.branch ?? ""} ${repo.name}`.toLowerCase().includes(q)) return false;
+    if (attentionOnly) {
+      const st = wtAgentState(wt.id);
+      const busy = st === "awaiting" || st === "running";
+      const dirty = (statuses[wt.id]?.dirty ?? 0) > 0;
+      const redCi = prs[wt.id]?.checks === "failing";
+      if (!busy && !dirty && !redCi) return false;
+    }
+    return true;
+  };
+  const visible = (sorted ?? []).filter(matches);
+  const repoNameHit = q !== "" && repo.name.toLowerCase().includes(q);
+  // While filtering, hide repos that contribute nothing.
+  if (filtering && visible.length === 0 && !repoNameHit) return null;
+  const showWorktrees = expanded || filtering;
+  const rows = filtering ? visible : (sorted ?? []);
 
   return (
     <div className="repo">
@@ -124,11 +161,11 @@ function RepoRow({ repo }: { repo: Repository }) {
         </button>
       </div>
 
-      {expanded && (
+      {showWorktrees && (
         <div className="worktrees">
           {sorted === undefined && <div className="muted">loading…</div>}
           {sorted?.length === 0 && <div className="muted">no worktrees</div>}
-          {sorted?.map((wt) => (
+          {rows.map((wt) => (
             <div
               key={wt.id}
               className={`worktree-row ${activeWorktreeId === wt.id ? "selected active-worktree" : ""}`}
@@ -192,7 +229,7 @@ function RepoRow({ repo }: { repo: Repository }) {
               )}
             </div>
           ))}
-          {repo.isGit && <NewWorktreeForm repo={repo} />}
+          {repo.isGit && !filtering && <NewWorktreeForm repo={repo} />}
         </div>
       )}
     </div>
@@ -202,6 +239,12 @@ function RepoRow({ repo }: { repo: Repository }) {
 export function Sidebar() {
   const repositories = useStore((s) => s.repositories);
   const addRepository = useStore((s) => s.addRepository);
+  const setAllExpanded = useStore((s) => s.setAllExpanded);
+  const expanded = useStore((s) => s.expanded);
+  const [query, setQuery] = useState("");
+  const [attentionOnly, setAttentionOnly] = useState(false);
+
+  const anyExpanded = repositories.some((r) => expanded[r.id]);
 
   return (
     <aside className="sidebar">
@@ -209,6 +252,15 @@ export function Sidebar() {
       <div className="sidebar-header">
         <span>Repositories</span>
         <span className="header-actions">
+          {repositories.length > 0 && (
+            <button
+              className="icon-btn collapse-all"
+              title={anyExpanded ? "Collapse all" : "Expand all"}
+              onClick={() => setAllExpanded(!anyExpanded)}
+            >
+              {anyExpanded ? "⊟" : "⊞"}
+            </button>
+          )}
           <span
             className="legend-help"
             title={
@@ -222,6 +274,23 @@ export function Sidebar() {
           </button>
         </span>
       </div>
+      {repositories.length > 0 && (
+        <div className="sidebar-filter">
+          <input
+            className="sidebar-search"
+            placeholder="Search repos / branches…"
+            value={query}
+            onChange={(e) => setQuery(e.currentTarget.value)}
+          />
+          <button
+            className={`filter-chip ${attentionOnly ? "active" : ""}`}
+            title="Show only worktrees with a running/waiting agent, uncommitted changes, or failing CI"
+            onClick={() => setAttentionOnly((v) => !v)}
+          >
+            Needs attention
+          </button>
+        </div>
+      )}
       <div className="repo-list">
         {repositories.length === 0 && (
           <div className="first-run">
@@ -248,7 +317,7 @@ export function Sidebar() {
           </div>
         )}
         {repositories.map((repo) => (
-          <RepoRow key={repo.id} repo={repo} />
+          <RepoRow key={repo.id} repo={repo} query={query} attentionOnly={attentionOnly} />
         ))}
       </div>
     </aside>
