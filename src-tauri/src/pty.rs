@@ -49,8 +49,15 @@ fn kill_process_tree(pid: u32) {
     cmd.creation_flags(CREATE_NO_WINDOW);
     let _ = cmd.output();
 }
-#[cfg(not(windows))]
-fn kill_process_tree(_pid: u32) {}
+/// On Unix the PTY child is a session leader (portable-pty calls `setsid`), so
+/// its pid IS its process-group id. Negating it sends the signal to the whole
+/// group — every subprocess the agent spawned — in a single call.
+#[cfg(unix)]
+fn kill_process_tree(pid: u32) {
+    unsafe {
+        libc::kill(-(pid as i32), libc::SIGKILL);
+    }
+}
 
 /// App-wide PTY state, registered via `.manage()`.
 #[derive(Default)]
