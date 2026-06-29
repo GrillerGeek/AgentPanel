@@ -5,6 +5,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { invoke, Channel } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { useStore } from "./state/store";
 import { noteOutput, noteExit, forgetPane } from "./state/agentRuntime";
 import { schemeBySlug, xtermThemeFor } from "./themes/apply";
@@ -13,6 +14,12 @@ import "@xterm/xterm/css/xterm.css";
 // Reused decoder for the activity tail (lossy is fine — it only feeds ASCII
 // prompt matching; the terminal itself still renders the raw bytes).
 const tailDecoder = new TextDecoder();
+
+// The copy/paste modifier follows platform convention: Cmd on macOS, Ctrl
+// elsewhere. This keeps Ctrl+C as the interrupt key on macOS (where Cmd+C
+// copies) while giving Windows/Linux the Ctrl+C/Ctrl+V they expect.
+const IS_MAC =
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
 /** Decode a base64 chunk from the Rust PTY into raw bytes for xterm. */
 function decodeBase64(b64: string): Uint8Array {
@@ -104,14 +111,64 @@ export function TerminalPane({
     searchRef.current = search;
     term.open(container);
 
-    // Ctrl+F opens the in-terminal find box (don't pass the chord to the shell).
+    // Copy the current selection to the system clipboard (no-op if nothing is
+    // selected). Async write is fire-and-forget — the key handler stays sync.
+    const copySelection = () => {
+      const sel = term.getSelection();
+      if (sel) void writeText(sel);
+    };
+    // Paste clipboard text into the shell by writing it to the PTY, exactly as
+    // if it had been typed. Guards against an empty clipboard / dead session.
+    const pasteClipboard = () => {
+      void readText().then((text) => {
+        if (text && sessionRef.current !== null) {
+          void invoke("pty_write", { id: sessionRef.current, data: text });
+        }
+      });
+    };
+
     term.attachCustomKeyEventHandler((e) => {
-      if (e.type === "keydown" && e.ctrlKey && !e.altKey && (e.key === "f" || e.key === "F")) {
+      if (e.type !== "keydown") return true;
+      // Find uses Ctrl on every platform (it predates the clipboard work).
+      if (e.ctrlKey && !e.altKey && !e.shiftKey && (e.key === "f" || e.key === "F")) {
         setSearchOpen(true);
         return false;
       }
+      // Copy/paste use the platform's primary modifier; require the *other*
+      // modifier to be absent so e.g. macOS Ctrl+C still interrupts the shell.
+      const copyPasteMod = IS_MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+      if (copyPasteMod && !e.altKey && !e.shiftKey) {
+        // Copy when text is selected; with no selection, fall through so the
+        // shell receives the interrupt — the key that stops a runaway agent.
+        if (e.key === "c" || e.key === "C") {
+          if (term.hasSelection()) {
+            copySelection();
+            term.clearSelection();
+            return false;
+          }
+          return true;
+        }
+        if (e.key === "v" || e.key === "V") {
+          pasteClipboard();
+          return false;
+        }
+      }
       return true;
     });
+
+    // Right-click follows the Windows-console "QuickEdit" model: copy the
+    // selection if there is one, otherwise paste. Prevent the default so the
+    // webview doesn't clear the selection or show its own context menu.
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      if (term.hasSelection()) {
+        copySelection();
+        term.clearSelection();
+      } else {
+        pasteClipboard();
+      }
+    };
+    container.addEventListener("contextmenu", onContextMenu);
 
     // WebGL is the fast renderer locally but streams poorly over remote desktop,
     // and each live context taxes the GPU compositor — so only attach it when
@@ -204,6 +261,7 @@ export function TerminalPane({
       disposed = true;
       if (rafId) cancelAnimationFrame(rafId);
       observer.disconnect();
+      container.removeEventListener("contextmenu", onContextMenu);
       dataSub.dispose();
       unlistenExit?.();
       if (paneId) forgetPane(paneId);
