@@ -1,7 +1,7 @@
 [package]
 name = "agentpanel"
 version = "0.2.0"
-description = "AgentPanel — a worktree command center for coding agents (Windows)"
+description = "AgentPanel — a worktree command center for coding agents"
 authors = ["Jason Robey"]
 edition = "2021"
 
@@ -34,3 +34,7 @@ notify = "6"
 [target.'cfg(windows)'.dependencies]
 # Enumerate installed font families (for the terminal-font picker in Settings).
 winreg = "0.52"
+
+[target.'cfg(unix)'.dependencies]
+# Process-group signalling for killing the agent's subprocess tree on close.
+libc = "0.2"

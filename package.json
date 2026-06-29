@@ -24,9 +24,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@rollup/rollup-win32-x64-msvc": "^4.62.2",
     "@tauri-apps/cli": "^2",
-    "@tauri-apps/cli-win32-x64-msvc": "^2.11.3",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
