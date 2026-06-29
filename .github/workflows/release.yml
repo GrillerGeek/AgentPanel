@@ -9,7 +9,38 @@ permissions:
   contents: write
 
 jobs:
+  # Fail the whole release fast (on one cheap runner) if the manifests disagree
+  # with each other or with the pushed tag. This catches the class of mistake
+  # where a merge silently reverts a version bump — a v0.2.2 tag must build
+  # manifests that all say 0.2.2.
+  verify-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Check manifest versions match the tag
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg=$(jq -r .version package.json)
+          conf=$(jq -r .version src-tauri/tauri.conf.json)
+          cargo=$(grep -m1 '^version' src-tauri/Cargo.toml | sed -E 's/^version *= *"(.*)".*/\1/')
+          echo "tag=$tag  package.json=$pkg  tauri.conf.json=$conf  Cargo.toml=$cargo"
+          fail=0
+          for pair in "package.json:$pkg" "tauri.conf.json:$conf" "Cargo.toml:$cargo"; do
+            name="${pair%%:*}"; val="${pair#*:}"
+            if [ "$val" != "$tag" ]; then
+              echo "::error file=$name::$name version is '$val' but the tag is 'v$tag'"
+              fail=1
+            fi
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "Manifest versions must all equal the tag. Bump them and re-tag."
+            exit 1
+          fi
+          echo "All manifest versions match the tag ($tag)."
+
   build:
+    needs: verify-version
     strategy:
       fail-fast: false
       matrix:
@@ -20,6 +51,13 @@ jobs:
             args: ""
 
     runs-on: ${{ matrix.platform }}
+
+    # Transient crates.io download failures ("curl failed" fetching a crate
+    # source) have flaked release builds. Retry network operations aggressively
+    # so a one-off registry hiccup doesn't fail an otherwise-good release.
+    env:
+      CARGO_NET_RETRY: "10"
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
