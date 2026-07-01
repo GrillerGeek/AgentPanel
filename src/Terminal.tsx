@@ -28,35 +28,35 @@ function decodeBase64(b64: string): Uint8Array {
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
-
-  /** Parse newline-separated KEY=VALUE pairs into an env map. */
-  function parseInjectedEnv(raw: string): Record<string, string> {
-    const out: Record<string, string> = {};
-    for (const line of raw.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const eq = trimmed.indexOf("=");
-      if (eq <= 0) continue;
-      const key = trimmed.slice(0, eq).trim();
-      if (!key) continue;
-      out[key] = trimmed.slice(eq + 1);
-    }
-    return out;
-  }
-
-  async function resolveSpawnEnv(shell: string, terminalEnv: string, syncLoginPath: boolean) {
-    const env = parseInjectedEnv(terminalEnv);
-    if (syncLoginPath && !("PATH" in env)) {
-      try {
-        const path = await invoke<string>("detect_login_path", { shell: shell || null });
-        if (path.trim()) env.PATH = path.trim();
-      } catch {
-        // Non-macOS or login-shell detection failed: keep explicit user env only.
-      }
-    }
-    return Object.keys(env).length ? env : null;
-  }
   return bytes;
+}
+
+/** Parse newline-separated KEY=VALUE pairs into an env map. */
+function parseInjectedEnv(raw: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    if (!key) continue;
+    out[key] = trimmed.slice(eq + 1);
+  }
+  return out;
+}
+
+async function resolveSpawnEnv(shell: string, terminalEnv: string, syncLoginPath: boolean) {
+  const env = parseInjectedEnv(terminalEnv);
+  if (syncLoginPath && !("PATH" in env)) {
+    try {
+      const path = await invoke<string>("detect_login_path", { shell: shell || null });
+      if (path.trim()) env.PATH = path.trim();
+    } catch {
+      // Non-macOS or login-shell detection failed: keep explicit user env only.
+    }
+  }
+  return Object.keys(env).length ? env : null;
 }
 
 // Nerd Fonts that carry the powerline / icon glyphs (private-use area) used by
