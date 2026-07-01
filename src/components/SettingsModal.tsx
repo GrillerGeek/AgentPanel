@@ -20,10 +20,13 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const updateSettings = useStore((s) => s.updateSettings);
 
   const [shell, setShell] = useState(settings.shell);
+  const [terminalEnv, setTerminalEnv] = useState(settings.terminalEnv);
+  const [syncLoginPath, setSyncLoginPath] = useState(settings.syncLoginPath);
   const [shells, setShells] = useState<ShellInfo[]>([]);
   const [customShell, setCustomShell] = useState(false);
   const [fonts, setFonts] = useState<string[]>([]);
   const [agents, setAgents] = useState(settings.agentCommands.join(", "));
+  const [pathImportHint, setPathImportHint] = useState("");
 
   // Detect installed shells + fonts once when Settings opens.
   useEffect(() => {
@@ -60,12 +63,29 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const save = () => {
     updateSettings({
       shell: shell.trim() || "powershell.exe",
+      terminalEnv,
+      syncLoginPath,
       agentCommands: agents
         .split(",")
         .map((a) => a.trim())
         .filter(Boolean),
     });
     onClose();
+  };
+
+  const importLoginPath = async () => {
+    setPathImportHint("");
+    try {
+      const path = (await invoke<string>("detect_login_path", { shell: shell.trim() || null })).trim();
+      if (!path) throw new Error("empty");
+      const lines = terminalEnv
+        .split(/\r?\n/)
+        .filter((line) => !line.trim().toUpperCase().startsWith("PATH="));
+      setTerminalEnv([...lines.filter((l) => l.trim()), `PATH=${path}`].join("\n"));
+      setPathImportHint("Imported PATH from your login shell.");
+    } catch {
+      setPathImportHint("Couldn't import PATH. This helper currently works on macOS.");
+    }
   };
 
   // Theme applies live on change (so the picker previews instantly).
@@ -129,6 +149,43 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             theirs.
           </small>
         </label>
+
+        <label className="settings-field">
+          <span>Terminal environment overrides</span>
+          <textarea
+            className="settings-input"
+            rows={5}
+            value={terminalEnv}
+            onChange={(e) => setTerminalEnv(e.currentTarget.value)}
+            placeholder={"PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin\nFNM_DIR=/Users/you/.fnm"}
+          />
+          <small>
+            Optional newline-separated <code>KEY=VALUE</code> entries injected into each new terminal.
+            Use this when GUI-launched shells can&apos;t find tools like <code>starship</code> or{" "}
+            <code>fnm</code>.
+          </small>
+          <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
+            <button className="icon-btn" onClick={() => void importLoginPath()}>
+              Import PATH from login shell
+            </button>
+            {pathImportHint && <small>{pathImportHint}</small>}
+          </div>
+        </label>
+
+        <div className="settings-field">
+          <label className="settings-check">
+            <input
+              type="checkbox"
+              checked={syncLoginPath}
+              onChange={(e) => setSyncLoginPath(e.currentTarget.checked)}
+            />
+            <span>Auto-sync PATH from login shell (when PATH override is not set)</span>
+          </label>
+          <small>
+            Recommended on macOS: when AgentPanel is started from Finder, this helps match PATH from
+            Terminal.app automatically for new terminals.
+          </small>
+        </div>
 
         <label className="settings-field">
           <span>Terminal font</span>

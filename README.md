@@ -30,6 +30,12 @@ Download the latest **`AgentPanel_<version>_x64-setup.exe`** from
 [Releases](https://github.com/GrillerGeek/AgentPanel/releases) and run it. It's a per-user install
 (no admin required).
 
+### macOS shell PATH tip
+
+If a GUI-launched terminal cannot find tools like `starship` or `fnm`, open **Settings → Terminal
+environment overrides** and click **Import PATH from login shell**. You can also enable
+**Auto-sync PATH from login shell** so new terminals inherit a Terminal.app-like PATH.
+
 ## Build from source
 
 Prerequisites: [Rust](https://rustup.rs) (stable-msvc), Node.js 18+, and the

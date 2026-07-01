@@ -39,6 +39,10 @@ export interface TerminalTab {
 /** User settings (persisted in localStorage). */
 export interface Settings {
   shell: string;
+  /** newline-separated KEY=VALUE pairs injected into each new terminal */
+  terminalEnv: string;
+  /** on macOS, auto-inject PATH from a login shell when PATH isn't set above */
+  syncLoginPath: boolean;
   agentCommands: string[];
   theme: string; // scheme slug
   /** xterm WebGL renderer — fast locally; turn off for smoother remote desktop */

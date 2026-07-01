@@ -32,6 +32,8 @@ let hydrated = false;
 const SETTINGS_KEY = "agentpanel.settings";
 const DEFAULT_SETTINGS: Settings = {
   shell: "powershell.exe",
+  terminalEnv: "",
+  syncLoginPath: true,
   agentCommands: ["claude", "codex"],
   theme: DEFAULT_THEME,
   webgl: true,
