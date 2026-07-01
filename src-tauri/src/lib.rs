@@ -47,6 +47,7 @@ pub fn run() {
             pty::pty_write,
             pty::pty_resize,
             pty::pty_close,
+            pty::detect_login_path,
             commands::add_repository,
             commands::list_repositories,
             commands::remove_repository,

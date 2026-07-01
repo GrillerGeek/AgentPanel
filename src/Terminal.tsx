@@ -31,6 +31,42 @@ function decodeBase64(b64: string): Uint8Array {
   return bytes;
 }
 
+/** Parse newline-separated KEY=VALUE pairs into an env map. */
+function parseInjectedEnv(raw: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    if (!key) continue;
+    out[key] = trimmed.slice(eq + 1);
+  }
+  return out;
+}
+
+async function resolveSpawnEnv(shell: string, terminalEnv: string, syncLoginPath: boolean) {
+  const env = parseInjectedEnv(terminalEnv);
+  if (syncLoginPath && !("PATH" in env)) {
+    try {
+      const path = await invoke<string>("detect_login_path", { shell: shell || null });
+      if (path.trim()) env.PATH = path.trim();
+    } catch {
+      // Non-macOS or login-shell detection failed: keep explicit user env only.
+    }
+  }
+  return Object.keys(env).length ? env : null;
+}
+
+function shouldShowMacPathOnboardingHint(
+  terminalEnv: string,
+  syncLoginPath: boolean,
+  pathSyncHintShown: boolean,
+): boolean {
+  return IS_MAC && !pathSyncHintShown && !syncLoginPath && !("PATH" in parseInjectedEnv(terminalEnv));
+}
+
 // Nerd Fonts that carry the powerline / icon glyphs (private-use area) used by
 // modern prompts. Appended after the user's chosen font so missing icon glyphs
 // fall through to whichever of these is installed — that's what makes powerline
@@ -85,16 +121,29 @@ export function TerminalPane({
   const [query, setQuery] = useState("");
   const setPaneSession = useStore((s) => s.setPaneSession);
   const shell = useStore((s) => s.settings.shell);
+  const terminalEnv = useStore((s) => s.settings.terminalEnv);
+  const syncLoginPath = useStore((s) => s.settings.syncLoginPath);
+  const pathSyncHintShown = useStore((s) => s.settings.pathSyncHintShown);
   const themeSlug = useStore((s) => s.settings.theme);
   const webglEnabled = useStore((s) => s.settings.webgl);
   const fontFamily = useStore((s) => s.settings.fontFamily);
   const fontSize = useStore((s) => s.settings.fontSize);
+  const pushToast = useStore((s) => s.pushToast);
+  const updateSettings = useStore((s) => s.updateSettings);
   // WebGL is attached only when the pane is both enabled and visible.
   const webglWanted = webglEnabled && active;
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+
+    if (shouldShowMacPathOnboardingHint(terminalEnv, syncLoginPath, pathSyncHintShown)) {
+      pushToast(
+        'macOS tip: If commands are missing, open Settings and use "Import PATH from login shell" or enable "Auto-sync PATH from login shell".',
+        "info",
+      );
+      updateSettings({ pathSyncHintShown: true });
+    }
 
     const term = new Terminal({
       fontFamily: composeFont(fontFamily),
@@ -208,13 +257,17 @@ export function TerminalPane({
       else unlistenExit = u;
     });
 
-    invoke<number>("pty_spawn", {
-      cwd: cwd ?? null,
-      rows: term.rows,
-      cols: term.cols,
-      shell: shell || null,
-      onOutput,
-    })
+    void resolveSpawnEnv(shell, terminalEnv, syncLoginPath)
+      .then((env) =>
+        invoke<number>("pty_spawn", {
+          cwd: cwd ?? null,
+          rows: term.rows,
+          cols: term.cols,
+          shell: shell || null,
+          env,
+          onOutput,
+        }),
+      )
       .then((id) => {
         if (disposed) {
           void invoke("pty_close", { id });
