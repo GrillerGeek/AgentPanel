@@ -59,6 +59,14 @@ async function resolveSpawnEnv(shell: string, terminalEnv: string, syncLoginPath
   return Object.keys(env).length ? env : null;
 }
 
+function shouldShowMacPathOnboardingHint(
+  terminalEnv: string,
+  syncLoginPath: boolean,
+  pathSyncHintShown: boolean,
+): boolean {
+  return IS_MAC && !pathSyncHintShown && !syncLoginPath && !("PATH" in parseInjectedEnv(terminalEnv));
+}
+
 // Nerd Fonts that carry the powerline / icon glyphs (private-use area) used by
 // modern prompts. Appended after the user's chosen font so missing icon glyphs
 // fall through to whichever of these is installed — that's what makes powerline
@@ -129,9 +137,9 @@ export function TerminalPane({
     const container = containerRef.current;
     if (!container) return;
 
-    if (IS_MAC && !pathSyncHintShown && !syncLoginPath && !("PATH" in parseInjectedEnv(terminalEnv))) {
+    if (shouldShowMacPathOnboardingHint(terminalEnv, syncLoginPath, pathSyncHintShown)) {
       pushToast(
-        'macOS tip: If commands are missing, use Settings → "Import PATH from login shell" or enable "Auto-sync PATH from login shell".',
+        'macOS tip: If commands are missing, open Settings and use "Import PATH from login shell" or enable "Auto-sync PATH from login shell".',
         "info",
       );
       updateSettings({ pathSyncHintShown: true });

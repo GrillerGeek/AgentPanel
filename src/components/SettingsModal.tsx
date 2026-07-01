@@ -161,7 +161,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           />
           <small>
             Optional newline-separated <code>KEY=VALUE</code> entries injected into each new terminal.
-            Use this when GUI-launched shells can&apos;t find tools like <code>starship</code> or{" "}
+            Use this when GUI-launched shells cannot find tools like <code>starship</code> or{" "}
             <code>fnm</code>.
           </small>
           <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
