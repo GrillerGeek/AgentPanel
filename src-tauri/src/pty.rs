@@ -179,38 +179,6 @@ pub fn pty_spawn(
                     if channel.send(engine.encode(&buf[..n])).is_err() {
                         break; // frontend channel gone
                     }
-
-                    /// Resolve PATH from a login shell (useful on macOS GUI launches where PATH is
-                    /// often minimal compared to Terminal.app).
-                    #[tauri::command]
-                    pub fn detect_login_path(shell: Option<String>) -> Result<String, String> {
-                        #[cfg(target_os = "macos")]
-                        {
-                            let shell_path = shell
-                                .filter(|s| !s.trim().is_empty())
-                                .or_else(|| std::env::var("SHELL").ok())
-                                .unwrap_or_else(|| "/bin/zsh".to_string());
-                            let output = Command::new(shell_path)
-                                .args(["-l", "-c", "printf %s \"$PATH\""])
-                                .output()
-                                .map_err(|e| format!("failed to run login shell: {e}"))?;
-                            if !output.status.success() {
-                                return Err("login shell returned a non-zero exit status".to_string());
-                            }
-                            let path = String::from_utf8(output.stdout)
-                                .map_err(|e| format!("login PATH output was not valid UTF-8: {e}"))?;
-                            let path = path.trim().to_string();
-                            if path.is_empty() {
-                                return Err("login shell PATH was empty".to_string());
-                            }
-                            Ok(path)
-                        }
-                        #[cfg(not(target_os = "macos"))]
-                        {
-                            let _ = shell;
-                            Err("login PATH detection is only supported on macOS".to_string())
-                        }
-                    }
                 }
                 Err(_) => break,
             }
@@ -223,6 +191,38 @@ pub fn pty_spawn(
     });
 
     Ok(id)
+}
+
+/// Resolve PATH from a login shell (useful on macOS GUI launches where PATH is
+/// often minimal compared to Terminal.app).
+#[tauri::command]
+pub fn detect_login_path(shell: Option<String>) -> Result<String, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let shell_path = shell
+            .filter(|s| !s.trim().is_empty())
+            .or_else(|| std::env::var("SHELL").ok())
+            .unwrap_or_else(|| "/bin/zsh".to_string());
+        let output = Command::new(shell_path)
+            .args(["-l", "-c", "printf %s \"$PATH\""])
+            .output()
+            .map_err(|e| format!("failed to run login shell: {e}"))?;
+        if !output.status.success() {
+            return Err("login shell returned a non-zero exit status".to_string());
+        }
+        let path = String::from_utf8(output.stdout)
+            .map_err(|e| format!("login PATH output was not valid UTF-8: {e}"))?;
+        let path = path.trim().to_string();
+        if path.is_empty() {
+            return Err("login shell PATH was empty".to_string());
+        }
+        Ok(path)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = shell;
+        Err("login PATH detection is only supported on macOS".to_string())
+    }
 }
 
 /// Forward keystrokes (already UTF-8) from xterm to the shell.
