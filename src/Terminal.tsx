@@ -115,16 +115,27 @@ export function TerminalPane({
   const shell = useStore((s) => s.settings.shell);
   const terminalEnv = useStore((s) => s.settings.terminalEnv);
   const syncLoginPath = useStore((s) => s.settings.syncLoginPath);
+  const pathSyncHintShown = useStore((s) => s.settings.pathSyncHintShown);
   const themeSlug = useStore((s) => s.settings.theme);
   const webglEnabled = useStore((s) => s.settings.webgl);
   const fontFamily = useStore((s) => s.settings.fontFamily);
   const fontSize = useStore((s) => s.settings.fontSize);
+  const pushToast = useStore((s) => s.pushToast);
+  const updateSettings = useStore((s) => s.updateSettings);
   // WebGL is attached only when the pane is both enabled and visible.
   const webglWanted = webglEnabled && active;
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+
+    if (IS_MAC && !pathSyncHintShown && !syncLoginPath && !("PATH" in parseInjectedEnv(terminalEnv))) {
+      pushToast(
+        'macOS tip: If commands are missing, use Settings → "Import PATH from login shell" or enable "Auto-sync PATH from login shell".',
+        "info",
+      );
+      updateSettings({ pathSyncHintShown: true });
+    }
 
     const term = new Terminal({
       fontFamily: composeFont(fontFamily),

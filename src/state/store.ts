@@ -34,6 +34,7 @@ const DEFAULT_SETTINGS: Settings = {
   shell: "powershell.exe",
   terminalEnv: "",
   syncLoginPath: true,
+  pathSyncHintShown: false,
   agentCommands: ["claude", "codex"],
   theme: DEFAULT_THEME,
   webgl: true,
