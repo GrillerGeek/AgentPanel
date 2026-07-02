@@ -1,6 +1,6 @@
 [package]
 name = "agentpanel"
-version = "0.2.2"
+version = "0.3.0"
 description = "AgentPanel — a worktree command center for coding agents"
 authors = ["Jason Robey"]
 edition = "2021"
