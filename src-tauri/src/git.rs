@@ -33,7 +33,7 @@ fn run_git(repo: &str, args: &[&str]) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
-/// Supacode's repo-detection heuristic: a working tree has a `.git` entry
+/// Repo-detection heuristic: a working tree has a `.git` entry
 /// (dir, or a file for linked worktrees/submodules); a bare repo has the
 /// HEAD/objects/refs trio at the top level.
 pub fn is_git_repository(path: &Path) -> bool {

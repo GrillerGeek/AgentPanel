@@ -101,8 +101,7 @@ export function agentStateLabel(state: AgentState): string {
 }
 
 /**
- * Sidebar activity ranking (AgentPanel's analog of Supacode's
- * SidebarActiveClassification). Higher score sorts higher, so the worktrees
+ * Sidebar activity ranking. Higher score sorts higher, so the worktrees
  * most likely to need attention float to the top.
  *
  * Signals available today: an open terminal (an agent is likely running here)

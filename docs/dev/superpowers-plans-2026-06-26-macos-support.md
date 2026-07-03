@@ -15,7 +15,7 @@
 - New Unix dependency (`libc`) must be gated under `[target.'cfg(unix)'.dependencies]`.
 - Session-close kill semantics are forceful `SIGKILL` to the process group (parity with Windows `taskkill /F`), not graceful `SIGTERM`.
 - CI produces a **draft** GitHub Release with no signing secrets.
-- Spec of record: `docs/superpowers/specs/2026-06-26-macos-support-design.md`.
+- Spec of record: `docs/dev/superpowers-specs-2026-06-26-macos-support-design.md`.
 
 ---
 

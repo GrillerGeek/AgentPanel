@@ -117,8 +117,8 @@ Ordered by likely impact. **Nothing here should remove features.**
    subprocess per worktree. Measure CPU at idle with many worktrees; consider coalescing and
    skipping when the window is hidden/unfocused.
 4. **Per-terminal scaling.** Each pane = a Rust reader thread + an xterm instance. Cost-per-terminal
-   and memory at N=10/25/50 parallel terminals is the headline scalability metric (Supacode's
-   "50 agents") — see "Not yet measured".
+   and memory at N=10/25/50 parallel terminals is the headline scalability metric (the
+   "dozens of agents in parallel" goal) — see "Not yet measured".
 5. **Startup.** 481 ms warm is good; trimming the bundle (#1) and deferring non-critical work on
    mount (PR fetch, watcher setup) should help cold start.
 

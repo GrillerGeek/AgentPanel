@@ -1,0 +1,52 @@
+name: Bug report
+description: Report something that isn't working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! Please search existing issues first.
+        For security vulnerabilities, do **not** file here — see our [security policy](https://github.com/GrillerGeek/AgentPanel/security/policy).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce it?
+      placeholder: |
+        1. Add repo '...'
+        2. Create worktree '...'
+        3. See error
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (Apple Silicon)
+        - Other (note in description)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: AgentPanel version
+      description: See the release you installed (e.g. v0.3.0).
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Any relevant terminal output, error dialogs, or screenshots.
+    validations:
+      required: false

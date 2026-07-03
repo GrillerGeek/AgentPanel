@@ -1,6 +1,5 @@
 //! Tauri command surface for repositories and worktrees (the frontend's API
-//! into the Rust core). These are the analog of Supacode's `RepositoriesFeature`
-//! actions.
+//! into the Rust core).
 
 use std::path::Path;
 

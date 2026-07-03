@@ -1,8 +1,8 @@
 # AgentPanel
 
-A native **Windows** command center for running multiple AI coding agents in parallel — each
-isolated in its own **git worktree**, each with its own terminal. A Windows reimplementation of the
-[Supacode](https://github.com/supabitapp/supacode) concept, built on Tauri (Rust) + React + xterm.js.
+A cross-platform (**Windows** and **macOS**) command center for running multiple AI coding agents in
+parallel — each isolated in its own **git worktree**, each with its own terminal. Built on Tauri
+(Rust) + React + xterm.js.
 
 ## Features
 
@@ -19,16 +19,21 @@ isolated in its own **git worktree**, each with its own terminal. A Windows reim
 
 ## Runtime requirements
 
-- **Windows 10 1809+ / Windows 11**
-- **WebView2 runtime** — preinstalled on Windows 11; the installer fetches it if missing.
+- **Windows 10 1809+ / Windows 11**, or **macOS 11+** (Apple Silicon).
+- **WebView2 runtime** (Windows only) — preinstalled on Windows 11; the installer fetches it if
+  missing. macOS uses the system WebKit.
 - **Git** on `PATH` (required for worktrees).
 - Optional: **GitHub CLI (`gh`)** for PR/CI info; your agent CLIs (`claude`, etc.).
 
 ## Install
 
-Download the latest **`AgentPanel_<version>_x64-setup.exe`** from
-[Releases](https://github.com/GrillerGeek/AgentPanel/releases) and run it. It's a per-user install
-(no admin required).
+Download the latest build for your platform from
+[Releases](https://github.com/GrillerGeek/AgentPanel/releases):
+
+- **Windows** — `AgentPanel_<version>_x64-setup.exe`. Per-user install, no admin required.
+- **macOS** — `AgentPanel_<version>_aarch64.dmg` (Apple Silicon). The build is not yet notarized,
+  so if macOS reports the app is "damaged" on first launch, clear the quarantine flag:
+  `xattr -cr /Applications/AgentPanel.app`.
 
 ### macOS shell PATH tip
 
@@ -38,8 +43,9 @@ environment overrides** and click **Import PATH from login shell**. You can also
 
 ## Build from source
 
-Prerequisites: [Rust](https://rustup.rs) (stable-msvc), Node.js 18+, and the
-[Tauri prerequisites](https://tauri.app/start/prerequisites/) (VS C++ Build Tools + WebView2).
+Prerequisites: [Rust](https://rustup.rs) (stable), Node.js 18+, and the
+[Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS — on Windows: the MSVC
+toolchain, VS C++ Build Tools, and WebView2; on macOS: the Xcode Command Line Tools.
 
 ```sh
 npm install
@@ -47,7 +53,8 @@ npm run tauri dev      # run in development (hot reload)
 npm run tauri build    # produce the release build + installer
 ```
 
-The installer is written to `src-tauri/target/release/bundle/nsis/`.
+Bundles are written under `src-tauri/target/release/bundle/` — `nsis/` on Windows, `dmg/` and
+`macos/` on macOS.
 
 ### Tests
 
@@ -63,5 +70,8 @@ cargo test --manifest-path src-tauri/Cargo.toml       # Rust (git/gh layer)
 - **`src/`** — React + TypeScript: `state/store.ts` (Zustand), `Terminal.tsx` (xterm.js + WebGL),
   `components/`, `themes/`.
 
-The frontend talks to Rust through Tauri **commands** and streams PTY output over a **Channel** —
-the same client/event-stream architecture as Supacode, on a different stack.
+The frontend talks to Rust through Tauri **commands** and streams PTY output over a **Channel**.
+
+## License
+
+[MIT](LICENSE) © 2026 Jason Robey
