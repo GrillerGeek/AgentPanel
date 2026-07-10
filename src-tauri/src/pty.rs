@@ -85,6 +85,31 @@ fn default_shell() -> CommandBuilder {
     }
 }
 
+/// Build the environment for the spawned shell: colour-capability defaults with
+/// any user-provided vars taking precedence.
+///
+/// xterm.js is a 256-colour / truecolor terminal on every platform, but a GUI
+/// app launched from Finder/Dock on macOS inherits no `TERM`. Programs that gate
+/// colour on `TERM`/`COLORTERM` (Node CLIs like Claude Code, via the
+/// `supports-color` library) then detect "no colour" and render monochrome, even
+/// though simpler `isatty()`-only tools still colour. Seed `TERM`/`COLORTERM`
+/// here so those programs advertise colour; a value the user set in Settings
+/// (terminal env) overrides the default.
+fn build_spawn_env(user: Option<HashMap<String, String>>) -> HashMap<String, String> {
+    let mut env = HashMap::from([
+        ("TERM".to_string(), "xterm-256color".to_string()),
+        ("COLORTERM".to_string(), "truecolor".to_string()),
+    ]);
+    if let Some(vars) = user {
+        for (k, v) in vars {
+            if !k.trim().is_empty() {
+                env.insert(k, v);
+            }
+        }
+    }
+    env
+}
+
 /// Open a new PTY, spawn a shell, and stream its output over `on_output`.
 /// Returns an opaque session id used by the other commands.
 #[tauri::command]
@@ -118,12 +143,8 @@ pub fn pty_spawn(
     if let Some(dir) = cwd.filter(|d| !d.is_empty()) {
         cmd.cwd(dir);
     }
-    if let Some(vars) = env {
-        for (k, v) in vars {
-            if !k.trim().is_empty() {
-                cmd.env(k, v);
-            }
-        }
+    for (k, v) in build_spawn_env(env) {
+        cmd.env(k, v);
     }
 
     let child = pair
@@ -272,4 +293,37 @@ pub fn pty_close(state: State<'_, PtyManager>, id: u32) -> Result<(), String> {
         let _ = session.child.kill();
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn seeds_color_env_when_user_env_absent() {
+        let env = build_spawn_env(None);
+        assert_eq!(env.get("TERM").map(String::as_str), Some("xterm-256color"));
+        assert_eq!(env.get("COLORTERM").map(String::as_str), Some("truecolor"));
+    }
+
+    #[test]
+    fn seeds_color_env_alongside_user_vars() {
+        let user = HashMap::from([("PATH".to_string(), "/opt/bin".to_string())]);
+        let env = build_spawn_env(Some(user));
+        assert_eq!(env.get("TERM").map(String::as_str), Some("xterm-256color"));
+        assert_eq!(env.get("COLORTERM").map(String::as_str), Some("truecolor"));
+        assert_eq!(env.get("PATH").map(String::as_str), Some("/opt/bin"));
+    }
+
+    #[test]
+    fn user_term_overrides_the_default() {
+        let user = HashMap::from([
+            ("TERM".to_string(), "screen-256color".to_string()),
+            ("COLORTERM".to_string(), String::new()),
+        ]);
+        let env = build_spawn_env(Some(user));
+        assert_eq!(env.get("TERM").map(String::as_str), Some("screen-256color"));
+        // An explicit empty value still wins — the user chose to blank it.
+        assert_eq!(env.get("COLORTERM").map(String::as_str), Some(""));
+    }
 }
