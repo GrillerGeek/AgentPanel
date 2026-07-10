@@ -2,8 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   worktreeActivityScore,
   sortWorktrees,
+  sortActiveSessions,
   detectAgentState,
   aggregateAgentState,
+  type AgentState,
   type PaneRuntime,
 } from "./activity";
 import type { Worktree, WorktreeStatus } from "../types";
@@ -52,6 +54,55 @@ describe("sortWorktrees", () => {
     const list = [wt("feature"), wt("main", { isPrimary: true })];
     const sorted = sortWorktrees(list, new Set(), {});
     expect(sorted[0].id).toBe("main");
+  });
+});
+
+describe("sortActiveSessions (issue #14: no jumping)", () => {
+  it("floats awaiting above exited, and exited above running/idle", () => {
+    const states: Record<string, AgentState> = {
+      a: "idle",
+      b: "exited",
+      c: "awaiting",
+      d: "running",
+    };
+    expect(sortActiveSessions(["a", "b", "c", "d"], states, {})).toEqual(["c", "b", "a", "d"]);
+  });
+
+  it("ignores the running/idle distinction — a flapping session must not move", () => {
+    const mru = { a: 3, b: 2, c: 1 };
+    const before = sortActiveSessions(
+      ["a", "b", "c"],
+      { a: "idle", b: "running", c: "idle" },
+      mru,
+    );
+    // b's agent goes quiet (running -> idle), a's agent prints (idle -> running):
+    const after = sortActiveSessions(
+      ["a", "b", "c"],
+      { a: "running", b: "idle", c: "idle" },
+      mru,
+    );
+    expect(after).toEqual(before);
+  });
+
+  it("orders non-attention sessions by most-recently-used", () => {
+    const states: Record<string, AgentState> = { a: "idle", b: "running", c: "idle" };
+    expect(sortActiveSessions(["a", "b", "c"], states, { a: 1, b: 5, c: 3 })).toEqual([
+      "b",
+      "c",
+      "a",
+    ]);
+  });
+
+  it("breaks ties within an attention bucket by most-recently-used", () => {
+    const states: Record<string, AgentState> = { a: "awaiting", b: "awaiting", c: "idle" };
+    expect(sortActiveSessions(["a", "b", "c"], states, { a: 1, b: 2 })).toEqual(["b", "a", "c"]);
+  });
+
+  it("falls back to first-appearance order when MRU is missing", () => {
+    const states: Record<string, AgentState> = { a: "idle", b: "idle", c: "idle" };
+    expect(sortActiveSessions(["a", "b", "c"], states, {})).toEqual(["a", "b", "c"]);
+    // A session with no recorded state (no panes reported yet) also keeps its place.
+    expect(sortActiveSessions(["a", "b"], {}, {})).toEqual(["a", "b"]);
   });
 });
 
