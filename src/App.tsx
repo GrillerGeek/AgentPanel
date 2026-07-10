@@ -6,6 +6,7 @@ import { Sidebar } from "./components/Sidebar";
 import { TabBar } from "./components/TabBar";
 import { Toasts } from "./components/Toasts";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { PaneErrorBoundary } from "./components/PaneErrorBoundary";
 import { useStore, worktreeLabels } from "./state/store";
 import { snapshotStates } from "./state/agentRuntime";
 import type { AgentState } from "./state/activity";
@@ -359,13 +360,15 @@ function App() {
                                 ✕
                               </button>
                             )}
-                            <TerminalPane
-                              cwd={t.cwd}
-                              paneId={pane.id}
-                              initialCommand={pane.initialCommand}
-                              active={t.id === activeTabId}
-                              autoFocus={t.id === activeTabId && paneIndex === 0}
-                            />
+                            <PaneErrorBoundary>
+                              <TerminalPane
+                                cwd={t.cwd}
+                                paneId={pane.id}
+                                initialCommand={pane.initialCommand}
+                                active={t.id === activeTabId}
+                                autoFocus={t.id === activeTabId && paneIndex === 0}
+                              />
+                            </PaneErrorBoundary>
                           </div>
                         </Fragment>
                       );
