@@ -854,6 +854,46 @@ kbd {
   font-size: 14px;
 }
 
+/* Per-pane crash fallback (issue #18): shown by PaneErrorBoundary in place of a
+   TerminalPane that threw, so one bad pane can't take down the whole app. */
+.pane-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.pane-error-title {
+  color: var(--fg-strong);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pane-error-detail {
+  color: var(--fg-dim);
+  max-width: 80%;
+  text-align: center;
+  word-break: break-word;
+}
+
+.pane-error-reload {
+  margin-top: 4px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.pane-error-reload:hover {
+  background: var(--bg-hover);
+}
+
 /* ---- Tab bar ---- */
 .tabbar {
   flex: 0 0 auto;
