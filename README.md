@@ -31,9 +31,8 @@ Download the latest build for your platform from
 [Releases](https://github.com/GrillerGeek/AgentPanel/releases):
 
 - **Windows** — `AgentPanel_<version>_x64-setup.exe`. Per-user install, no admin required.
-- **macOS** — `AgentPanel_<version>_aarch64.dmg` (Apple Silicon). The build is not yet notarized,
-  so if macOS reports the app is "damaged" on first launch, clear the quarantine flag:
-  `xattr -cr /Applications/AgentPanel.app`.
+- **macOS** — `AgentPanel_<version>_aarch64.dmg` (Apple Silicon). Signed and notarized by Apple —
+  open the `.dmg` and drag the app to Applications; no security workarounds needed.
 
 ### macOS shell PATH tip
 
