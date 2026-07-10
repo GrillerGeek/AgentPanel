@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useStore, worktreeLabels } from "../state/store";
+import { useEscapeToClose } from "../lib/useEscapeToClose";
 
 // Sort order: failing CI first (that's what needs you), then pending, none, passing.
 const CHECK_RANK: Record<string, number> = { failing: 0, pending: 1, none: 2, passing: 3 };
@@ -12,6 +13,9 @@ export function PrDashboard({ onClose }: { onClose: () => void }) {
   const repositories = useStore((s) => s.repositories);
   const worktrees = useStore((s) => s.worktrees);
   const labels = useMemo(() => worktreeLabels(repositories, worktrees), [repositories, worktrees]);
+
+  // Escape = close (same as clicking the backdrop).
+  useEscapeToClose(onClose);
 
   const rows = Object.entries(prs)
     .flatMap(([wtId, pr]) => (pr ? [{ wtId, pr, label: labels[wtId] }] : []))
