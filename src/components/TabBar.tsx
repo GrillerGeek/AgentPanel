@@ -5,6 +5,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useStore, selectActiveWorktreeId, worktreeLabels } from "../state/store";
 import { aggregateAgentState, agentStateLabel, type AgentState } from "../state/activity";
 
@@ -63,6 +64,8 @@ export function TabBar({ onOpenSettings }: { onOpenSettings: () => void }) {
   const requestConfirm = useStore((s) => s.requestConfirm);
   const renameTab = useStore((s) => s.renameTab);
   const setTabColor = useStore((s) => s.setTabColor);
+  const editorCommand = useStore((s) => s.settings.editorCommand);
+  const pushToast = useStore((s) => s.pushToast);
 
   // Right-click context menu (rename + color), positioned at the cursor.
   const [menu, setMenu] = useState<{
@@ -139,6 +142,9 @@ export function TabBar({ onOpenSettings }: { onOpenSettings: () => void }) {
 
   const activeTab = terminals.find((t) => t.id === activeTabId);
   const canSplit = !!activeTab && activeTab.panes.length < 2;
+  const activeWorktree = Object.values(worktrees)
+    .flat()
+    .find((w) => w.id === activeWorktreeId);
 
   return (
     <div className="tabbar">
@@ -148,6 +154,20 @@ export function TabBar({ onOpenSettings }: { onOpenSettings: () => void }) {
           <span className="ctx-sep">/</span>
           <span className="ctx-branch">{context.branch}</span>
         </span>
+      )}
+      {activeWorktree && (
+        <button
+          className="icon-btn editor-btn"
+          title={`Open in "${editorCommand}"`}
+          onClick={() => {
+            invoke("open_in_editor", { command: editorCommand, path: activeWorktree.path }).catch((err) => {
+              console.error("open_in_editor failed", err);
+              pushToast(`Couldn't run "${editorCommand}" — is it on your PATH?`, "error");
+            });
+          }}
+        >
+          ⟨/⟩
+        </button>
       )}
       {terminals.map((t, i) => {
         const tabState = aggregateAgentState(

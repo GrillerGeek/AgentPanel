@@ -36,6 +36,7 @@ const DEFAULT_SETTINGS: Settings = {
   syncLoginPath: true,
   pathSyncHintShown: false,
   agentCommands: ["claude", "codex"],
+  editorCommand: "code",
   theme: DEFAULT_THEME,
   webgl: true,
   fontFamily: "Cascadia Code",

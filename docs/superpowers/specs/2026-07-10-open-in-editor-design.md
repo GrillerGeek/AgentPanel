@@ -22,6 +22,18 @@ code with their familiar dev tools.
   detached. The opener plugin's `openPath(path, with)` was rejected: `with`
   expects an application, not a CLI shim, and `code` on Windows is `code.cmd`,
   which CreateProcess cannot exec directly.
+  - **Deviation (review-driven, user-approved 2026-07-10):** the original
+    design prescribed `cmd /C <command> <path>` on Windows. A post-implementation
+    security + observability review found two problems with that approach and
+    the user approved replacing it before ship: (1) *security* — Rust quotes
+    arguments for `CommandLineToArgvW`, but `cmd.exe` parses metacharacters
+    (`&`, `|`, etc.) differently, so a space-free path containing `&` (e.g.
+    `...\main&calc`) could reach `cmd` unquoted and execute the suffix as a
+    second command; hand-rolled `cmd /C` requires manual escaping that the
+    original design didn't do. (2) *observability* — `cmd.exe` always spawns
+    successfully even when `command` is a typo or missing CLI, so `open_in_editor`
+    returned `Ok` with no editor opened and no toast shown. The fix (below)
+    spawns `command` directly instead.
 
 ## Components
 
@@ -42,8 +54,17 @@ pub fn open_in_editor(command: String, path: String) -> Result<(), String>
 ```
 
 - Reject empty/whitespace `command` with an error string.
-- Windows: spawn `cmd /C <command> <path>` using the existing `no_window`
-  pattern (see `git.rs` / `gh.rs`) so no console flashes.
+- Windows: spawn `<command> <path>` directly (no `cmd /C`), using the existing
+  `no_window` pattern (see `git.rs` / `gh.rs`) so no console flashes. Direct
+  spawn avoids `cmd.exe` metacharacter parsing entirely (no injection surface),
+  and it makes a missing/typo'd editor CLI fail the spawn immediately — so the
+  frontend's `.catch` fires and the user sees the error toast instead of
+  silence. If the first spawn fails *and* `command`'s final path segment has no
+  `.` extension, retry once with `<command>.cmd <path>` (same `no_window`
+  setup) — Rust >= 1.77 spawns `.cmd`/`.bat` shims (like `code.cmd`) with safe,
+  automatic argument escaping, so this still covers npm-style CLI shims
+  without shelling out through `cmd.exe`. The final error uses the last
+  attempt's error.
 - macOS/Linux: spawn `<command> <path>` directly.
 - `spawn()` and return immediately — never wait on the child. Map spawn errors
   to `Err(String)`.

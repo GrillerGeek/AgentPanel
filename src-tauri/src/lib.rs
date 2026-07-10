@@ -56,6 +56,7 @@ pub fn run() {
             commands::delete_worktree,
             commands::worktree_status,
             commands::worktree_pr,
+            commands::open_in_editor,
             watcher::set_watched_paths,
             shells::list_shells,
             fonts::list_fonts,
