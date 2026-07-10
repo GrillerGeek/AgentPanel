@@ -74,6 +74,9 @@ interface AppState {
   /** live per-pane agent state (running/idle/awaiting/exited), keyed by paneId;
    *  recomputed by a 1s ticker from agentRuntime.ts */
   agentStatus: Record<string, AgentState>;
+  /** most-recently-used stamp per worktree (higher = more recent), bumped when
+   *  the active worktree changes; orders the Active-terminals list (issue #14) */
+  worktreeMru: Record<string, number>;
   settings: Settings;
   /** transient error/info notifications */
   toasts: Toast[];
@@ -148,6 +151,7 @@ export const useStore = create<AppState>((set, get) => ({
   paneSessions: {},
   lastTabByWorktree: {},
   agentStatus: {},
+  worktreeMru: {},
   settings: readSettings(),
   toasts: [],
   confirmState: null,
@@ -565,6 +569,20 @@ export function worktreeLabels(
   }
   return out;
 }
+
+// Bump the active worktree's MRU stamp whenever it changes. A subscriber (rather
+// than edits at every activeTabId mutation site) catches all paths — tab clicks,
+// session clicks, opens, closes — in one place. The module-level guard makes the
+// re-entrant notification from setState a no-op.
+let lastMruWorktree: string | null = null;
+let mruCounter = 0;
+useStore.subscribe((s) => {
+  const wt = selectActiveWorktreeId(s);
+  if (wt && wt !== lastMruWorktree) {
+    lastMruWorktree = wt;
+    useStore.setState({ worktreeMru: { ...s.worktreeMru, [wt]: ++mruCounter } });
+  }
+});
 
 // Persist open terminal tabs (ephemeral UI session) to localStorage on change.
 // Gated by `hydrated` so boot-time store loads don't overwrite the saved session

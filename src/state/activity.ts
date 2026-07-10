@@ -7,8 +7,8 @@ import type { Worktree, WorktreeStatus } from "../types";
  */
 export type AgentState = "running" | "idle" | "awaiting" | "exited";
 
-/** Higher = more deserving of your attention; used to aggregate + sort. */
-export const AGENT_STATE_RANK: Record<AgentState, number> = {
+/** Higher = more deserving of your attention; used to aggregate panes. */
+const AGENT_STATE_RANK: Record<AgentState, number> = {
   awaiting: 3,
   exited: 2,
   running: 1,
@@ -98,6 +98,41 @@ export function agentStateLabel(state: AgentState): string {
     case "idle":
       return "idle";
   }
+}
+
+/**
+ * Attention rank for the "Active terminals" list. Deliberately collapses
+ * running/idle into one bucket: an agent's output naturally comes in bursts, so
+ * running↔idle flaps every few seconds and must never reorder rows (issue #14).
+ * Only stable, meaningful states float a session up.
+ */
+const SESSION_ATTENTION_RANK: Record<AgentState, number> = {
+  awaiting: 2,
+  exited: 1,
+  running: 0,
+  idle: 0,
+};
+
+/**
+ * Order the "Active terminals" list: sessions awaiting input first, then exited
+ * (finished work to review), then everything else by most-recently-used, falling
+ * back to first-appearance order so rows without an MRU stamp don't move.
+ */
+export function sortActiveSessions(
+  order: string[],
+  stateByWorktree: Record<string, AgentState>,
+  mru: Record<string, number>,
+): string[] {
+  const pos = new Map(order.map((id, i) => [id, i]));
+  return [...order].sort((a, b) => {
+    const ra = stateByWorktree[a] ? SESSION_ATTENTION_RANK[stateByWorktree[a]] : 0;
+    const rb = stateByWorktree[b] ? SESSION_ATTENTION_RANK[stateByWorktree[b]] : 0;
+    if (ra !== rb) return rb - ra;
+    const ma = mru[a] ?? 0;
+    const mb = mru[b] ?? 0;
+    if (ma !== mb) return mb - ma;
+    return (pos.get(a) ?? 0) - (pos.get(b) ?? 0);
+  });
 }
 
 /**

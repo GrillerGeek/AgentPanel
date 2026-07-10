@@ -3,7 +3,7 @@ import { useStore, selectActiveWorktreeId, worktreeLabels } from "../state/store
 import {
   aggregateAgentState,
   agentStateLabel,
-  AGENT_STATE_RANK,
+  sortActiveSessions,
   type AgentState,
 } from "../state/activity";
 
@@ -20,6 +20,7 @@ export function ActiveSessions() {
   const labels = useMemo(() => worktreeLabels(repositories, worktrees), [repositories, worktrees]);
   const activeWorktreeId = useStore(selectActiveWorktreeId);
   const agentStatus = useStore((s) => s.agentStatus);
+  const worktreeMru = useStore((s) => s.worktreeMru);
   const setActiveWorktree = useStore((s) => s.setActiveWorktree);
   const closeWorktreeTerminals = useStore((s) => s.closeWorktreeTerminals);
   const requestConfirm = useStore((s) => s.requestConfirm);
@@ -44,14 +45,10 @@ export function ActiveSessions() {
 
   if (order.length === 0) return null;
 
-  // Attention queue: float the neediest sessions (awaiting > exited > running >
-  // idle) to the top, keeping first-appearance order for ties so it doesn't jitter.
-  const sortedOrder = [...order].sort((a, b) => {
-    const ra = stateByWorktree[a] ? AGENT_STATE_RANK[stateByWorktree[a]] : -1;
-    const rb = stateByWorktree[b] ? AGENT_STATE_RANK[stateByWorktree[b]] : -1;
-    if (ra !== rb) return rb - ra;
-    return order.indexOf(a) - order.indexOf(b);
-  });
+  // Attention queue: awaiting > exited > most-recently-used. Running/idle don't
+  // affect position — that state flaps as agents pause between output bursts and
+  // sorting on it made rows jump around (issue #14).
+  const sortedOrder = sortActiveSessions(order, stateByWorktree, worktreeMru);
 
   return (
     <div className="sessions">
