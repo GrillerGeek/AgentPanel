@@ -2,6 +2,7 @@
 //! into the Rust core).
 
 use std::path::Path;
+use std::process::Command;
 
 use tauri::{AppHandle, State};
 
@@ -9,6 +10,73 @@ use crate::git;
 use crate::gh;
 use crate::model::{PrInfo, Repository, Worktree, WorktreeStatus};
 use crate::store::{self, AppStore};
+
+/// On Windows, prevent a console window from flashing for the editor subprocess.
+#[cfg(windows)]
+fn configure_no_window(cmd: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    cmd.creation_flags(CREATE_NO_WINDOW);
+}
+#[cfg(not(windows))]
+fn configure_no_window(_cmd: &mut Command) {}
+
+/// Launch an external editor CLI (e.g. `code`, `cursor`) on `path`. Spawns and
+/// returns immediately — never waits on the child, so a slow-starting editor
+/// (or one that stays open) can't block the UI.
+///
+/// Windows spawns `command` directly (with a `.cmd`/`.bat` fallback) instead of
+/// going through `cmd /C`: hand-rolled `cmd /C` requires manual escaping, and
+/// `cmd.exe`'s parsing of `&`/`|`/etc. differs from `CommandLineToArgvW`, so a
+/// space-free path containing a shell metacharacter (e.g. `...\main&calc`) could
+/// reach `cmd` unquoted and run the suffix as a second command. A direct spawn
+/// also fails immediately when the editor CLI is missing or misspelled — with
+/// `cmd /C`, `cmd.exe` itself always spawns successfully, so a typo'd command
+/// silently did nothing (no toast, no editor, no signal). Rust >= 1.77 spawns
+/// `.cmd`/`.bat` shims (like `code.cmd`) with safe, automatic argument escaping,
+/// so this still covers npm-style CLI shims without shelling out.
+#[tauri::command]
+pub fn open_in_editor(command: String, path: String) -> Result<(), String> {
+    if command.trim().is_empty() {
+        return Err("editor command is empty".into());
+    }
+
+    #[cfg(windows)]
+    {
+        let mut cmd = Command::new(&command);
+        cmd.arg(&path);
+        configure_no_window(&mut cmd);
+        let mut last_err = match cmd.spawn() {
+            Ok(_) => return Ok(()),
+            Err(e) => e,
+        };
+
+        // Fallback: retry as a `.cmd`/`.bat` shim, but only when `command`
+        // doesn't already carry an extension on its final segment (so we don't
+        // turn `code.exe` into `code.exe.cmd`, or misfire on a path-qualified
+        // command that simply couldn't be found).
+        let final_segment = command.rsplit(['\\', '/']).next().unwrap_or(&command);
+        let has_extension = final_segment.rsplit_once('.').is_some();
+        if !has_extension {
+            let mut fallback = Command::new(format!("{command}.cmd"));
+            fallback.arg(&path);
+            configure_no_window(&mut fallback);
+            match fallback.spawn() {
+                Ok(_) => return Ok(()),
+                Err(e) => last_err = e,
+            }
+        }
+
+        Err(format!("failed to launch \"{command}\": {last_err}"))
+    }
+    #[cfg(not(windows))]
+    {
+        let mut cmd = Command::new(&command);
+        cmd.arg(&path);
+        cmd.spawn().map_err(|e| format!("failed to launch \"{command}\": {e}"))?;
+        Ok(())
+    }
+}
 
 /// Add a folder as a repository: detect git vs plain folder, dedupe by path,
 /// and persist.

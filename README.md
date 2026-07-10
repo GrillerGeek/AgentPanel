@@ -14,6 +14,8 @@ parallel — each isolated in its own **git worktree**, each with its own termin
 - **Live git status** — branch, dirty-file count, and ahead/behind vs upstream per worktree,
   updated instantly via a file watcher.
 - **GitHub PR/CI** — per-worktree PR number + CI state via the `gh` CLI (click to open).
+- **Open in editor** — one-click tab bar button to open the active worktree in your editor;
+  configurable command (`code`, `cursor`, `code-insiders`, …) via Settings.
 - **Command palette** (`Ctrl+Shift+P`), keyboard shortcuts (`Ctrl+T/W/Tab/1–9`), session restore,
   and **12 themes** (Tokyo Night, Catppuccin, Dracula, Nord, Solarized, …).
 

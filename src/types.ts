@@ -46,6 +46,8 @@ export interface Settings {
   /** true once we've shown the macOS PATH onboarding tip */
   pathSyncHintShown: boolean;
   agentCommands: string[];
+  /** CLI command used by "Open in editor", e.g. code, cursor, code-insiders */
+  editorCommand: string;
   theme: string; // scheme slug
   /** xterm WebGL renderer — fast locally; turn off for smoother remote desktop */
   webgl: boolean;

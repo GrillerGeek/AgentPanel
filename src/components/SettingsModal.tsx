@@ -27,6 +27,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [customShell, setCustomShell] = useState(false);
   const [fonts, setFonts] = useState<string[]>([]);
   const [agents, setAgents] = useState(settings.agentCommands.join(", "));
+  const [editor, setEditor] = useState(settings.editorCommand);
   const [pathImportHint, setPathImportHint] = useState("");
 
   // Escape = close without saving (same as Cancel / clicking the backdrop).
@@ -73,6 +74,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         .split(",")
         .map((a) => a.trim())
         .filter(Boolean),
+      editorCommand: editor.trim() || "code",
     });
     onClose();
   };
@@ -237,6 +239,19 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             placeholder="claude, codex"
           />
           <small>Comma-separated. Shown as quick-launch buttons on the tab bar.</small>
+        </label>
+
+        <label className="settings-field">
+          <span>Editor command</span>
+          <input
+            className="settings-input"
+            value={editor}
+            onChange={(e) => setEditor(e.currentTarget.value)}
+            placeholder="code"
+          />
+          <small>
+            CLI command for "Open in editor" — e.g. code, cursor, code-insiders.
+          </small>
         </label>
 
         <div className="settings-field">
