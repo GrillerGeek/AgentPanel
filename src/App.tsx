@@ -13,7 +13,6 @@ import type { AgentState } from "./state/activity";
 import { applyTheme, schemeBySlug } from "./themes/apply";
 import { runBenchmark } from "./lib/bench";
 import { notify } from "./lib/notify";
-import logoIcon from "../resources/AgentPanelIcon-NoText.png";
 import "./App.css";
 
 /** Shallow-equal two paneId->state maps, to skip no-op ticker updates. */
@@ -281,18 +280,6 @@ function App() {
 
   return (
     <div className="app">
-      <header className="titlebar">
-        <span className="titlebar-brand">
-          <img className="app-logo" src={logoIcon} alt="" />
-          AgentPanel
-        </span>
-        <span className="titlebar-right">
-          <span className="titlebar-hint">Ctrl+Shift+P</span>
-          <button className="gear" title="Settings" onClick={() => setSettingsOpen(true)}>
-            ⚙
-          </button>
-        </span>
-      </header>
       <Toasts />
       <ConfirmDialog />
       {paletteOpen && (
@@ -324,10 +311,21 @@ function App() {
         <Sidebar />
         <main className="content">
           {terminals.length === 0 ? (
-            <div className="placeholder">Select a worktree to open a terminal.</div>
+            <div className="placeholder">
+              <span>Select a worktree to open a terminal.</span>
+              {/* The tab bar (and its gear) isn't rendered without terminals, so
+                  settings needs a home on the empty screen too. */}
+              <button
+                className="placeholder-settings"
+                title="Settings — command palette: Ctrl+Shift+P"
+                onClick={() => setSettingsOpen(true)}
+              >
+                ⚙ Settings
+              </button>
+            </div>
           ) : (
             <>
-              <TabBar />
+              <TabBar onOpenSettings={() => setSettingsOpen(true)} />
               <div className="terminal-stack">
                 {/* All tabs (and their panes) stay mounted so PTYs keep running
                     in parallel; only the active tab is visible. The xterm chunk

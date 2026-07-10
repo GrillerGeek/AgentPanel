@@ -40,41 +40,6 @@ body,
   color: var(--fg);
 }
 
-.titlebar {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--fg-muted);
-  background: var(--bg-alt);
-  border-bottom: 1px solid var(--border);
-  user-select: none;
-}
-
-.titlebar-hint {
-  font-weight: 400;
-  font-size: 11px;
-  color: var(--fg-dim);
-  border: 1px solid var(--bg-elevated);
-  border-radius: 3px;
-  padding: 1px 6px;
-}
-
-.titlebar-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--fg-strong);
-}
-.app-logo {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  display: block;
-}
 .first-run-logo {
   width: 56px;
   height: 56px;
@@ -472,13 +437,12 @@ body,
   white-space: nowrap;
 }
 
-/* ---- Titlebar right + settings ---- */
-.titlebar-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+/* ---- Settings gear (lives in the tab bar; branding stays in the native
+        title bar — issue #15) ---- */
 .gear {
+  /* Right-align when the agent launchers aren't rendered… */
+  margin-left: auto;
+  margin-right: 6px;
   background: none;
   border: none;
   color: var(--fg-muted);
@@ -488,6 +452,11 @@ body,
 }
 .gear:hover {
   color: var(--fg-strong);
+}
+/* …but sit flush against them when they are (two auto margins would split the
+   free space and strand the launchers mid-bar). */
+.agent-launchers + .gear {
+  margin-left: 0;
 }
 
 .settings {
@@ -847,11 +816,27 @@ kbd {
 
 .placeholder {
   display: flex;
+  flex-direction: column;
+  gap: 12px;
   align-items: center;
   justify-content: center;
   height: 100%;
   color: var(--fg-dim);
   font-size: 14px;
+}
+
+.placeholder-settings {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 12px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+.placeholder-settings:hover {
+  background: var(--bg-hover);
+  color: var(--fg-strong);
 }
 
 /* Per-pane crash fallback (issue #18): shown by PaneErrorBoundary in place of a

@@ -45,7 +45,7 @@ export function displayLabels(titles: string[], branch?: string): string[] {
   });
 }
 
-export function TabBar() {
+export function TabBar({ onOpenSettings }: { onOpenSettings: () => void }) {
   const allTerminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
   const activeWorktreeId = useStore(selectActiveWorktreeId);
@@ -219,6 +219,13 @@ export function TabBar() {
           ))}
         </span>
       )}
+      <button
+        className="gear"
+        title="Settings — command palette: Ctrl+Shift+P"
+        onClick={onOpenSettings}
+      >
+        ⚙
+      </button>
 
       {menu && (
         <>
