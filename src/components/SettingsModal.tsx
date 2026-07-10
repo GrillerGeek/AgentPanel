@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "../state/store";
+import { useEscapeToClose } from "../lib/useEscapeToClose";
 import { SCHEMES } from "../themes/schemes";
 import type { ShellInfo } from "../types";
 
@@ -27,6 +28,9 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [fonts, setFonts] = useState<string[]>([]);
   const [agents, setAgents] = useState(settings.agentCommands.join(", "));
   const [pathImportHint, setPathImportHint] = useState("");
+
+  // Escape = close without saving (same as Cancel / clicking the backdrop).
+  useEscapeToClose(onClose);
 
   // Detect installed shells + fonts once when Settings opens.
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../state/store";
+import { useEscapeToClose } from "../lib/useEscapeToClose";
 
 /**
  * The single confirmation dialog, driven by `confirmState` in the store and the
@@ -15,6 +16,13 @@ export function ConfirmDialog() {
   useEffect(() => {
     setDontAsk(false);
   }, [req]);
+
+  // Escape = cancel (same as clicking the backdrop). This component stays
+  // mounted with no dialog open, so gate on `req` — a bare Escape (e.g. typed
+  // into a terminal) must not touch the store.
+  useEscapeToClose(() => {
+    if (req) resolve(false);
+  });
 
   if (!req) return null;
 
