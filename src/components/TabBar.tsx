@@ -46,7 +46,15 @@ export function displayLabels(titles: string[], branch?: string): string[] {
   });
 }
 
-export function TabBar({ onOpenSettings }: { onOpenSettings: () => void }) {
+export function TabBar({
+  onOpenSettings,
+  onToggleNotes,
+  notesOpen = false,
+}: {
+  onOpenSettings: () => void;
+  onToggleNotes?: () => void;
+  notesOpen?: boolean;
+}) {
   const allTerminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
   const activeWorktreeId = useStore(selectActiveWorktreeId);
@@ -239,6 +247,13 @@ export function TabBar({ onOpenSettings }: { onOpenSettings: () => void }) {
           ))}
         </span>
       )}
+      <button
+        className={`gear notes-toggle ${notesOpen ? "active" : ""}`}
+        title="Notes for this session"
+        onClick={() => onToggleNotes?.()}
+      >
+        📝
+      </button>
       <button
         className="gear"
         title="Settings — command palette: Ctrl+Shift+P"
