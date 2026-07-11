@@ -453,6 +453,10 @@ body,
 .gear:hover {
   color: var(--fg-strong);
 }
+.notes-toggle.active {
+  color: var(--accent);
+  background: var(--bg-hover);
+}
 /* …but sit flush against them when they are (two auto margins would split the
    free space and strand the launchers mid-bar). */
 .agent-launchers + .gear {
