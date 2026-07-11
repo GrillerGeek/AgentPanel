@@ -53,6 +53,27 @@ function readSettings(): Settings {
   }
 }
 
+const NOTES_KEY = "agentpanel.notes";
+const NOTES_OPEN_KEY = "agentpanel.notesOpen";
+
+function readNotes(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(NOTES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function readNotesOpen(): boolean {
+  try {
+    return localStorage.getItem(NOTES_OPEN_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
 interface AppState {
   repositories: Repository[];
   /** worktrees keyed by repository id */
@@ -78,6 +99,10 @@ interface AppState {
   /** most-recently-used stamp per worktree (higher = more recent), bumped when
    *  the active worktree changes; orders the Active-terminals list (issue #14) */
   worktreeMru: Record<string, number>;
+  /** per-session notes, keyed by worktree id (= path); shared by a worktree's tabs */
+  notes: Record<string, string>;
+  /** whether the notes side panel is open (global toggle) */
+  notesOpen: boolean;
   settings: Settings;
   /** transient error/info notifications */
   toasts: Toast[];
@@ -114,6 +139,10 @@ interface AppState {
   /** make a worktree the active one (its tabs fill the tab bar), returning to the
    *  tab last used in it */
   setActiveWorktree: (worktreeId: string) => void;
+  /** set (replace) the note text for a worktree */
+  setNote: (worktreeId: string, text: string) => void;
+  /** open/close the notes side panel */
+  toggleNotes: () => void;
   /** replace the derived per-pane agent-state map (called by the 1s ticker) */
   setAgentStatus: (status: Record<string, AgentState>) => void;
   setPaneSession: (paneId: string, sessionId: number) => void;
@@ -153,6 +182,8 @@ export const useStore = create<AppState>((set, get) => ({
   lastTabByWorktree: {},
   agentStatus: {},
   worktreeMru: {},
+  notes: readNotes(),
+  notesOpen: readNotesOpen(),
   settings: readSettings(),
   toasts: [],
   confirmState: null,
@@ -200,6 +231,8 @@ export const useStore = create<AppState>((set, get) => ({
       const terminals = s.terminals.filter((t) => !wtIds.has(t.worktreeId));
       const paneSessions = { ...s.paneSessions };
       for (const t of removed) for (const p of t.panes) delete paneSessions[p.id];
+      const notes = { ...s.notes };
+      for (const wtId of wtIds) delete notes[wtId];
       const activeTabId =
         s.activeTabId && terminals.some((t) => t.id === s.activeTabId)
           ? s.activeTabId
@@ -209,6 +242,7 @@ export const useStore = create<AppState>((set, get) => ({
         worktrees,
         terminals,
         paneSessions,
+        notes,
         activeTabId,
       };
     });
@@ -340,9 +374,16 @@ export const useStore = create<AppState>((set, get) => ({
     // Kill the worktree's terminals FIRST so the OS releases the directory
     // (on Windows a shell's cwd locks the dir and blocks `git worktree remove`).
     await get().closeWorktreeTerminals(worktreePath);
+    const prev = get().worktrees[repoId] ?? [];
     try {
       const list = await invoke<Worktree[]>("delete_worktree", { repoId, worktreePath });
-      set((s) => ({ worktrees: { ...s.worktrees, [repoId]: list } }));
+      set((s) => {
+        const stillThere = new Set(list.map((w) => w.id));
+        const removedIds = prev.filter((w) => !stillThere.has(w.id)).map((w) => w.id);
+        const notes = { ...s.notes };
+        for (const wtId of removedIds) delete notes[wtId];
+        return { worktrees: { ...s.worktrees, [repoId]: list }, notes };
+      });
     } catch (err) {
       get().pushToast(`Couldn't remove worktree: ${err}`);
     }
@@ -437,6 +478,11 @@ export const useStore = create<AppState>((set, get) => ({
       const target = tabs.find((t) => t.id === remembered) ?? tabs[tabs.length - 1];
       return { activeTabId: target.id };
     }),
+
+  setNote: (worktreeId, text) =>
+    set((s) => ({ notes: { ...s.notes, [worktreeId]: text } })),
+
+  toggleNotes: () => set((s) => ({ notesOpen: !s.notesOpen })),
 
   setPaneSession: (paneId, sessionId) =>
     set((s) => ({ paneSessions: { ...s.paneSessions, [paneId]: sessionId } })),
@@ -623,5 +669,35 @@ useStore.subscribe((s) => {
   if (snapshot !== lastWatchedSnapshot) {
     lastWatchedSnapshot = snapshot;
     void invoke("set_watched_paths", { paths }).catch((err) => console.error("set_watched_paths failed", err));
+  }
+});
+
+// Persist per-session notes to localStorage, debounced so a burst of keystrokes
+// collapses into one write. Gated by a snapshot string like the other subscribers.
+let lastNotesSnapshot = JSON.stringify(useStore.getState().notes);
+let notesWriteTimer: ReturnType<typeof setTimeout> | undefined;
+useStore.subscribe((s) => {
+  const snapshot = JSON.stringify(s.notes);
+  if (snapshot === lastNotesSnapshot) return;
+  lastNotesSnapshot = snapshot;
+  if (notesWriteTimer) clearTimeout(notesWriteTimer);
+  notesWriteTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(NOTES_KEY, snapshot);
+    } catch (err) {
+      console.error("notes persist failed", err);
+    }
+  }, 300);
+});
+
+// Persist the notes panel open/closed flag immediately (single boolean).
+let lastNotesOpen = useStore.getState().notesOpen;
+useStore.subscribe((s) => {
+  if (s.notesOpen === lastNotesOpen) return;
+  lastNotesOpen = s.notesOpen;
+  try {
+    localStorage.setItem(NOTES_OPEN_KEY, JSON.stringify(s.notesOpen));
+  } catch (err) {
+    console.error("notesOpen persist failed", err);
   }
 });
