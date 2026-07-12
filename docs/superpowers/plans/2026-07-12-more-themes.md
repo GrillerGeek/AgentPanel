@@ -26,7 +26,7 @@
 
 **Interfaces:**
 - Consumes: `SCHEMES` (array of `Scheme`) from `./schemes`; `DEFAULT_THEME` and `schemeBySlug` from `./apply`.
-- Produces: 10 new `Scheme` entries; `SCHEMES.length` becomes 23.
+- Produces: 10 new `Scheme` entries; `SCHEMES.length` becomes 22.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -73,10 +73,10 @@ describe("SCHEMES palette data", () => {
     expect(schemeBySlug(DEFAULT_THEME).slug).toBe(DEFAULT_THEME);
   });
 
-  it("includes the 10 added themes for a total of 23", () => {
+  it("includes the 10 added themes for a total of 22", () => {
     const slugs = new Set(SCHEMES.map((s) => s.slug));
     for (const slug of ADDED) expect(slugs.has(slug), `missing ${slug}`).toBe(true);
-    expect(SCHEMES).toHaveLength(23);
+    expect(SCHEMES).toHaveLength(22);
   });
 });
 ```
@@ -84,7 +84,7 @@ describe("SCHEMES palette data", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npm test -- schemes`
-Expected: FAIL — the "includes the 10 added themes for a total of 23" test fails (`SCHEMES` has 13, the ADDED slugs are missing). The other four tests pass (the existing 13 are already well-formed).
+Expected: FAIL — the "includes the 10 added themes for a total of 22" test fails (`SCHEMES` has 12, the ADDED slugs are missing). The other four tests pass (the existing 12 are already well-formed).
 
 - [ ] **Step 3: Add the 10 palettes**
 
@@ -156,7 +156,7 @@ In `src/themes/schemes.ts`, insert these 10 entries immediately after the `catpp
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npm test -- schemes`
-Expected: PASS (5/5 — all schemes well-formed, 23 total, 10 added slugs present).
+Expected: PASS (5/5 — all schemes well-formed, 22 total, 10 added slugs present).
 
 - [ ] **Step 5: Run the full suite + typecheck**
 
@@ -188,7 +188,7 @@ Expected: the window opens without errors. (If port 1420 is busy, a different Ag
 
 - [ ] **Step 2: Open the theme picker**
 
-Open Settings (⚙ or Ctrl+Shift+P → Settings). The Theme dropdown should list **23** themes grouped into Dark and Light, including the 10 new ones (Material, GitHub Dark, Ayu Dark, Ayu Mirage, Material Palenight, Kanagawa in Dark; GitHub Light, One Light, Gruvbox Light, Ayu Light in Light).
+Open Settings (⚙ or Ctrl+Shift+P → Settings). The Theme dropdown should list **22** themes grouped into Dark and Light, including the 10 new ones (Material, GitHub Dark, Ayu Dark, Ayu Mirage, Material Palenight, Kanagawa in Dark; GitHub Light, One Light, Gruvbox Light, Ayu Light in Light).
 
 - [ ] **Step 3: Verify a new dark theme**
 
@@ -215,4 +215,4 @@ Close and relaunch the app. Expected: the last-selected theme is still applied (
 
 **Placeholder scan:** none — every palette value is an explicit hex string; every run step has an exact command + expected result.
 
-**Type/name consistency:** `Scheme` shape (`slug`/`name`/`variant`/`base`) matches the existing file and `apply.ts`. The 10 `ADDED` slugs in the test exactly match the 10 entries' slugs in Step 3. `schemeBySlug`/`DEFAULT_THEME` are imported from `./apply` where they're defined. Total count 23 = existing 13 + added 10.
+**Type/name consistency:** `Scheme` shape (`slug`/`name`/`variant`/`base`) matches the existing file and `apply.ts`. The 10 `ADDED` slugs in the test exactly match the 10 entries' slugs in Step 3. `schemeBySlug`/`DEFAULT_THEME` are imported from `./apply` where they're defined. Total count 22 = existing 12 + added 10.

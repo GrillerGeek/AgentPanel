@@ -7,7 +7,7 @@
 ## Problem
 
 Users want more built-in color themes (the issue names Material and GitHub).
-Today `src/themes/schemes.ts` ships 13 curated base16 palettes.
+Today `src/themes/schemes.ts` ships 12 curated base16 palettes.
 
 ## Decision summary
 
@@ -31,7 +31,7 @@ Today `src/themes/schemes.ts` ships 13 curated base16 palettes.
   | `gruvbox-light` | Gruvbox Light | light |
   | `ayu-light` | Ayu Light | light |
 
-  Result: 13 → 23 themes; light options go 2 → 6.
+  Result: 12 → 22 themes; light options go 2 → 6.
 
   (Night Owl was originally proposed but has no canonical base16 palette in the
   tinted-theming collection, so Material Palenight — a comparable deep blue
