@@ -19,6 +19,7 @@ export function NotesPanel() {
     <aside className="notes-panel">
       <textarea
         className="notes-textarea"
+        aria-label="Session notes"
         value={note}
         placeholder="Notes & tasks for this session…"
         spellCheck={false}

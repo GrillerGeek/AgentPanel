@@ -26,10 +26,12 @@ describe("NotesPanel", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("shows the active session's note when open", () => {
+  it("shows the active session's note when open, with an accessible name", () => {
     seed(true, { wtA: "remember the migration" });
     render(<NotesPanel />);
-    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("remember the migration");
+    expect((screen.getByLabelText("Session notes") as HTMLTextAreaElement).value).toBe(
+      "remember the migration",
+    );
   });
 
   it("writes edits back to the active session's note", () => {

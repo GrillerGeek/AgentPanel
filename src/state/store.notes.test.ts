@@ -80,4 +80,23 @@ describe("notes store", () => {
     expect(useStore.getState().notes.wt1).toBeUndefined();
     expect(useStore.getState().notes.wt2).toBe("stays");
   });
+
+  it("flushes a pending debounced write synchronously when the document becomes hidden", () => {
+    useStore.getState().setNote("wtA", "draft before hide");
+    expect(localStorage.getItem("agentpanel.notes")).toBeNull(); // debounce not yet elapsed
+
+    const originalDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, "visibilityState");
+    Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+    try {
+      document.dispatchEvent(new Event("visibilitychange"));
+      // No timer advance: the flush must write synchronously, not rely on the timer firing.
+      expect(JSON.parse(localStorage.getItem("agentpanel.notes")!)).toEqual({ wtA: "draft before hide" });
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(document, "visibilityState", originalDescriptor);
+      } else {
+        Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+      }
+    }
+  });
 });

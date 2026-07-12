@@ -690,6 +690,26 @@ useStore.subscribe((s) => {
   }, 300);
 });
 
+// Flush a pending (debounced) notes write synchronously when the window is
+// hidden or closing, so the last keystrokes aren't lost if the app quits
+// within the debounce window.
+function flushNotes() {
+  if (notesWriteTimer === undefined) return;
+  clearTimeout(notesWriteTimer);
+  notesWriteTimer = undefined;
+  try {
+    localStorage.setItem(NOTES_KEY, lastNotesSnapshot);
+  } catch (err) {
+    console.error("notes flush failed", err);
+  }
+}
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", flushNotes);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushNotes();
+  });
+}
+
 // Persist the notes panel open/closed flag immediately (single boolean).
 let lastNotesOpen = useStore.getState().notesOpen;
 useStore.subscribe((s) => {
