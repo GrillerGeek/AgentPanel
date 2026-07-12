@@ -24,7 +24,7 @@ Today `src/themes/schemes.ts` ships 13 curated base16 palettes.
   | `github-dark` | GitHub Dark | dark |
   | `ayu-dark` | Ayu Dark | dark |
   | `ayu-mirage` | Ayu Mirage | dark |
-  | `night-owl` | Night Owl | dark |
+  | `material-palenight` | Material Palenight | dark |
   | `kanagawa` | Kanagawa | dark |
   | `github-light` | GitHub Light | light |
   | `one-light` | One Light | light |
@@ -32,6 +32,10 @@ Today `src/themes/schemes.ts` ships 13 curated base16 palettes.
   | `ayu-light` | Ayu Light | light |
 
   Result: 13 → 23 themes; light options go 2 → 6.
+
+  (Night Owl was originally proposed but has no canonical base16 palette in the
+  tinted-theming collection, so Material Palenight — a comparable deep blue
+  dark theme with a verified palette — was substituted.)
 
 ## Components
 
