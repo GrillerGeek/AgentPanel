@@ -93,3 +93,13 @@ describe("TabBar open-in-editor button", () => {
     });
   });
 });
+
+describe("TabBar notes toggle (issue #13)", () => {
+  it("shows a notes button and calls onToggleNotes on click", () => {
+    seedOneTerminal();
+    const onToggleNotes = vi.fn();
+    render(<TabBar onOpenSettings={vi.fn()} onToggleNotes={onToggleNotes} notesOpen={false} />);
+    fireEvent.click(screen.getByTitle(/notes for this session/i));
+    expect(onToggleNotes).toHaveBeenCalledOnce();
+  });
+});

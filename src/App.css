@@ -453,9 +453,19 @@ body,
 .gear:hover {
   color: var(--fg-strong);
 }
+.notes-toggle.active {
+  color: var(--accent);
+  background: var(--bg-hover);
+}
 /* …but sit flush against them when they are (two auto margins would split the
    free space and strand the launchers mid-bar). */
 .agent-launchers + .gear {
+  margin-left: 0;
+}
+/* The notes toggle reuses .gear, so its margin-left:auto pushes the icon group
+   right; the settings gear that follows must reset, or a second auto margin
+   opens a gap between the two icons. */
+.notes-toggle + .gear {
   margin-left: 0;
 }
 
@@ -1062,9 +1072,40 @@ kbd {
 /* ---- Terminal stack (all panes mounted; only active visible) ---- */
 .terminal-stack {
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
   position: relative;
   padding: 4px;
+}
+
+.content-row {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+}
+
+.notes-panel {
+  flex: 0 0 300px;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+}
+
+.notes-textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
 }
 
 .terminal-host {

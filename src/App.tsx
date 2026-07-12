@@ -7,6 +7,7 @@ import { TabBar } from "./components/TabBar";
 import { Toasts } from "./components/Toasts";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { PaneErrorBoundary } from "./components/PaneErrorBoundary";
+import { NotesPanel } from "./components/NotesPanel";
 import { useStore, worktreeLabels } from "./state/store";
 import { snapshotStates } from "./state/agentRuntime";
 import type { AgentState } from "./state/activity";
@@ -65,6 +66,8 @@ function App() {
   const setSplitRatio = useStore((s) => s.setSplitRatio);
   const pushToast = useStore((s) => s.pushToast);
   const theme = useStore((s) => s.settings.theme);
+  const notesOpen = useStore((s) => s.notesOpen);
+  const toggleNotes = useStore((s) => s.toggleNotes);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [prDashOpen, setPrDashOpen] = useState(false);
@@ -325,55 +328,62 @@ function App() {
             </div>
           ) : (
             <>
-              <TabBar onOpenSettings={() => setSettingsOpen(true)} />
-              <div className="terminal-stack">
-                {/* All tabs (and their panes) stay mounted so PTYs keep running
-                    in parallel; only the active tab is visible. The xterm chunk
-                    loads on first terminal (Suspense). */}
-                <Suspense fallback={null}>
-                {terminals.map((t) => (
-                  <div
-                    key={t.id}
-                    className="terminal-host"
-                    style={{ display: t.id === activeTabId ? "flex" : "none" }}
-                  >
-                    {t.panes.map((pane, paneIndex) => {
-                      const ratio = t.splitRatio ?? 0.5;
-                      const split = t.panes.length === 2;
-                      return (
-                        <Fragment key={pane.id}>
-                          {paneIndex === 1 && (
-                            <PaneDivider onResize={(r) => setSplitRatio(t.id, r)} />
-                          )}
-                          <div
-                            className="pane-wrap"
-                            style={split ? { flexGrow: paneIndex === 0 ? ratio : 1 - ratio } : undefined}
-                          >
-                            {t.panes.length > 1 && (
-                              <button
-                                className="pane-close"
-                                title="Close pane"
-                                onClick={() => closePane(t.id, pane.id)}
-                              >
-                                ✕
-                              </button>
+              <TabBar
+                onOpenSettings={() => setSettingsOpen(true)}
+                onToggleNotes={toggleNotes}
+                notesOpen={notesOpen}
+              />
+              <div className="content-row">
+                <div className="terminal-stack">
+                  {/* All tabs (and their panes) stay mounted so PTYs keep running
+                      in parallel; only the active tab is visible. The xterm chunk
+                      loads on first terminal (Suspense). */}
+                  <Suspense fallback={null}>
+                  {terminals.map((t) => (
+                    <div
+                      key={t.id}
+                      className="terminal-host"
+                      style={{ display: t.id === activeTabId ? "flex" : "none" }}
+                    >
+                      {t.panes.map((pane, paneIndex) => {
+                        const ratio = t.splitRatio ?? 0.5;
+                        const split = t.panes.length === 2;
+                        return (
+                          <Fragment key={pane.id}>
+                            {paneIndex === 1 && (
+                              <PaneDivider onResize={(r) => setSplitRatio(t.id, r)} />
                             )}
-                            <PaneErrorBoundary>
-                              <TerminalPane
-                                cwd={t.cwd}
-                                paneId={pane.id}
-                                initialCommand={pane.initialCommand}
-                                active={t.id === activeTabId}
-                                autoFocus={t.id === activeTabId && paneIndex === 0}
-                              />
-                            </PaneErrorBoundary>
-                          </div>
-                        </Fragment>
-                      );
-                    })}
-                  </div>
-                ))}
-                </Suspense>
+                            <div
+                              className="pane-wrap"
+                              style={split ? { flexGrow: paneIndex === 0 ? ratio : 1 - ratio } : undefined}
+                            >
+                              {t.panes.length > 1 && (
+                                <button
+                                  className="pane-close"
+                                  title="Close pane"
+                                  onClick={() => closePane(t.id, pane.id)}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                              <PaneErrorBoundary>
+                                <TerminalPane
+                                  cwd={t.cwd}
+                                  paneId={pane.id}
+                                  initialCommand={pane.initialCommand}
+                                  active={t.id === activeTabId}
+                                  autoFocus={t.id === activeTabId && paneIndex === 0}
+                                />
+                              </PaneErrorBoundary>
+                            </div>
+                          </Fragment>
+                        );
+                      })}
+                    </div>
+                  ))}
+                  </Suspense>
+                </div>
+                <NotesPanel />
               </div>
             </>
           )}
