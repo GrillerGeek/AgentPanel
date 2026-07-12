@@ -14,7 +14,6 @@ const ADDED = [
   "github-light",
   "one-light",
   "gruvbox-light",
-  "ayu-light",
 ];
 
 describe("SCHEMES palette data", () => {
@@ -38,9 +37,9 @@ describe("SCHEMES palette data", () => {
     expect(schemeBySlug(DEFAULT_THEME).slug).toBe(DEFAULT_THEME);
   });
 
-  it("includes the 10 added themes for a total of 22", () => {
+  it("includes the 9 added themes for a total of 21", () => {
     const slugs = new Set(SCHEMES.map((s) => s.slug));
     for (const slug of ADDED) expect(slugs.has(slug), `missing ${slug}`).toBe(true);
-    expect(SCHEMES).toHaveLength(22);
+    expect(SCHEMES).toHaveLength(21);
   });
 });

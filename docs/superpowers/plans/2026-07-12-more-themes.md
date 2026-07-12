@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add 10 curated base16 color themes (issue #11) to AgentPanel.
+**Goal:** Add 9 curated base16 color themes (issue #11) to AgentPanel.
 
 **Architecture:** The theme system is data-driven: `src/themes/schemes.ts` holds an array of base16 `Scheme` palettes; `apply.ts` turns a palette into CSS vars + xterm theme; `SettingsModal` renders the list into a grouped `<select>`. Adding themes = appending palette entries to that array — no logic or UI changes.
 
@@ -13,20 +13,20 @@
 - **Data-only change** — modify `src/themes/schemes.ts` and add one test file. Do **not** touch `apply.ts` or `SettingsModal.tsx`.
 - **Each `Scheme`** is `{ slug, name, variant, base }` where `base` is exactly 16 `#rrggbb` strings (`base00..base0F`), lowercase, matching the existing entries' format.
 - **Palettes are the exact tinted-theming values** given verbatim below — do not alter or "improve" any hex value.
-- **10 themes, exact slugs/names/variants:** `material`/Material/dark, `github-dark`/GitHub Dark/dark, `ayu-dark`/Ayu Dark/dark, `ayu-mirage`/Ayu Mirage/dark, `material-palenight`/Material Palenight/dark, `kanagawa`/Kanagawa/dark, `github-light`/GitHub Light/light, `one-light`/One Light/light, `gruvbox-light`/Gruvbox Light/light, `ayu-light`/Ayu Light/light.
+- **9 themes, exact slugs/names/variants:** `material`/Material/dark, `github-dark`/GitHub Dark/dark, `ayu-dark`/Ayu Dark/dark, `ayu-mirage`/Ayu Mirage/dark, `material-palenight`/Material Palenight/dark, `kanagawa`/Kanagawa/dark, `github-light`/GitHub Light/light, `one-light`/One Light/light, `gruvbox-light`/Gruvbox Light/light.
 - **Test command:** `npm test` (= `vitest run`). This is pure data — the test file needs **no** `// @vitest-environment jsdom` (default node env; `apply.ts` has no top-level DOM access).
 
 ---
 
-### Task 1: Add the 10 palettes and a SCHEMES validation test
+### Task 1: Add the 9 palettes and a SCHEMES validation test
 
 **Files:**
-- Modify: `src/themes/schemes.ts` (append 10 entries before the closing `];` at schemes.ts:88)
+- Modify: `src/themes/schemes.ts` (append 9 entries before the closing `];` at schemes.ts:88)
 - Test: `src/themes/schemes.test.ts` (create)
 
 **Interfaces:**
 - Consumes: `SCHEMES` (array of `Scheme`) from `./schemes`; `DEFAULT_THEME` and `schemeBySlug` from `./apply`.
-- Produces: 10 new `Scheme` entries; `SCHEMES.length` becomes 22.
+- Produces: 9 new `Scheme` entries; `SCHEMES.length` becomes 21.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -49,7 +49,6 @@ const ADDED = [
   "github-light",
   "one-light",
   "gruvbox-light",
-  "ayu-light",
 ];
 
 describe("SCHEMES palette data", () => {
@@ -73,10 +72,10 @@ describe("SCHEMES palette data", () => {
     expect(schemeBySlug(DEFAULT_THEME).slug).toBe(DEFAULT_THEME);
   });
 
-  it("includes the 10 added themes for a total of 22", () => {
+  it("includes the 9 added themes for a total of 21", () => {
     const slugs = new Set(SCHEMES.map((s) => s.slug));
     for (const slug of ADDED) expect(slugs.has(slug), `missing ${slug}`).toBe(true);
-    expect(SCHEMES).toHaveLength(22);
+    expect(SCHEMES).toHaveLength(21);
   });
 });
 ```
@@ -84,11 +83,11 @@ describe("SCHEMES palette data", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npm test -- schemes`
-Expected: FAIL — the "includes the 10 added themes for a total of 22" test fails (`SCHEMES` has 12, the ADDED slugs are missing). The other four tests pass (the existing 12 are already well-formed).
+Expected: FAIL — the "includes the 9 added themes for a total of 21" test fails (`SCHEMES` has 12, the ADDED slugs are missing). The other four tests pass (the existing 12 are already well-formed).
 
-- [ ] **Step 3: Add the 10 palettes**
+- [ ] **Step 3: Add the 9 palettes**
 
-In `src/themes/schemes.ts`, insert these 10 entries immediately after the `catppuccin-latte` entry (which ends at schemes.ts:87) and before the closing `];` (schemes.ts:88). Keep the exact same object format as the existing entries:
+In `src/themes/schemes.ts`, insert these 9 entries immediately after the `catppuccin-latte` entry (which ends at schemes.ts:87) and before the closing `];` (schemes.ts:88). Keep the exact same object format as the existing entries:
 
 ```ts
   {
@@ -145,18 +144,12 @@ In `src/themes/schemes.ts`, insert these 10 entries immediately after the `catpp
     variant: "light",
     base: ["#fbf1c7","#ebdbb2","#d5c4a1","#bdae93","#665c54","#504945","#3c3836","#282828","#9d0006","#af3a03","#b57614","#79740e","#427b58","#076678","#8f3f71","#d65d0e"],
   },
-  {
-    slug: "ayu-light",
-    name: "Ayu Light",
-    variant: "light",
-    base: ["#f8f9fa","#edeff1","#d2d4d8","#a0a6ac","#8a9199","#5c6166","#4e5257","#404447","#f07171","#fa8d3e","#f2ae49","#6cbf49","#4cbf99","#399ee6","#a37acc","#e6ba7e"],
-  },
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npm test -- schemes`
-Expected: PASS (5/5 — all schemes well-formed, 22 total, 10 added slugs present).
+Expected: PASS (5/5 — all schemes well-formed, 21 total, 9 added slugs present).
 
 - [ ] **Step 5: Run the full suite + typecheck**
 
@@ -170,7 +163,7 @@ Expected: no errors.
 
 ```bash
 git add src/themes/schemes.ts src/themes/schemes.test.ts
-git commit -m "Add 10 curated base16 themes (#11)"
+git commit -m "Add 9 curated base16 themes (#11)"
 ```
 
 ---
@@ -188,7 +181,7 @@ Expected: the window opens without errors. (If port 1420 is busy, a different Ag
 
 - [ ] **Step 2: Open the theme picker**
 
-Open Settings (⚙ or Ctrl+Shift+P → Settings). The Theme dropdown should list **22** themes grouped into Dark and Light, including the 10 new ones (Material, GitHub Dark, Ayu Dark, Ayu Mirage, Material Palenight, Kanagawa in Dark; GitHub Light, One Light, Gruvbox Light, Ayu Light in Light).
+Open Settings (⚙ or Ctrl+Shift+P → Settings). The Theme dropdown should list **21** themes grouped into Dark and Light, including the 9 new ones (Material, GitHub Dark, Ayu Dark, Ayu Mirage, Material Palenight, Kanagawa in Dark; GitHub Light, One Light, Gruvbox Light in Light).
 
 - [ ] **Step 3: Verify a new dark theme**
 
@@ -207,7 +200,7 @@ Close and relaunch the app. Expected: the last-selected theme is still applied (
 ## Self-Review
 
 **Spec coverage** (against `docs/superpowers/specs/2026-07-12-more-themes-design.md`):
-- Add 10 base16 palettes (6 dark, 4 light), exact slugs/names/variants → Task 1 Step 3. ✓ (Night Owl → Material Palenight substitution reflected in both the spec and the plan's constraints/data.)
+- Add 9 base16 palettes (6 dark, 3 light), exact slugs/names/variants → Task 1 Step 3. ✓ (Night Owl → Material Palenight substitution reflected in both the spec and the plan's constraints/data.)
 - No changes to `apply.ts` / `SettingsModal.tsx` → Global Constraints + Task 1 touches only schemes.ts + test. ✓
 - Validation test (16 hex each, unique slugs, valid variant, DEFAULT_THEME resolves) → Task 1 Step 1. ✓
 - Live verification of a new dark + new light theme → Task 2. ✓
@@ -215,4 +208,4 @@ Close and relaunch the app. Expected: the last-selected theme is still applied (
 
 **Placeholder scan:** none — every palette value is an explicit hex string; every run step has an exact command + expected result.
 
-**Type/name consistency:** `Scheme` shape (`slug`/`name`/`variant`/`base`) matches the existing file and `apply.ts`. The 10 `ADDED` slugs in the test exactly match the 10 entries' slugs in Step 3. `schemeBySlug`/`DEFAULT_THEME` are imported from `./apply` where they're defined. Total count 22 = existing 12 + added 10.
+**Type/name consistency:** `Scheme` shape (`slug`/`name`/`variant`/`base`) matches the existing file and `apply.ts`. The 9 `ADDED` slugs in the test exactly match the 9 entries' slugs in Step 3. `schemeBySlug`/`DEFAULT_THEME` are imported from `./apply` where they're defined. Total count 21 = existing 12 + added 9.

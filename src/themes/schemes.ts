@@ -139,10 +139,4 @@ export const SCHEMES: Scheme[] = [
     variant: "light",
     base: ["#fbf1c7","#ebdbb2","#d5c4a1","#bdae93","#665c54","#504945","#3c3836","#282828","#9d0006","#af3a03","#b57614","#79740e","#427b58","#076678","#8f3f71","#d65d0e"],
   },
-  {
-    slug: "ayu-light",
-    name: "Ayu Light",
-    variant: "light",
-    base: ["#f8f9fa","#edeff1","#d2d4d8","#a0a6ac","#8a9199","#5c6166","#4e5257","#404447","#f07171","#fa8d3e","#f2ae49","#6cbf49","#4cbf99","#399ee6","#a37acc","#e6ba7e"],
-  },
 ];

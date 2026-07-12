@@ -15,7 +15,7 @@ Today `src/themes/schemes.ts` ships 12 curated base16 palettes.
   exactly like the existing 13 — no new dependencies, no picker redesign, no
   user-defined-theme editor (both considered and rejected as out of scope /
   YAGNI).
-- **Add 10 themes** (6 dark, 4 light), balancing the currently dark-heavy set
+- **Add 9 themes** (6 dark, 3 light), balancing the currently dark-heavy set
   (only 2 light today) and guaranteeing the two the issue named:
 
   | slug | name | variant |
@@ -29,19 +29,20 @@ Today `src/themes/schemes.ts` ships 12 curated base16 palettes.
   | `github-light` | GitHub Light | light |
   | `one-light` | One Light | light |
   | `gruvbox-light` | Gruvbox Light | light |
-  | `ayu-light` | Ayu Light | light |
 
-  Result: 12 → 22 themes; light options go 2 → 6.
+  Result: 12 → 21 themes; light options go 2 → 5.
 
   (Night Owl was originally proposed but has no canonical base16 palette in the
   tinted-theming collection, so Material Palenight — a comparable deep blue
-  dark theme with a verified palette — was substituted.)
+  dark theme with a verified palette — was substituted. Ayu Light was also
+  proposed but dropped: it fails contrast for this app's `--accent`-as-text
+  usage, `2.76:1` on white, under the base16→CSS-role mapping in `apply.ts`.)
 
 ## Components
 
 ### 1. Palette data (`src/themes/schemes.ts`)
 
-- Append 10 `Scheme` entries to the `SCHEMES` array, each `{ slug, name,
+- Append 9 `Scheme` entries to the `SCHEMES` array, each `{ slug, name,
   variant, base }` where `base` is `base00..base0F` (length 16, `#rrggbb`).
 - Palette values sourced from the well-known tinted-theming / upstream base16
   collection, matching the provenance of the existing entries (see the file's
@@ -56,7 +57,7 @@ Today `src/themes/schemes.ts` ships 12 curated base16 palettes.
   fully data-driven and needs no change.
 - `src/components/SettingsModal.tsx` renders `SCHEMES.filter(s => s.variant ===
   "dark" | "light")` into grouped `<option>`s and applies the theme live on
-  change; the 10 new entries appear automatically. The picker stays a grouped
+  change; the 9 new entries appear automatically. The picker stays a grouped
   `<select>` (no search/preview redesign).
 
 ## Error handling
@@ -68,7 +69,7 @@ Today `src/themes/schemes.ts` ships 12 curated base16 palettes.
 ## Testing
 
 - **New unit test `src/themes/schemes.test.ts`** validating the whole `SCHEMES`
-  array (guards the 10 additions and any future palette):
+  array (guards the 9 additions and any future palette):
   - every scheme's `base` has exactly 16 entries;
   - every color matches `/^#[0-9a-fA-F]{6}$/`;
   - all `slug`s are unique;
@@ -79,7 +80,7 @@ Today `src/themes/schemes.ts` ships 12 curated base16 palettes.
   load the app, open Settings, and switch to at least one new dark theme
   (Material) and one new light theme (GitHub Light); confirm both the app
   chrome (CSS vars) and the xterm terminal colors change, and that the picker
-  lists all 23 grouped correctly.
+  lists all 21 grouped correctly.
 
 ## Out of scope
 
