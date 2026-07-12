@@ -462,6 +462,12 @@ body,
 .agent-launchers + .gear {
   margin-left: 0;
 }
+/* The notes toggle reuses .gear, so its margin-left:auto pushes the icon group
+   right; the settings gear that follows must reset, or a second auto margin
+   opens a gap between the two icons. */
+.notes-toggle + .gear {
+  margin-left: 0;
+}
 
 .settings {
   width: 480px;
