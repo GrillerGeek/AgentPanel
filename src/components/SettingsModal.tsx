@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { useStore } from "../state/store";
 import { useEscapeToClose } from "../lib/useEscapeToClose";
+import { runUpdateCheck } from "../lib/updater";
 import { SCHEMES } from "../themes/schemes";
 import type { ShellInfo } from "../types";
 
@@ -29,6 +31,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [agents, setAgents] = useState(settings.agentCommands.join(", "));
   const [editor, setEditor] = useState(settings.editorCommand);
   const [pathImportHint, setPathImportHint] = useState("");
+  const [appVersion, setAppVersion] = useState("");
 
   // Escape = close without saving (same as Cancel / clicking the backdrop).
   useEscapeToClose(onClose);
@@ -51,6 +54,17 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
       alive = false;
     };
   }, [settings.shell]);
+
+  // Fetch the running app version once for the "Check for updates" row.
+  useEffect(() => {
+    let alive = true;
+    void getVersion()
+      .then((v) => alive && setAppVersion(v))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const onPickShell = (value: string) => {
     if (value === CUSTOM) {
@@ -126,6 +140,23 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </select>
           <small>Applies instantly to the whole app and all terminals.</small>
         </label>
+
+        <div className="settings-field">
+          <span>Updates</span>
+          <div className="settings-update-row">
+            <span className="settings-version">
+              Current version: {appVersion || "—"}
+            </span>
+            <button
+              type="button"
+              className="settings-check-update"
+              onClick={() => void runUpdateCheck({ manual: true })}
+            >
+              Check for updates
+            </button>
+          </div>
+          <small>Checks automatically on launch; use this to check now.</small>
+        </div>
 
         <label className="settings-field">
           <span>Shell</span>

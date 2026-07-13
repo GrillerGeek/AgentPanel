@@ -1267,3 +1267,28 @@ kbd {
 .update-banner-later:hover {
   background: var(--bg-hover);
 }
+
+/* Keep the toast stack clear of the update banner when both are visible
+   (banner is a full-width bar pinned to the very bottom). */
+.app:has(.update-banner) .toasts {
+  bottom: 54px;
+}
+
+.settings-update-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.settings-check-update {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 12px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  background: none;
+  font-size: 12px;
+}
+.settings-check-update:hover {
+  background: var(--bg-hover);
+}
