@@ -1230,3 +1230,40 @@ kbd {
 .toast-action:hover {
   border-color: var(--accent);
 }
+
+.update-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--fg);
+}
+.update-banner-text {
+  flex: 1 1 auto;
+}
+.update-banner-restart,
+.update-banner-later {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 10px;
+  cursor: pointer;
+  background: none;
+  color: var(--fg);
+  font-size: 12px;
+}
+.update-banner-restart {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.update-banner-restart:hover,
+.update-banner-later:hover {
+  background: var(--bg-hover);
+}
