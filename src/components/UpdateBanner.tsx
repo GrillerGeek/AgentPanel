@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "../state/store";
 import { restartToUpdate } from "../lib/updater";
 
@@ -12,6 +12,11 @@ export function UpdateBanner() {
   const status = useStore((s) => s.updateStatus);
   const version = useStore((s) => s.updateVersion);
   const [dismissed, setDismissed] = useState(false);
+
+  // Re-show the banner when a different (newer) version gets staged.
+  useEffect(() => {
+    setDismissed(false);
+  }, [version]);
 
   if (status !== "ready" || dismissed) return null;
 

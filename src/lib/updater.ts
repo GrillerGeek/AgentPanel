@@ -19,12 +19,26 @@ export async function runUpdateCheck(opts: { manual?: boolean } = {}): Promise<v
   const { manual = false } = opts;
   if (!inTauri()) return;
   const st = useStore.getState();
+  const prevStatus = st.updateStatus;
+  const prevVersion = st.updateVersion;
   try {
     st.setUpdate("checking");
     const update = await check();
     if (update?.available) {
+      // Already downloaded & staged this exact version — don't re-download.
+      if (prevStatus === "ready" && prevVersion === update.version) {
+        st.setUpdate("ready", update.version);
+        return;
+      }
       st.setUpdate("downloading", update.version);
-      await update.downloadAndInstall();
+      try {
+        await update.downloadAndInstall();
+      } catch (dlErr) {
+        st.setUpdate("error");
+        if (manual) st.pushToast(`Update download failed — ${dlErr}`, "error");
+        else console.error("update download failed", dlErr);
+        return;
+      }
       st.setUpdate("ready", update.version);
     } else {
       st.setUpdate("idle");

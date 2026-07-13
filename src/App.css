@@ -1280,6 +1280,10 @@ kbd {
   justify-content: space-between;
   gap: 10px;
 }
+.settings-version {
+  color: var(--fg-muted);
+  font-size: 12px;
+}
 .settings-check-update {
   border: 1px solid var(--border);
   border-radius: 4px;

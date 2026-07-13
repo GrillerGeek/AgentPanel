@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
 import { UpdateBanner } from "./UpdateBanner";
 import { useStore } from "../state/store";
 import { restartToUpdate } from "../lib/updater";
@@ -35,5 +35,18 @@ describe("UpdateBanner", () => {
     render(<UpdateBanner />);
     fireEvent.click(screen.getByRole("button", { name: /later/i }));
     expect(screen.queryByText(/is ready/i)).toBeNull();
+  });
+
+  it("re-shows the banner when a newer version gets staged", () => {
+    useStore.setState({ updateStatus: "ready", updateVersion: "0.4.0" });
+    render(<UpdateBanner />);
+    fireEvent.click(screen.getByRole("button", { name: /later/i }));
+    expect(screen.queryByText(/is ready/i)).toBeNull();
+
+    act(() => {
+      useStore.setState({ updateVersion: "0.4.1" });
+    });
+
+    expect(screen.getByText(/0\.4\.1/)).toBeTruthy();
   });
 });
