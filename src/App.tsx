@@ -8,12 +8,14 @@ import { Toasts } from "./components/Toasts";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { PaneErrorBoundary } from "./components/PaneErrorBoundary";
 import { NotesPanel } from "./components/NotesPanel";
+import { UpdateBanner } from "./components/UpdateBanner";
 import { useStore, worktreeLabels } from "./state/store";
 import { snapshotStates } from "./state/agentRuntime";
 import type { AgentState } from "./state/activity";
 import { applyTheme, schemeBySlug } from "./themes/apply";
 import { runBenchmark } from "./lib/bench";
 import { notify } from "./lib/notify";
+import { runUpdateCheck } from "./lib/updater";
 import "./App.css";
 
 /** Shallow-equal two paneId->state maps, to skip no-op ticker updates. */
@@ -185,6 +187,17 @@ function App() {
     return () => clearInterval(t);
   }, [refreshPrs]);
 
+  // Auto-update: check shortly after launch, then every 6h. No-op outside a
+  // bundled Tauri app. The banner (rendered below) prompts a restart when ready.
+  useEffect(() => {
+    const t = window.setTimeout(() => void runUpdateCheck(), 5000);
+    const iv = window.setInterval(() => void runUpdateCheck(), 6 * 60 * 60 * 1000);
+    return () => {
+      window.clearTimeout(t);
+      window.clearInterval(iv);
+    };
+  }, []);
+
   // Catch up when the window becomes visible / regains focus. Debounced: moving
   // or resizing the window makes WebView2 fire a burst of focus/visibility events
   // during the modal drag loop, and we don't want each one kicking off a git/gh
@@ -284,6 +297,7 @@ function App() {
   return (
     <div className="app">
       <Toasts />
+      <UpdateBanner />
       <ConfirmDialog />
       {paletteOpen && (
         <Suspense fallback={null}>

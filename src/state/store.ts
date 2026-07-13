@@ -103,6 +103,10 @@ interface AppState {
   notes: Record<string, string>;
   /** whether the notes side panel is open (global toggle) */
   notesOpen: boolean;
+  /** auto-update state machine (issue #12) */
+  updateStatus: "idle" | "checking" | "downloading" | "ready" | "error";
+  /** the staged update's version, for the banner */
+  updateVersion: string | null;
   settings: Settings;
   /** transient error/info notifications */
   toasts: Toast[];
@@ -143,6 +147,7 @@ interface AppState {
   setNote: (worktreeId: string, text: string) => void;
   /** open/close the notes side panel */
   toggleNotes: () => void;
+  setUpdate: (status: AppState["updateStatus"], version?: string | null) => void;
   /** replace the derived per-pane agent-state map (called by the 1s ticker) */
   setAgentStatus: (status: Record<string, AgentState>) => void;
   setPaneSession: (paneId: string, sessionId: number) => void;
@@ -184,6 +189,8 @@ export const useStore = create<AppState>((set, get) => ({
   worktreeMru: {},
   notes: readNotes(),
   notesOpen: readNotesOpen(),
+  updateStatus: "idle",
+  updateVersion: null,
   settings: readSettings(),
   toasts: [],
   confirmState: null,
@@ -483,6 +490,12 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => ({ notes: { ...s.notes, [worktreeId]: text } })),
 
   toggleNotes: () => set((s) => ({ notesOpen: !s.notesOpen })),
+
+  setUpdate: (status, version) =>
+    set((s) => ({
+      updateStatus: status,
+      updateVersion: version === undefined ? s.updateVersion : version,
+    })),
 
   setPaneSession: (paneId, sessionId) =>
     set((s) => ({ paneSessions: { ...s.paneSessions, [paneId]: sessionId } })),
