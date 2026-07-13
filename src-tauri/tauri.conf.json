@@ -25,6 +25,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": ["nsis", "app", "dmg"],
     "publisher": "Jason Robey",
     "copyright": "Copyright © 2026 Jason Robey",
@@ -45,6 +46,14 @@
     },
     "macOS": {
       "hardenedRuntime": true
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY0RTUyMkFFNDQzM0M5N0MKUldSOHlUTkVyaUxsOUJQVWhNUUtVZlpzY1RCUHZQdkhFOGVuRC9uSmFSZ3NteHpLVVZFa1VqZHMK",
+      "endpoints": [
+        "https://github.com/GrillerGeek/AgentPanel/releases/latest/download/latest.json"
+      ]
     }
   }
 }
