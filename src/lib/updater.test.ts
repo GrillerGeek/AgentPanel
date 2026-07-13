@@ -47,6 +47,13 @@ describe("runUpdateCheck", () => {
     expect(useStore.getState().toasts.some((t) => t.message.includes("Couldn't check for updates"))).toBe(true);
   });
 
+  it("sets error when downloadAndInstall rejects", async () => {
+    const downloadAndInstall = vi.fn().mockRejectedValue(new Error("network drop"));
+    vi.mocked(check).mockResolvedValue({ available: true, version: "0.4.0", downloadAndInstall } as never);
+    await expect(runUpdateCheck()).resolves.toBeUndefined(); // never throws
+    expect(useStore.getState().updateStatus).toBe("error");
+  });
+
   it("is a no-op outside a bundled Tauri app", async () => {
     delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
     await runUpdateCheck();

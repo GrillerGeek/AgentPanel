@@ -19,8 +19,8 @@ export async function runUpdateCheck(opts: { manual?: boolean } = {}): Promise<v
   const { manual = false } = opts;
   if (!inTauri()) return;
   const st = useStore.getState();
-  st.setUpdate("checking");
   try {
+    st.setUpdate("checking");
     const update = await check();
     if (update?.available) {
       st.setUpdate("downloading", update.version);
