@@ -31,7 +31,10 @@ let hydrated = false;
 
 const SETTINGS_KEY = "agentpanel.settings";
 const DEFAULT_SETTINGS: Settings = {
-  shell: "powershell.exe",
+  /** "" = system default: pty_spawn's default_shell() picks PowerShell on
+   *  Windows and $SHELL on macOS/Linux. Never hardcode an exe here — a
+   *  Windows-only default breaks fresh installs on other platforms. */
+  shell: "",
   terminalEnv: "",
   syncLoginPath: true,
   pathSyncHintShown: false,

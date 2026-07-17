@@ -71,8 +71,9 @@ pub struct PtyManager {
     next_id: Mutex<u32>,
 }
 
-/// Pick the default shell. Phase 0 keeps this simple; the plan upgrades this to
-/// pwsh -> powershell -> cmd discovery with a user setting in a later phase.
+/// Pick the default shell. This is the real default for fresh installs: the
+/// frontend stores "" ("System default") until the user picks a shell, and
+/// passes null here.
 fn default_shell() -> CommandBuilder {
     #[cfg(windows)]
     {
