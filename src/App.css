@@ -472,6 +472,11 @@ body,
 .settings {
   width: 480px;
   max-width: 90vw;
+  /* The backdrop reserves 12vh above; cap height so the modal never extends
+     past the viewport, and scroll internally instead (issue #25). */
+  box-sizing: border-box;
+  max-height: calc(88vh - 16px);
+  overflow-y: auto;
   background: var(--bg-alt);
   border: 1px solid var(--border);
   border-radius: 8px;
