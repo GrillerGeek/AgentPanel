@@ -8,6 +8,9 @@ import { SCHEMES } from "../themes/schemes";
 import type { ShellInfo } from "../types";
 
 const CUSTOM = "__custom__";
+/** Empty shell = let the backend pick the platform default (PowerShell on
+ *  Windows, $SHELL on macOS/Linux). Stored as "" in settings. */
+const SYSTEM_DEFAULT = "";
 
 /** A saved shell matches a detected one by full path or by bare exe name (so a
  *  legacy "powershell.exe" still resolves to the detected "Windows PowerShell"). */
@@ -44,7 +47,11 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         if (!alive) return;
         setShells(list);
         // If the saved shell isn't one we detected, surface it as a custom entry.
-        setCustomShell(!list.some((s) => shellMatches(s.path, settings.shell)));
+        // (System default is its own option, not a custom path.)
+        setCustomShell(
+          settings.shell !== SYSTEM_DEFAULT &&
+            !list.some((s) => shellMatches(s.path, settings.shell)),
+        );
       })
       .catch(() => {});
     void invoke<string[]>("list_fonts")
@@ -77,11 +84,15 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 
   const shellSelectValue = customShell
     ? CUSTOM
-    : (shells.find((s) => shellMatches(s.path, shell))?.path ?? CUSTOM);
+    : shell === SYSTEM_DEFAULT
+      ? SYSTEM_DEFAULT
+      : (shells.find((s) => shellMatches(s.path, shell))?.path ?? CUSTOM);
 
   const save = () => {
     updateSettings({
-      shell: shell.trim() || "powershell.exe",
+      // "" (system default) is a valid value — the backend resolves it per
+      // platform. Also reached by leaving the custom path blank.
+      shell: shell.trim(),
       terminalEnv,
       syncLoginPath,
       agentCommands: agents
@@ -165,6 +176,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             value={shellSelectValue}
             onChange={(e) => onPickShell(e.currentTarget.value)}
           >
+            <option value={SYSTEM_DEFAULT}>System default</option>
             {shells.map((s) => (
               <option key={s.path} value={s.path}>
                 {s.label}
@@ -182,8 +194,8 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             />
           )}
           <small>
-            Detected shells on this machine. New terminals use this shell; existing terminals keep
-            theirs.
+            System default uses PowerShell on Windows and your login shell on macOS/Linux. New
+            terminals use this shell; existing terminals keep theirs.
           </small>
         </label>
 
