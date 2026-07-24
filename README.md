@@ -75,6 +75,43 @@ cargo test --manifest-path src-tauri/Cargo.toml       # Rust (git/gh layer)
 
 The frontend talks to Rust through Tauri **commands** and streams PTY output over a **Channel**.
 
+## Telemetry
+
+AgentPanel can optionally report crashes and errors to help catch bugs in the wild. It is
+**off by default** and strictly **opt-in** — you're asked once, on first run, and nothing is
+sent until you say yes.
+
+**What's sent, if you opt in:**
+- The exception type, message, and stack trace
+- The app version
+- Your OS and CPU architecture
+
+**What's never sent:**
+- Terminal buffer contents or PTY input/output
+- Environment variables
+- Repository paths or file contents — absolute filesystem paths are stripped from every report
+  (usernames and home directories are redacted; stack-frame paths are trimmed to the project-relative
+  portion) before it leaves your machine
+- Your hostname, or any other usage/analytics data — this is crash reporting only, never feature
+  or usage tracking
+- Reports don't include your IP address, and the Sentry project is configured not to store it —
+  note this is a project-level setting on the receiving end, not something the app itself can
+  enforce over the network
+
+**How it works:** consent lives in a small local file
+(`telemetry.json` in AgentPanel's app-data directory), not in browser storage, because the choice
+has to be known before the app can even start crash reporting. Changing the setting takes effect
+on your next launch. Reporting is also only wired up in official released builds — the Sentry
+endpoint is baked in at release-build time, so builds from source (including forks and
+`npm run tauri dev`) have none configured and send nothing, regardless of the toggle.
+
+**To disable it:** uncheck "Send anonymous crash reports" in Settings, or answer "No" on the
+first-run prompt. To change your answer later, use the Settings toggle — either way, restart
+AgentPanel for the change to take effect.
+
+Reports go to a Sentry project operated by the maintainer. See the [issue tracker](../../issues)
+if you'd like to ask what region/retention that project uses.
+
 ## License
 
 [MIT](LICENSE) © 2026 Jason Robey

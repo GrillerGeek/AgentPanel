@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from "react";
+import { captureError } from "../lib/telemetry";
 
 /**
  * Per-pane error boundary (issue #18). Without one, a render/effect crash in a
@@ -12,6 +13,14 @@ export class PaneErrorBoundary extends Component<{ children: ReactNode }, { erro
 
   static getDerivedStateFromError(error: Error) {
     return { error };
+  }
+
+  componentDidCatch(error: Error) {
+    // No-op unless telemetry.ts's initTelemetry() has loaded the SDK (gated on
+    // consent). No extra context (e.g. component stack) is attached -- that's
+    // outside the spec's report-content allowlist. Does not import
+    // @sentry/browser directly, so a never-consented user never bundles it.
+    captureError(error);
   }
 
   render() {

@@ -9,6 +9,7 @@ import { ConfirmDialog } from "./components/ConfirmDialog";
 import { PaneErrorBoundary } from "./components/PaneErrorBoundary";
 import { NotesPanel } from "./components/NotesPanel";
 import { UpdateBanner } from "./components/UpdateBanner";
+import { TelemetryBanner } from "./components/TelemetryBanner";
 import { useStore, worktreeLabels } from "./state/store";
 import { snapshotStates } from "./state/agentRuntime";
 import type { AgentState } from "./state/activity";
@@ -16,6 +17,7 @@ import { applyTheme, schemeBySlug } from "./themes/apply";
 import { runBenchmark } from "./lib/bench";
 import { notify } from "./lib/notify";
 import { runUpdateCheck } from "./lib/updater";
+import { initTelemetry } from "./lib/telemetry";
 import "./App.css";
 
 /** Shallow-equal two paneId->state maps, to skip no-op ticker updates. */
@@ -110,6 +112,13 @@ function App() {
   useEffect(() => {
     void loadRepositories();
   }, [loadRepositories]);
+
+  // Crash reporting: only starts sending if the Rust SDK actually initialized
+  // this session (active_this_session) -- gated on startup consent, not the
+  // live file. No-op (never throws) when telemetry is off.
+  useEffect(() => {
+    void initTelemetry();
+  }, []);
 
   // Recompute live agent states (running/idle/awaiting/exited) once a second and
   // push to the store only when something changed. Runs even while hidden, so a
@@ -298,6 +307,7 @@ function App() {
     <div className="app">
       <Toasts />
       <UpdateBanner />
+      <TelemetryBanner />
       <ConfirmDialog />
       {paletteOpen && (
         <Suspense fallback={null}>

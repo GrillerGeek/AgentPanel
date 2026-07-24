@@ -8,6 +8,14 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [react()],
 
+  build: {
+    // Crash reporting (docs/superpowers/specs/2026-07-23-crash-reporting-design.md):
+    // "hidden" emits .map files (for the release workflow's Sentry upload
+    // step) without adding //# sourceMappingURL comments to the shipped JS,
+    // so the maps aren't fetchable/linked from the installed app.
+    sourcemap: "hidden",
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors

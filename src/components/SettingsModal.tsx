@@ -4,6 +4,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { useStore } from "../state/store";
 import { useEscapeToClose } from "../lib/useEscapeToClose";
 import { runUpdateCheck } from "../lib/updater";
+import { getTelemetryConsent, setTelemetryConsent } from "../lib/telemetry";
 import { SCHEMES } from "../themes/schemes";
 import type { ShellInfo } from "../types";
 
@@ -24,6 +25,7 @@ function shellMatches(detectedPath: string, saved: string): boolean {
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const settings = useStore((s) => s.settings);
   const updateSettings = useStore((s) => s.updateSettings);
+  const pushToast = useStore((s) => s.pushToast);
 
   const [shell, setShell] = useState(settings.shell);
   const [terminalEnv, setTerminalEnv] = useState(settings.terminalEnv);
@@ -35,6 +37,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [editor, setEditor] = useState(settings.editorCommand);
   const [pathImportHint, setPathImportHint] = useState("");
   const [appVersion, setAppVersion] = useState("");
+  const [crashReports, setCrashReports] = useState(false);
 
   // Escape = close without saving (same as Cancel / clicking the backdrop).
   useEscapeToClose(onClose);
@@ -72,6 +75,32 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
       alive = false;
     };
   }, []);
+
+  // Reflect the Rust-owned consent file (source of truth; not localStorage).
+  useEffect(() => {
+    let alive = true;
+    void getTelemetryConsent()
+      .then((info) => {
+        if (alive) setCrashReports(info.consent === "granted");
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const onCrashReportsChange = async (checked: boolean) => {
+    const prev = crashReports;
+    setCrashReports(checked);
+    try {
+      await setTelemetryConsent(checked ? "granted" : "denied");
+    } catch (err) {
+      // Write failure: surface as a toast, leave consent (and the checkbox)
+      // as it was rather than showing a value that didn't actually persist.
+      setCrashReports(prev);
+      pushToast(`Couldn't update crash-report setting: ${err}`, "error");
+    }
+  };
 
   const onPickShell = (value: string) => {
     if (value === CUSTOM) {
@@ -322,6 +351,18 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             Notify (OS + in-app) when a background agent finishes or needs input. Click the in-app
             toast to jump to that terminal.
           </small>
+        </div>
+
+        <div className="settings-field">
+          <label className="settings-check">
+            <input
+              type="checkbox"
+              checked={crashReports}
+              onChange={(e) => void onCrashReportsChange(e.currentTarget.checked)}
+            />
+            <span>Send anonymous crash reports</span>
+          </label>
+          <small>Takes effect after restart.</small>
         </div>
 
         <div className="settings-field">
