@@ -18,6 +18,7 @@ import { runBenchmark } from "./lib/bench";
 import { notify } from "./lib/notify";
 import { runUpdateCheck } from "./lib/updater";
 import { initTelemetry } from "./lib/telemetry";
+import { applyVersionWindowTitle } from "./lib/appInfo";
 import "./App.css";
 
 /** Shallow-equal two paneId->state maps, to skip no-op ticker updates. */
@@ -118,6 +119,12 @@ function App() {
   // live file. No-op (never throws) when telemetry is off.
   useEffect(() => {
     void initTelemetry();
+  }, []);
+
+  // Version in the window title (issue #32) -- always visible without
+  // opening Settings.
+  useEffect(() => {
+    void applyVersionWindowTitle();
   }, []);
 
   // Recompute live agent states (running/idle/awaiting/exited) once a second and

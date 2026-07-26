@@ -6,6 +6,11 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import { invoke, Channel } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
+import {
+  makeCopyPasteKeyHandler,
+  makeContextMenuHandler,
+  type ClipboardDeps,
+} from "./lib/terminalClipboard";
 import { useStore } from "./state/store";
 import { noteOutput, noteExit, forgetPane } from "./state/agentRuntime";
 import { schemeBySlug, xtermThemeFor } from "./themes/apply";
@@ -160,63 +165,22 @@ export function TerminalPane({
     searchRef.current = search;
     term.open(container);
 
-    // Copy the current selection to the system clipboard (no-op if nothing is
-    // selected). Async write is fire-and-forget — the key handler stays sync.
-    const copySelection = () => {
-      const sel = term.getSelection();
-      if (sel) void writeText(sel);
+    // Copy/paste (issue #31): one paste pipeline only. Pasted text goes
+    // through term.paste() -> onData -> pty_write, so bracketed paste is
+    // honored and the WebView's native paste (suppressed in the handler)
+    // can never produce a second write.
+    const clipboardDeps: ClipboardDeps = {
+      isMac: IS_MAC,
+      readClipboard: readText,
+      writeClipboard: writeText,
+      pasteToTerminal: (text) => term.paste(text),
+      getSelection: () => term.getSelection(),
+      hasSelection: () => term.hasSelection(),
+      clearSelection: () => term.clearSelection(),
+      openSearch: () => setSearchOpen(true),
     };
-    // Paste clipboard text into the shell by writing it to the PTY, exactly as
-    // if it had been typed. Guards against an empty clipboard / dead session.
-    const pasteClipboard = () => {
-      void readText().then((text) => {
-        if (text && sessionRef.current !== null) {
-          void invoke("pty_write", { id: sessionRef.current, data: text });
-        }
-      });
-    };
-
-    term.attachCustomKeyEventHandler((e) => {
-      if (e.type !== "keydown") return true;
-      // Find uses Ctrl on every platform (it predates the clipboard work).
-      if (e.ctrlKey && !e.altKey && !e.shiftKey && (e.key === "f" || e.key === "F")) {
-        setSearchOpen(true);
-        return false;
-      }
-      // Copy/paste use the platform's primary modifier; require the *other*
-      // modifier to be absent so e.g. macOS Ctrl+C still interrupts the shell.
-      const copyPasteMod = IS_MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
-      if (copyPasteMod && !e.altKey && !e.shiftKey) {
-        // Copy when text is selected; with no selection, fall through so the
-        // shell receives the interrupt — the key that stops a runaway agent.
-        if (e.key === "c" || e.key === "C") {
-          if (term.hasSelection()) {
-            copySelection();
-            term.clearSelection();
-            return false;
-          }
-          return true;
-        }
-        if (e.key === "v" || e.key === "V") {
-          pasteClipboard();
-          return false;
-        }
-      }
-      return true;
-    });
-
-    // Right-click follows the Windows-console "QuickEdit" model: copy the
-    // selection if there is one, otherwise paste. Prevent the default so the
-    // webview doesn't clear the selection or show its own context menu.
-    const onContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-      if (term.hasSelection()) {
-        copySelection();
-        term.clearSelection();
-      } else {
-        pasteClipboard();
-      }
-    };
+    term.attachCustomKeyEventHandler(makeCopyPasteKeyHandler(clipboardDeps));
+    const onContextMenu = makeContextMenuHandler(clipboardDeps);
     container.addEventListener("contextmenu", onContextMenu);
 
     // WebGL is the fast renderer locally but streams poorly over remote desktop,
