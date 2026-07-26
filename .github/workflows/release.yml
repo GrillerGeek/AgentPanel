@@ -58,6 +58,10 @@ jobs:
     env:
       CARGO_NET_RETRY: "10"
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      # The `secrets` context is not allowed in step `if:` expressions, so the
+      # Sentry gate is evaluated here (env values may reference secrets) and
+      # steps test the resulting env var instead.
+      SENTRY_ENABLED: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -86,11 +90,11 @@ jobs:
       # `beforeBundleCommand` / scripts/strip-sourcemaps.mjs), so this step
       # never causes maps to ship inside the installer either way.
       - name: Build web assets (for source-map upload)
-        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+        if: ${{ env.SENTRY_ENABLED == 'true' }}
         run: npm run build
 
       - name: Upload source maps to Sentry
-        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+        if: ${{ env.SENTRY_ENABLED == 'true' }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
