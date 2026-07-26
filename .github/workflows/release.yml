@@ -95,6 +95,9 @@ jobs:
 
       - name: Upload source maps to Sentry
         if: ${{ env.SENTRY_ENABLED == 'true' }}
+        # bash explicitly: this script uses bash syntax (line continuations,
+        # ${VAR#v} expansion) and Windows runners default to pwsh.
+        shell: bash
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
