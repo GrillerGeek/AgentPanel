@@ -34,3 +34,7 @@ repositories you point it at — all with the privileges of the launching user. 
 app's own behavior (e.g. command injection, unsafe path handling, insecure IPC between the
 frontend and the Rust core, or credential leakage) are in scope. The behavior of third-party agent
 CLIs you choose to run inside AgentPanel is not.
+
+Crash reporting (see the README's [Telemetry](README.md#telemetry) section) is opt-in and scrubs
+absolute filesystem paths before a report leaves your machine. A bug that let a report escape with
+an unredacted path, username, or other data outside what's documented there is in scope.

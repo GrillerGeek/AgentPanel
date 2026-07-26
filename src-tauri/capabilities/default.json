@@ -12,6 +12,7 @@
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-text",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "sentry:default"
   ]
 }

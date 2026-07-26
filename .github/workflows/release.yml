@@ -78,6 +78,31 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # Crash reporting (docs/superpowers/specs/2026-07-23-crash-reporting-design.md):
+      # builds once here so minified-JS stack traces can be mapped back to
+      # source in Sentry. Conditional on the secret so forks (which don't have
+      # it) still build releases; the actual bundled build's source maps are
+      # stripped before packaging regardless (tauri.conf.json's
+      # `beforeBundleCommand` / scripts/strip-sourcemaps.mjs), so this step
+      # never causes maps to ship inside the installer either way.
+      - name: Build web assets (for source-map upload)
+        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+        run: npm run build
+
+      - name: Upload source maps to Sentry
+        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: |
+          # Must match the Rust side's `release` string exactly (src-tauri/src/lib.rs's
+          # init_telemetry) and the JS SDK's (src/lib/telemetry.ts's initTelemetry) --
+          # otherwise traces from one side won't symbolicate against these maps.
+          npx --yes @sentry/cli sourcemaps upload \
+            --release "agentpanel@${GITHUB_REF_NAME#v}" \
+            dist
+
       - name: Build the app
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
@@ -92,6 +117,10 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Compiled in as `option_env!("AGENTPANEL_SENTRY_DSN")` (src-tauri/src/lib.rs).
+          # Empty-if-unset keeps forks (no access to this secret) fail-closed --
+          # they still build releases, just with telemetry compiled inert.
+          AGENTPANEL_SENTRY_DSN: ${{ secrets.AGENTPANEL_SENTRY_DSN }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "AgentPanel ${{ github.ref_name }}"

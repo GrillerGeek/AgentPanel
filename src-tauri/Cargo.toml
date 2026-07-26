@@ -27,6 +27,26 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Path scrubbing for the opt-in crash-reporting feature (telemetry.rs).
+regex = "1"
+
+# Opt-in crash reporting (docs/superpowers/specs/2026-07-23-crash-reporting-design.md).
+# Default features pull in the panic integration + reqwest/native-tls transport.
+sentry = "0.42"
+# Tauri-v2-compatible plugin (note: the design doc's working name "sentry-tauri"
+# refers to this crate's older Tauri-v1-only ancestor of the same name on
+# crates.io; `tauri-plugin-sentry` is its Tauri v2 successor by the same author,
+# same architecture -- WebView events routed to the Rust SDK over Tauri IPC).
+# default-features off: this crate's default "minidump" feature captures native
+# crash dumps via a separate crash-reporter process, which is out of scope here
+# (spec covers Rust panics + WebView JS exceptions only).
+tauri-plugin-sentry = { version = "0.5", default-features = false }
+# Direct dependency only so lib.rs can build a `reqwest::Client` with explicit
+# connect/request timeouts for `TimeoutTransportFactory` (see lib.rs). The TLS
+# backend feature is already enabled via `sentry`'s own dependency edge
+# (its default "native-tls" feature); Cargo unifies features across the one
+# resolved `reqwest` version in the graph, so this entry doesn't restate it.
+reqwest = { version = "0.12", default-features = false }
 
 # Terminal spike (Phase 0): cross-platform PTY -> ConPTY on Windows.
 portable-pty = "0.8"
