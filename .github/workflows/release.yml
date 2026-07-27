@@ -169,7 +169,7 @@ jobs:
             echo "::error::no latest.json asset on the ${GITHUB_REF_NAME} release"
             exit 1
           fi
-          curl -sSL -H "Authorization: Bearer ${GH_TOKEN}" \
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" \
                     -H "Accept: application/octet-stream" "$asset" -o latest.json
           cat latest.json
           fail=0

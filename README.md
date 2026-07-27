@@ -39,8 +39,8 @@ Download the latest build for your platform from
   check the Apple menu → About This Mac if unsure.
 - **macOS (Intel)** — `AgentPanel_<version>_x64.dmg`.
 
-  Both are signed and notarized by Apple — open the `.dmg` and drag the app to Applications; no
-  security workarounds needed.
+Both are signed and notarized by Apple — open the `.dmg` and drag the app to Applications; no
+security workarounds needed.
 
 ### macOS shell PATH tip
 
