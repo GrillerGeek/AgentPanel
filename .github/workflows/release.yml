@@ -45,10 +45,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Apple Silicon. Deliberately left without an explicit --target so the
+          # artifact names and updater keys stay byte-for-byte what v0.5.1 shipped.
           - platform: macos-latest
             args: ""
+            rust-target: ""
+          # Intel. `macos-latest` is an arm64 runner, so this leg cross-compiles.
+          - platform: macos-latest
+            args: "--target x86_64-apple-darwin"
+            rust-target: "x86_64-apple-darwin"
           - platform: windows-latest
             args: ""
+            rust-target: ""
 
     runs-on: ${{ matrix.platform }}
 
@@ -73,11 +81,18 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          # Empty on the native legs: the action's `for t in ${targets//,/ }` loop
+          # simply doesn't iterate, so no --target flag is added.
+          targets: ${{ matrix.rust-target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           workspaces: "./src-tauri -> target"
+          # Both macOS legs share a job id and runner OS. Without a distinct key
+          # they collide on one cache entry and thrash it every run.
+          key: ${{ matrix.rust-target }}
 
       - name: Install frontend dependencies
         run: npm ci
