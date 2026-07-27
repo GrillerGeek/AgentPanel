@@ -23,7 +23,7 @@ parallel — each isolated in its own **git worktree**, each with its own termin
 
 ## Runtime requirements
 
-- **Windows 10 1809+ / Windows 11**, or **macOS 11+** (Apple Silicon).
+- **Windows 10 1809+ / Windows 11**, or **macOS 11+** (Apple Silicon or Intel).
 - **WebView2 runtime** (Windows only) — preinstalled on Windows 11; the installer fetches it if
   missing. macOS uses the system WebKit.
 - **Git** on `PATH` (required for worktrees).
@@ -35,8 +35,12 @@ Download the latest build for your platform from
 [Releases](https://github.com/GrillerGeek/AgentPanel/releases):
 
 - **Windows** — `AgentPanel_<version>_x64-setup.exe`. Per-user install, no admin required.
-- **macOS** — `AgentPanel_<version>_aarch64.dmg` (Apple Silicon). Signed and notarized by Apple —
-  open the `.dmg` and drag the app to Applications; no security workarounds needed.
+- **macOS (Apple Silicon)** — `AgentPanel_<version>_aarch64.dmg`. This is every Mac from 2020 on;
+  check the Apple menu → About This Mac if unsure.
+- **macOS (Intel)** — `AgentPanel_<version>_x64.dmg`.
+
+Both are signed and notarized by Apple — open the `.dmg` and drag the app to Applications; no
+security workarounds needed.
 
 ### macOS shell PATH tip
 

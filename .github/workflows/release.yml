@@ -22,19 +22,37 @@ jobs:
         run: |
           tag="${GITHUB_REF_NAME#v}"
           pkg=$(jq -r .version package.json)
+          lock=$(jq -r .version package-lock.json)
+          lockpkg=$(jq -r '.packages[""].version' package-lock.json)
           conf=$(jq -r .version src-tauri/tauri.conf.json)
           cargo=$(grep -m1 '^version' src-tauri/Cargo.toml | sed -E 's/^version *= *"(.*)".*/\1/')
-          echo "tag=$tag  package.json=$pkg  tauri.conf.json=$conf  Cargo.toml=$cargo"
+          # Cargo.lock records the crate's own version in its [[package]] block.
+          # Match the block by exact name, then take the version line that follows.
+          cargolock=$(awk -F'"' '/^name = "agentpanel"$/ { found = 1; next } found && /^version = / { print $2; exit }' src-tauri/Cargo.lock)
+          echo "tag=$tag  package.json=$pkg  package-lock.json=$lock  tauri.conf.json=$conf  Cargo.toml=$cargo  Cargo.lock=$cargolock"
           fail=0
-          for pair in "package.json:$pkg" "tauri.conf.json:$conf" "Cargo.toml:$cargo"; do
+          if [ -z "$cargolock" ]; then
+            echo "::error file=src-tauri/Cargo.lock::no [[package]] entry named 'agentpanel' found — the crate was renamed or the lockfile is malformed"
+            fail=1
+          fi
+          for pair in "package.json:$pkg" "package-lock.json:$lock" "tauri.conf.json:$conf" "Cargo.toml:$cargo" "Cargo.lock:$cargolock"; do
             name="${pair%%:*}"; val="${pair#*:}"
             if [ "$val" != "$tag" ]; then
               echo "::error file=$name::$name version is '$val' but the tag is 'v$tag'"
               fail=1
             fi
           done
+          # package-lock.json stores the version twice and npm keeps both fields
+          # in sync; a mismatch means it was hand-edited instead of regenerated.
+          if [ "$lockpkg" != "$lock" ]; then
+            echo "::error file=package-lock.json::packages[\"\"].version is '$lockpkg' but the top-level version is '$lock'"
+            fail=1
+          fi
           if [ "$fail" -ne 0 ]; then
             echo "Manifest versions must all equal the tag. Bump them and re-tag."
+            echo "Refresh the lockfiles rather than hand-editing them:"
+            echo "  npm install --package-lock-only"
+            echo "  cargo check --manifest-path src-tauri/Cargo.toml"
             exit 1
           fi
           echo "All manifest versions match the tag ($tag)."
@@ -45,10 +63,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Apple Silicon. Deliberately left without an explicit --target so the
+          # artifact names and updater keys stay byte-for-byte what v0.5.1 shipped.
           - platform: macos-latest
             args: ""
+            rust-target: ""
+          # Intel. `macos-latest` is an arm64 runner, so this leg cross-compiles.
+          - platform: macos-latest
+            args: "--target x86_64-apple-darwin"
+            rust-target: "x86_64-apple-darwin"
           - platform: windows-latest
             args: ""
+            rust-target: ""
 
     runs-on: ${{ matrix.platform }}
 
@@ -73,11 +99,18 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          # Empty on the native legs: the action's `for t in ${targets//,/ }` loop
+          # simply doesn't iterate, so no --target flag is added.
+          targets: ${{ matrix.rust-target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           workspaces: "./src-tauri -> target"
+          # Both macOS legs share a job id and runner OS. Without a distinct key
+          # they collide on one cache entry and thrash it every run.
+          key: ${{ matrix.rust-target }}
 
       - name: Install frontend dependencies
         run: npm ci
@@ -134,3 +167,38 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+  # The updater looks up an exact `{os}-{arch}` key in latest.json and has no
+  # fallback (tauri-plugin-updater's updater.rs). A key missing from the merged
+  # manifest means that platform silently stops receiving updates, so fail the
+  # release loudly while it is still an unpublished draft.
+  verify-manifest:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check latest.json covers every shipped platform
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # `GET /releases/tags/{tag}` omits drafts, so list and match instead.
+          asset=$(gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate --jq \
+            ".[] | select(.tag_name == \"${GITHUB_REF_NAME}\") | .assets[] | select(.name == \"latest.json\") | .url")
+          if [ -z "$asset" ]; then
+            echo "::error::no latest.json asset on the ${GITHUB_REF_NAME} release"
+            exit 1
+          fi
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" \
+                    -H "Accept: application/octet-stream" "$asset" -o latest.json
+          cat latest.json
+          fail=0
+          for key in darwin-aarch64 darwin-x86_64 windows-x86_64; do
+            if ! jq -e --arg k "$key" '.platforms[$k].url' latest.json >/dev/null; then
+              echo "::error::latest.json is missing the '$key' platform entry"
+              fail=1
+            fi
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "Do not publish this draft — those users would never see an update."
+            exit 1
+          fi
+          echo "latest.json covers all three platforms."
