@@ -149,3 +149,38 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+  # The updater looks up an exact `{os}-{arch}` key in latest.json and has no
+  # fallback (tauri-plugin-updater's updater.rs). A key missing from the merged
+  # manifest means that platform silently stops receiving updates, so fail the
+  # release loudly while it is still an unpublished draft.
+  verify-manifest:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check latest.json covers every shipped platform
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # `GET /releases/tags/{tag}` omits drafts, so list and match instead.
+          asset=$(gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate --jq \
+            ".[] | select(.tag_name == \"${GITHUB_REF_NAME}\") | .assets[] | select(.name == \"latest.json\") | .url")
+          if [ -z "$asset" ]; then
+            echo "::error::no latest.json asset on the ${GITHUB_REF_NAME} release"
+            exit 1
+          fi
+          curl -sSL -H "Authorization: Bearer ${GH_TOKEN}" \
+                    -H "Accept: application/octet-stream" "$asset" -o latest.json
+          cat latest.json
+          fail=0
+          for key in darwin-aarch64 darwin-x86_64 windows-x86_64; do
+            if ! jq -e --arg k "$key" '.platforms[$k].url' latest.json >/dev/null; then
+              echo "::error::latest.json is missing the '$key' platform entry"
+              fail=1
+            fi
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "Do not publish this draft — those users would never see an update."
+            exit 1
+          fi
+          echo "latest.json covers all three platforms."
