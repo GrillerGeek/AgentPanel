@@ -54,3 +54,24 @@ automatically — no workflow changes needed.
   `bundle.macOS.entitlements` only if notarization or runtime testing surfaces
   a specific requirement.
 - Windows builds are unaffected — the `APPLE_*` env vars are simply ignored on that leg.
+
+## Expected release artifacts
+
+A `v*` tag push produces a **draft** release containing:
+
+| Platform | Artifact |
+| --- | --- |
+| Windows | `AgentPanel_<version>_x64-setup.exe` (+ `.sig`) |
+| macOS, Apple Silicon | `AgentPanel_<version>_aarch64.dmg`, `AgentPanel_<version>_aarch64.app.tar.gz` (+ `.sig`) |
+| macOS, Intel | `AgentPanel_<version>_x64.dmg`, `AgentPanel_<version>_x64.app.tar.gz` (+ `.sig`) |
+| all | `latest.json` |
+
+Before publishing the draft, confirm:
+
+1. The `verify-manifest` job is green — it asserts `latest.json` carries
+   `darwin-aarch64`, `darwin-x86_64` and `windows-x86_64`. The updater has no
+   fallback for a missing key, so a platform absent here silently stops
+   receiving updates.
+2. **Both** macOS jobs logged a notarization status of `Accepted`.
+   `tauri-action` exits green even when signing silently no-ops, so job success
+   alone proves nothing — grep the log for the status line.
