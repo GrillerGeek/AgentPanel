@@ -26,9 +26,16 @@ jobs:
           lockpkg=$(jq -r '.packages[""].version' package-lock.json)
           conf=$(jq -r .version src-tauri/tauri.conf.json)
           cargo=$(grep -m1 '^version' src-tauri/Cargo.toml | sed -E 's/^version *= *"(.*)".*/\1/')
-          echo "tag=$tag  package.json=$pkg  package-lock.json=$lock  tauri.conf.json=$conf  Cargo.toml=$cargo"
+          # Cargo.lock records the crate's own version in its [[package]] block.
+          # Match the block by exact name, then take the version line that follows.
+          cargolock=$(awk -F'"' '/^name = "agentpanel"$/ { found = 1; next } found && /^version = / { print $2; exit }' src-tauri/Cargo.lock)
+          echo "tag=$tag  package.json=$pkg  package-lock.json=$lock  tauri.conf.json=$conf  Cargo.toml=$cargo  Cargo.lock=$cargolock"
           fail=0
-          for pair in "package.json:$pkg" "package-lock.json:$lock" "tauri.conf.json:$conf" "Cargo.toml:$cargo"; do
+          if [ -z "$cargolock" ]; then
+            echo "::error file=src-tauri/Cargo.lock::no [[package]] entry named 'agentpanel' found — the crate was renamed or the lockfile is malformed"
+            fail=1
+          fi
+          for pair in "package.json:$pkg" "package-lock.json:$lock" "tauri.conf.json:$conf" "Cargo.toml:$cargo" "Cargo.lock:$cargolock"; do
             name="${pair%%:*}"; val="${pair#*:}"
             if [ "$val" != "$tag" ]; then
               echo "::error file=$name::$name version is '$val' but the tag is 'v$tag'"
@@ -43,7 +50,9 @@ jobs:
           fi
           if [ "$fail" -ne 0 ]; then
             echo "Manifest versions must all equal the tag. Bump them and re-tag."
-            echo "Regenerate the lockfile with: npm install --package-lock-only"
+            echo "Refresh the lockfiles rather than hand-editing them:"
+            echo "  npm install --package-lock-only"
+            echo "  cargo check --manifest-path src-tauri/Cargo.toml"
             exit 1
           fi
           echo "All manifest versions match the tag ($tag)."
