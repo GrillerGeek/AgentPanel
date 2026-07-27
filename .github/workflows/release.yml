@@ -22,19 +22,28 @@ jobs:
         run: |
           tag="${GITHUB_REF_NAME#v}"
           pkg=$(jq -r .version package.json)
+          lock=$(jq -r .version package-lock.json)
+          lockpkg=$(jq -r '.packages[""].version' package-lock.json)
           conf=$(jq -r .version src-tauri/tauri.conf.json)
           cargo=$(grep -m1 '^version' src-tauri/Cargo.toml | sed -E 's/^version *= *"(.*)".*/\1/')
-          echo "tag=$tag  package.json=$pkg  tauri.conf.json=$conf  Cargo.toml=$cargo"
+          echo "tag=$tag  package.json=$pkg  package-lock.json=$lock  tauri.conf.json=$conf  Cargo.toml=$cargo"
           fail=0
-          for pair in "package.json:$pkg" "tauri.conf.json:$conf" "Cargo.toml:$cargo"; do
+          for pair in "package.json:$pkg" "package-lock.json:$lock" "tauri.conf.json:$conf" "Cargo.toml:$cargo"; do
             name="${pair%%:*}"; val="${pair#*:}"
             if [ "$val" != "$tag" ]; then
               echo "::error file=$name::$name version is '$val' but the tag is 'v$tag'"
               fail=1
             fi
           done
+          # package-lock.json stores the version twice and npm keeps both fields
+          # in sync; a mismatch means it was hand-edited instead of regenerated.
+          if [ "$lockpkg" != "$lock" ]; then
+            echo "::error file=package-lock.json::packages[\"\"].version is '$lockpkg' but the top-level version is '$lock'"
+            fail=1
+          fi
           if [ "$fail" -ne 0 ]; then
             echo "Manifest versions must all equal the tag. Bump them and re-tag."
+            echo "Regenerate the lockfile with: npm install --package-lock-only"
             exit 1
           fi
           echo "All manifest versions match the tag ($tag)."
