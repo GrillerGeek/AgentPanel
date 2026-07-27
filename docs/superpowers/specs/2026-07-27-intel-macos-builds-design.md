@@ -68,9 +68,10 @@ Two supporting changes:
 
 - **Toolchain:** pass `targets: ${{ matrix.rust-target }}` to the
   `dtolnay/rust-toolchain` step so the x86_64 std lib is installed. Legs
-  without a `rust-target` pass an empty string, which the action treats as "add
-  nothing". If an empty input turns out to error, fall back to a conditional
-  `rustup target add` step gated on `matrix.rust-target != ''`.
+  without a `rust-target` pass an empty string, which is safe: the action's
+  implementation is `for t in ${targets//,/ }; do echo -n ' --target' $t; done`,
+  so an empty value yields zero iterations and adds no flag. Verified against
+  the action source — no conditional guard is needed.
 - **Cache:** give `swatinem/rust-cache` a per-leg `key` (e.g. keyed on
   `matrix.args`). Both macOS legs share a job id and runner OS, so without this
   they collide on one cache entry and thrash it.
