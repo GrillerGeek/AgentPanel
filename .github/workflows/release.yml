@@ -61,6 +61,15 @@ jobs:
     needs: verify-version
     strategy:
       fail-fast: false
+      # Each leg publishes its artifacts by read-modify-writing the release's
+      # shared latest.json. Run them one at a time so those writes can't
+      # interleave: at v0.6.0 three concurrent legs raced and GitHub ended up
+      # with *two* assets both named latest.json, holding disjoint platform
+      # sets (darwin-aarch64 in one; darwin-x86_64 + windows-x86_64 in the
+      # other). Whichever one won, a platform would have silently stopped
+      # receiving updates. Serial releases cost ~15 extra minutes; a split
+      # manifest costs a platform's entire update channel.
+      max-parallel: 1
       matrix:
         include:
           # Apple Silicon. Deliberately left without an explicit --target so the
@@ -181,12 +190,21 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # `GET /releases/tags/{tag}` omits drafts, so list and match instead.
-          asset=$(gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate --jq \
+          assets=$(gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate --jq \
             ".[] | select(.tag_name == \"${GITHUB_REF_NAME}\") | .assets[] | select(.name == \"latest.json\") | .url")
-          if [ -z "$asset" ]; then
+          count=$(printf '%s\n' "$assets" | grep -c '^https' || true)
+          if [ "$count" -eq 0 ]; then
             echo "::error::no latest.json asset on the ${GITHUB_REF_NAME} release"
             exit 1
           fi
+          # More than one means the build legs raced and each wrote a partial
+          # manifest -- the v0.6.0 failure. strategy.max-parallel is meant to
+          # prevent it; if this fires, that serialization has regressed.
+          if [ "$count" -gt 1 ]; then
+            echo "::error::${count} assets named latest.json on the ${GITHUB_REF_NAME} release -- the build legs raced and each wrote a partial manifest. Check strategy.max-parallel, delete the release, and re-run every leg."
+            exit 1
+          fi
+          asset="$assets"
           curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" \
                     -H "Accept: application/octet-stream" "$asset" -o latest.json
           cat latest.json
