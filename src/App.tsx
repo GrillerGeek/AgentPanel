@@ -63,11 +63,12 @@ function PaneDivider({ onResize }: { onResize: (ratio: number) => void }) {
 
 const SIDEBAR_MIN = 180;
 const SIDEBAR_MAX = 500;
-const SIDEBAR_DEFAULT = 260;
 
 /** Draggable divider between the sidebar and the content area. Live-resizes via
  *  the --sidebar-width CSS variable (no re-render per move); the final width is
- *  committed to settings on release. Double-click resets to the default. */
+ *  committed to settings on release. Double-click fits the sidebar to its
+ *  widest row (repo/worktree names use nowrap+ellipsis, so a max-content
+ *  measurement yields the full untruncated width). */
 function SidebarDivider({ onCommit }: { onCommit: (px: number) => void }) {
   const onPointerDown = (e: ReactPointerEvent) => {
     e.preventDefault();
@@ -90,8 +91,18 @@ function SidebarDivider({ onCommit }: { onCommit: (px: number) => void }) {
     <div
       className="sidebar-divider"
       onPointerDown={onPointerDown}
-      onDoubleClick={() => onCommit(SIDEBAR_DEFAULT)}
-      title="Drag to resize sidebar — double-click to reset"
+      onDoubleClick={(e) => {
+        const host = e.currentTarget.parentElement as HTMLElement;
+        const sidebar = host.querySelector<HTMLElement>(".sidebar");
+        if (!sidebar) return;
+        // Measure and restore synchronously — no paint happens in between.
+        const prev = sidebar.style.flexBasis;
+        sidebar.style.flexBasis = "max-content";
+        const fit = Math.ceil(sidebar.getBoundingClientRect().width);
+        sidebar.style.flexBasis = prev;
+        onCommit(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, fit)));
+      }}
+      title="Drag to resize sidebar — double-click to fit content"
     />
   );
 }
