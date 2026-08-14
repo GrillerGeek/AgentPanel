@@ -1,5 +1,5 @@
 import { Fragment, lazy, Suspense, useEffect, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Sidebar } from "./components/Sidebar";
@@ -61,6 +61,41 @@ function PaneDivider({ onResize }: { onResize: (ratio: number) => void }) {
   return <div className="pane-divider" onPointerDown={onPointerDown} title="Drag to resize" />;
 }
 
+const SIDEBAR_MIN = 180;
+const SIDEBAR_MAX = 500;
+const SIDEBAR_DEFAULT = 260;
+
+/** Draggable divider between the sidebar and the content area. Live-resizes via
+ *  the --sidebar-width CSS variable (no re-render per move); the final width is
+ *  committed to settings on release. Double-click resets to the default. */
+function SidebarDivider({ onCommit }: { onCommit: (px: number) => void }) {
+  const onPointerDown = (e: ReactPointerEvent) => {
+    e.preventDefault();
+    const host = e.currentTarget.parentElement as HTMLElement;
+    const rect = host.getBoundingClientRect();
+    let px = 0;
+    const move = (ev: PointerEvent) => {
+      px = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, ev.clientX - rect.left));
+      host.style.setProperty("--sidebar-width", `${px}px`);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      if (px) onCommit(px);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  return (
+    <div
+      className="sidebar-divider"
+      onPointerDown={onPointerDown}
+      onDoubleClick={() => onCommit(SIDEBAR_DEFAULT)}
+      title="Drag to resize sidebar — double-click to reset"
+    />
+  );
+}
+
 function App() {
   const loadRepositories = useStore((s) => s.loadRepositories);
   const refreshStatuses = useStore((s) => s.refreshStatuses);
@@ -71,6 +106,8 @@ function App() {
   const setSplitRatio = useStore((s) => s.setSplitRatio);
   const pushToast = useStore((s) => s.pushToast);
   const theme = useStore((s) => s.settings.theme);
+  const sidebarWidth = useStore((s) => s.settings.sidebarWidth);
+  const updateSettings = useStore((s) => s.updateSettings);
   const notesOpen = useStore((s) => s.notesOpen);
   const toggleNotes = useStore((s) => s.toggleNotes);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -341,8 +378,9 @@ function App() {
           <PrDashboard onClose={() => setPrDashOpen(false)} />
         </Suspense>
       )}
-      <div className="body">
+      <div className="body" style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}>
         <Sidebar />
+        <SidebarDivider onCommit={(px) => updateSettings({ sidebarWidth: px })} />
         <main className="content">
           {terminals.length === 0 ? (
             <div className="placeholder">

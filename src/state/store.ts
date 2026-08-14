@@ -44,6 +44,7 @@ const DEFAULT_SETTINGS: Settings = {
   webgl: true,
   fontFamily: "Cascadia Code",
   fontSize: 14,
+  sidebarWidth: 260,
   notifications: true,
   confirmsDisabled: [],
 };
