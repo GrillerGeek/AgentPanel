@@ -132,6 +132,11 @@ body,
 /* ---- Sidebar ---- */
 .sidebar {
   flex: 0 0 var(--sidebar-width, 260px);
+  /* A flex item's default min-width:auto lets wide content (e.g. a long branch
+     name in Active terminals) push past the flex basis and block drag-shrink;
+     zero it so the dragged width always wins and rows ellipsize instead. */
+  min-width: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--bg-sidebar);
