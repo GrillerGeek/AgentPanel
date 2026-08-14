@@ -357,6 +357,21 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           <label className="settings-check">
             <input
               type="checkbox"
+              checked={settings.autoTabTitles}
+              onChange={(e) => updateSettings({ autoTabTitles: e.currentTarget.checked })}
+            />
+            <span>Auto-title agent tabs</span>
+          </label>
+          <small>
+            Tabs launched with an agent button (▶ claude / codex) take their name from the running
+            session. Renaming a tab pins your name.
+          </small>
+        </div>
+
+        <div className="settings-field">
+          <label className="settings-check">
+            <input
+              type="checkbox"
               checked={crashReports}
               onChange={(e) => void onCrashReportsChange(e.currentTarget.checked)}
             />

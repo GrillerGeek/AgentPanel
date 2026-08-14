@@ -125,6 +125,7 @@ export function TerminalPane({
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const setPaneSession = useStore((s) => s.setPaneSession);
+  const inheritTabTitle = useStore((s) => s.inheritTabTitle);
   const shell = useStore((s) => s.settings.shell);
   const terminalEnv = useStore((s) => s.settings.terminalEnv);
   const syncLoginPath = useStore((s) => s.settings.syncLoginPath);
@@ -250,6 +251,12 @@ export function TerminalPane({
       if (sessionId !== null) void invoke("pty_write", { id: sessionId, data });
     });
 
+    // Agent CLIs (claude, codex) report session context via OSC title sequences;
+    // agent tabs adopt it as the tab title (gating lives in inheritTabTitle).
+    const titleSub = term.onTitleChange((title) => {
+      if (paneId) inheritTabTitle(paneId, title);
+    });
+
     // Keep the PTY sized to the viewport. ResizeObserver can fire many times per
     // frame during a window drag-resize; coalesce to one fit per frame (rAF) and
     // only round-trip pty_resize when the cell grid actually changes — otherwise
@@ -280,6 +287,7 @@ export function TerminalPane({
       observer.disconnect();
       container.removeEventListener("contextmenu", onContextMenu);
       dataSub.dispose();
+      titleSub.dispose();
       unlistenExit?.();
       if (paneId) forgetPane(paneId);
       if (sessionId !== null) void invoke("pty_close", { id: sessionId });
