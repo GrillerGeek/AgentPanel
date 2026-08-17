@@ -34,6 +34,10 @@ export interface TerminalTab {
   splitRatio?: number;
   /** optional user-assigned tab color (hex), shown as a left accent stripe */
   color?: string;
+  /** created via agent quick-launch (▶ claude / codex); eligible for auto-title */
+  agent?: boolean;
+  /** user renamed this tab; stop inheriting titles from the running program */
+  titlePinned?: boolean;
 }
 
 /** User settings (persisted in localStorage). */
@@ -59,6 +63,8 @@ export interface Settings {
   sidebarWidth: number;
   /** OS + in-app notifications when a background agent finishes / needs input */
   notifications: boolean;
+  /** agent tabs take their title from the running CLI session (OSC title) */
+  autoTabTitles: boolean;
   /** dontAskKeys the user dismissed via "don't ask again" on a confirm dialog */
   confirmsDisabled: string[];
 }

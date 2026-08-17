@@ -46,6 +46,7 @@ const DEFAULT_SETTINGS: Settings = {
   fontSize: 14,
   sidebarWidth: 260,
   notifications: true,
+  autoTabTitles: true,
   confirmsDisabled: [],
 };
 function readSettings(): Settings {
@@ -157,8 +158,12 @@ interface AppState {
   setPaneSession: (paneId: string, sessionId: number) => void;
   /** set the split ratio for a 2-pane tab (drag-resize) */
   setSplitRatio: (tabId: string, ratio: number) => void;
-  /** rename a tab (right-click → rename) */
+  /** rename a tab (right-click → rename); pins the title against auto-updates */
   renameTab: (tabId: string, title: string) => void;
+  /** adopt the title an agent CLI reported via OSC (xterm onTitleChange) for the
+   *  tab whose first pane is `paneId` — no-op unless the tab is an agent tab,
+   *  isn't pinned, and the autoTabTitles setting is on */
+  inheritTabTitle: (paneId: string, title: string) => void;
   /** assign or clear a tab's color (right-click → color) */
   setTabColor: (tabId: string, color: string | undefined) => void;
   /** move tab `fromId` to the position of `toId` (drag-reorder) */
@@ -175,8 +180,8 @@ interface AppState {
 }
 
 /** Build a fresh single-pane tab for a worktree. */
-function newTab(worktreeId: string, cwd: string, title: string, initialCommand?: string): TerminalTab {
-  return { id: nextTabId(), worktreeId, cwd, title, panes: [{ id: nextPaneId(), initialCommand }] };
+function newTab(worktreeId: string, cwd: string, title: string, initialCommand?: string, agent?: boolean): TerminalTab {
+  return { id: nextTabId(), worktreeId, cwd, title, panes: [{ id: nextPaneId(), initialCommand }], agent };
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -420,7 +425,7 @@ export const useStore = create<AppState>((set, get) => ({
   runAgentInActive: (command) => {
     const active = get().terminals.find((t) => t.id === get().activeTabId);
     if (!active) return;
-    const tab = newTab(active.worktreeId, active.cwd, `${active.title} · ${command}`, command);
+    const tab = newTab(active.worktreeId, active.cwd, `${active.title} · ${command}`, command, true);
     set((s) => ({ terminals: [...s.terminals, tab], activeTabId: tab.id }));
   },
 
@@ -511,8 +516,22 @@ export const useStore = create<AppState>((set, get) => ({
 
   renameTab: (tabId, title) =>
     set((s) => ({
-      terminals: s.terminals.map((t) => (t.id === tabId ? { ...t, title } : t)),
+      terminals: s.terminals.map((t) => (t.id === tabId ? { ...t, title, titlePinned: true } : t)),
     })),
+
+  inheritTabTitle: (paneId, title) =>
+    set((s) => {
+      if (!s.settings.autoTabTitles) return s;
+      // OSC payloads are subprocess-controlled: strip control chars and cap the
+      // length so a runaway program can't bloat state / the session snapshot.
+      const next = title.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 120);
+      if (!next) return s;
+      // Only the first pane propagates: quick-launch puts the agent in pane 0,
+      // so a shell in a later split pane can't clobber the session title.
+      const tab = s.terminals.find((t) => t.agent && !t.titlePinned && t.panes[0]?.id === paneId);
+      if (!tab || tab.title === next) return s;
+      return { terminals: s.terminals.map((t) => (t.id === tab.id ? { ...t, title: next } : t)) };
+    }),
 
   setTabColor: (tabId, color) =>
     set((s) => ({
@@ -650,8 +669,11 @@ useStore.subscribe((s) => {
 
 // Persist open terminal tabs (ephemeral UI session) to localStorage on change.
 // Gated by `hydrated` so boot-time store loads don't overwrite the saved session
-// before restoreSession() runs.
+// before restoreSession() runs. Debounced (like the notes subscriber) because
+// auto-inherited tab titles can update on every OSC title an agent CLI emits;
+// flushed on hide/unload below so the last state isn't lost on quit.
 let lastSessionSnapshot = "";
+let sessionWriteTimer: ReturnType<typeof setTimeout> | undefined;
 useStore.subscribe((s) => {
   if (!hydrated) return;
   const snapshot = JSON.stringify({
@@ -664,14 +686,17 @@ useStore.subscribe((s) => {
     })),
     activeIndex: s.terminals.findIndex((t) => t.id === s.activeTabId),
   });
-  if (snapshot !== lastSessionSnapshot) {
-    lastSessionSnapshot = snapshot;
+  if (snapshot === lastSessionSnapshot) return;
+  lastSessionSnapshot = snapshot;
+  if (sessionWriteTimer) clearTimeout(sessionWriteTimer);
+  sessionWriteTimer = setTimeout(() => {
+    sessionWriteTimer = undefined;
     try {
       localStorage.setItem(SESSION_KEY, snapshot);
     } catch (err) {
       console.error("session persist failed", err);
     }
-  }
+  }, 300);
 });
 
 // Keep the Rust file watcher's path set in sync with the git worktrees.
@@ -720,10 +745,28 @@ function flushNotes() {
     console.error("notes flush failed", err);
   }
 }
+/** Same for the debounced session write, so tab state (incl. auto-inherited
+ *  titles) isn't lost if the app quits within the debounce window. */
+function flushSession() {
+  if (sessionWriteTimer === undefined) return;
+  clearTimeout(sessionWriteTimer);
+  sessionWriteTimer = undefined;
+  try {
+    localStorage.setItem(SESSION_KEY, lastSessionSnapshot);
+  } catch (err) {
+    console.error("session flush failed", err);
+  }
+}
 if (typeof window !== "undefined") {
-  window.addEventListener("beforeunload", flushNotes);
+  window.addEventListener("beforeunload", () => {
+    flushNotes();
+    flushSession();
+  });
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") flushNotes();
+    if (document.visibilityState === "hidden") {
+      flushNotes();
+      flushSession();
+    }
   });
 }
 
