@@ -55,6 +55,8 @@ export interface Settings {
   fontFamily: string;
   /** terminal font size in px */
   fontSize: number;
+  /** sidebar width in px; drag the divider next to the sidebar to change */
+  sidebarWidth: number;
   /** OS + in-app notifications when a background agent finishes / needs input */
   notifications: boolean;
   /** dontAskKeys the user dismissed via "don't ask again" on a confirm dialog */

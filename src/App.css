@@ -131,12 +131,27 @@ body,
 
 /* ---- Sidebar ---- */
 .sidebar {
-  flex: 0 0 260px;
+  flex: 0 0 var(--sidebar-width, 260px);
+  /* A flex item's default min-width:auto lets wide content (e.g. a long branch
+     name in Active terminals) push past the flex basis and block drag-shrink;
+     zero it so the dragged width always wins and rows ellipsize instead. */
+  min-width: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--bg-sidebar);
-  border-right: 1px solid var(--border);
   min-height: 0;
+}
+
+/* Replaces the sidebar's old border-right; same look as .pane-divider. */
+.sidebar-divider {
+  flex: 0 0 5px;
+  align-self: stretch;
+  cursor: col-resize;
+  background: var(--border);
+}
+.sidebar-divider:hover {
+  background: var(--accent);
 }
 
 .sidebar-header {
