@@ -5,6 +5,13 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Linux is the newest build target and the one no maintainer runs locally, so
   # it is the one most likely to break silently. release.yml only runs on tags,
