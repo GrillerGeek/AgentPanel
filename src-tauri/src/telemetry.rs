@@ -63,9 +63,10 @@ fn platform_data_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-// minimal: XDG fallback only; Linux isn't a shipped bundle target today (see
-// tauri.conf.json's bundle.targets), but this keeps dev builds/CI on Linux
-// runners resolvable instead of panicking.
+// minimal: XDG fallback only. Linux IS a shipped bundle target (AppImage +
+// deb — see tauri.conf.json's bundle.targets), so this is the real data
+// directory resolver for Linux users, not just a dev/CI fallback. Do not
+// delete this arm.
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 fn platform_data_dir() -> PathBuf {
     std::env::var_os("XDG_DATA_HOME")

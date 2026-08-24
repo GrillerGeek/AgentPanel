@@ -33,7 +33,9 @@ Every conditional-compilation gate in `src-tauri/src/` is one of:
 1. **R1** — A tagged release produces an x86_64 Linux **AppImage** and a **`.deb`**.
 2. **R2** — Auto-update works on Linux: `latest.json` must carry a
    `linux-x86_64` key, and the release must carry the matching
-   `.AppImage.tar.gz` + `.sig` updater artifacts.
+   `AgentPanel_<version>_amd64.AppImage` + `.AppImage.sig` updater artifacts
+   (this repo sets `createUpdaterArtifacts: true` — v2-native updater
+   artifacts, not the `"v1Compatible"` `.AppImage.tar.gz` + `.sig` form).
 3. **R3** — `verify-manifest` must **fail the release** if `linux-x86_64` is
    missing, exactly as it already does for the three existing keys.
 4. **R4** — The AppImage must run on distributions older than the CI runner.

@@ -10,8 +10,8 @@ terminal. Built on Tauri (Rust) + React + xterm.js.
 
 - **Repositories & worktrees** — add any folder/git repo; create, list, and remove git worktrees
   from the sidebar (an isolated branch per agent).
-- **Parallel terminal tabs** — a real ConPTY shell per pane, all running at once; tabs survive
-  switching, and you can **split** a tab into two side-by-side terminals.
+- **Parallel terminal tabs** — a real PTY shell per pane (ConPTY on Windows), all running at
+  once; tabs survive switching, and you can **split** a tab into two side-by-side terminals.
 - **Bring your own agent** — run any CLI (`claude`, `codex`, …); one-click quick-launch buttons.
 - **Live git status** — branch, dirty-file count, and ahead/behind vs upstream per worktree,
   updated instantly via a file watcher.
@@ -45,8 +45,8 @@ Download the latest build for your platform from
   or `AgentPanel_<version>_amd64.deb` for Debian/Ubuntu. Auto-update works on the
   AppImage only.
 
-Both are signed and notarized by Apple — open the `.dmg` and drag the app to Applications; no
-security workarounds needed.
+The macOS builds are signed and notarized by Apple — open the `.dmg` and drag the app to
+Applications; no security workarounds needed.
 
 ### macOS shell PATH tip
 
