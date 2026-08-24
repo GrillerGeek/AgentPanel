@@ -2,9 +2,9 @@
 
 <img width="1344" height="761" alt="Screenshot 2026-07-23 at 9 39 23 PM" src="https://github.com/user-attachments/assets/2ec11c8a-bdb5-45f0-8f1f-4945af21f4d4" />
 
-A cross-platform (**Windows** and **macOS**) command center for running multiple AI coding agents in
-parallel — each isolated in its own **git worktree**, each with its own terminal. Built on Tauri
-(Rust) + React + xterm.js.
+A cross-platform (**Windows**, **macOS**, and **Linux**) command center for running multiple AI
+coding agents in parallel — each isolated in its own **git worktree**, each with its own
+terminal. Built on Tauri (Rust) + React + xterm.js.
 
 ## Features
 
