@@ -28,6 +28,16 @@ const STATUS_MARK: Record<string, string> = {
 export function DiffPanel() {
   const diffOpen = useStore((s) => s.diffOpen);
   const activeWorktreeId = useStore(selectActiveWorktreeId);
+  // The active tab tracks a worktree by id, but every Rust `worktree_*`
+  // command wants a filesystem path. Those coincide for a real git worktree
+  // (git.rs sets id = path) but not for a plain folder, whose id is
+  // `"folder:" + path" — resolve the actual worktree so the right value goes
+  // out, matching every other caller (store.ts's status/PR refreshers).
+  const worktreePath = useStore((s) =>
+    activeWorktreeId
+      ? (Object.values(s.worktrees).flat().find((w) => w.id === activeWorktreeId)?.path ?? null)
+      : null,
+  );
   const selectedDiffFile = useStore((s) => s.selectedDiffFile);
   const setSelectedDiffFile = useStore((s) => s.setSelectedDiffFile);
   const commentCount = useStore(
@@ -36,22 +46,35 @@ export function DiffPanel() {
   const sendReviewToAgent = useStore((s) => s.sendReviewToAgent);
   const clearDiffComments = useStore((s) => s.clearDiffComments);
   const [files, setFiles] = useState<DiffFile[]>([]);
+  // Bumped alongside every refresh triggered by a worktrees-changed event, and
+  // handed down to DiffView so its open patch re-fetches too (I5) — otherwise
+  // the file list below updates while the hunks stay pinned to a stale patch.
+  const [refreshNonce, setRefreshNonce] = useState(0);
   const reqRef = useRef(0);
 
   const refresh = useCallback(async () => {
-    if (!activeWorktreeId) return;
+    if (!worktreePath) return;
     // Overlapping refreshes are normal here: the panel re-fetches on every
     // worktrees-changed event AND on worktree switch. Ignore any response that
     // is no longer the newest request, or a slow older call can land last and
     // show the wrong worktree's files.
     const seq = ++reqRef.current;
     try {
-      const next = await invoke<DiffFile[]>("worktree_diff", { path: activeWorktreeId });
+      const next = await invoke<DiffFile[]>("worktree_diff", { path: worktreePath });
       if (seq === reqRef.current) setFiles(next);
     } catch {
       if (seq === reqRef.current) setFiles([]); // spec R8 — never toast
     }
-  }, [activeWorktreeId]);
+  }, [worktreePath]);
+
+  // Clear the previous worktree's files (and any file it had selected) the
+  // instant the active worktree changes — BEFORE the new fetch resolves.
+  // Without this, switching worktrees on a large repo leaves the old
+  // worktree's file list on screen for however long the request takes (I4).
+  useEffect(() => {
+    setFiles([]);
+    setSelectedDiffFile(null);
+  }, [activeWorktreeId, setSelectedDiffFile]);
 
   useEffect(() => {
     if (!diffOpen) return;
@@ -66,7 +89,10 @@ export function DiffPanel() {
     let disposed = false;
     void listen("worktrees-changed", () => {
       if (timer) clearTimeout(timer);
-      timer = window.setTimeout(() => void refresh(), 250);
+      timer = window.setTimeout(() => {
+        void refresh();
+        setRefreshNonce((n) => n + 1);
+      }, 250);
     }).then((un) => {
       if (disposed) un();
       else unlisten = un;
@@ -128,8 +154,13 @@ export function DiffPanel() {
                   </>
                 )}
               </button>
-              {f.path === selectedDiffFile && (
-                <DiffView worktreeId={activeWorktreeId} file={f.path} />
+              {f.path === selectedDiffFile && worktreePath && (
+                <DiffView
+                  worktreeId={activeWorktreeId}
+                  path={worktreePath}
+                  file={f.path}
+                  refreshNonce={refreshNonce}
+                />
               )}
             </li>
           ))}

@@ -81,8 +81,18 @@ describe("DiffPanel", () => {
 
     activateWorktree();
     const { rerender } = render(<DiffPanel />);
-    // Switch worktrees, triggering the second fetch.
-    useStore.setState({ terminals: [{ id: "t2", worktreeId: "/wt2", cwd: "/wt2", title: "c", panes: [{ id: "p2" }] }], activeTabId: "t2" });
+    // Switch worktrees, triggering the second fetch. wt2 must be registered in
+    // `worktrees` too, so its path resolves (I6) and the fetch actually fires.
+    useStore.setState({
+      worktrees: {
+        r1: [
+          { id: "/wt1", repoId: "r1", path: "/wt1", name: "b", branch: "b", isPrimary: false },
+          { id: "/wt2", repoId: "r1", path: "/wt2", name: "c", branch: "c", isPrimary: false },
+        ],
+      },
+      terminals: [{ id: "t2", worktreeId: "/wt2", cwd: "/wt2", title: "c", panes: [{ id: "p2" }] }],
+      activeTabId: "t2",
+    });
     rerender(<DiffPanel />);
     expect(await screen.findByText("new.ts")).toBeTruthy();
 
@@ -90,5 +100,60 @@ describe("DiffPanel", () => {
     resolveSlow([{ path: "STALE.ts", status: "modified", added: 9, removed: 9, binary: false }]);
     await waitFor(() => expect(screen.queryByText("STALE.ts")).toBeNull());
     expect(screen.getByText("new.ts")).toBeTruthy();
+  });
+
+  it("clears the previous worktree's files immediately on switch, before the new fetch resolves", async () => {
+    vi.mocked(invoke).mockResolvedValue(FILES);
+    activateWorktree();
+    render(<DiffPanel />);
+    expect(await screen.findByText("src/a.ts")).toBeTruthy();
+
+    // Switch to a worktree whose fetch never resolves in this test.
+    let neverResolve: (v: DiffFile[]) => void = () => {};
+    vi.mocked(invoke).mockReturnValueOnce(new Promise<DiffFile[]>((r) => { neverResolve = r; }) as never);
+    useStore.setState({
+      worktrees: {
+        r1: [
+          { id: "/wt1", repoId: "r1", path: "/wt1", name: "b", branch: "b", isPrimary: false },
+          { id: "/wt2", repoId: "r1", path: "/wt2", name: "c", branch: "c", isPrimary: false },
+        ],
+      },
+      terminals: [{ id: "t2", worktreeId: "/wt2", cwd: "/wt2", title: "c", panes: [{ id: "p2" }] }],
+      activeTabId: "t2",
+    });
+
+    // The stale files must be gone right away, well before the pending fetch settles.
+    await waitFor(() => expect(screen.queryByText("src/a.ts")).toBeNull());
+    void neverResolve; // keep the fetch pending; nothing more to assert on it here
+  });
+
+  it("resolves the worktree's path, not its id, for a plain folder (id != path)", async () => {
+    vi.mocked(invoke).mockResolvedValue([]);
+    useStore.setState({
+      diffOpen: true,
+      diffComments: {},
+      selectedDiffFile: null,
+      worktrees: {
+        r1: [{ id: "folder:/some/folder", repoId: "r1", path: "/some/folder", name: "f", branch: null, isPrimary: false }],
+      },
+      terminals: [{ id: "t1", worktreeId: "folder:/some/folder", cwd: "/some/folder", title: "f", panes: [{ id: "p1" }] }],
+      activeTabId: "t1",
+    });
+    render(<DiffPanel />);
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("worktree_diff", { path: "/some/folder" }));
+  });
+
+  it("shows the calm empty state, without fetching, when the active worktree can't be resolved", async () => {
+    useStore.setState({
+      diffOpen: true,
+      diffComments: {},
+      selectedDiffFile: null,
+      worktrees: {},
+      terminals: [{ id: "t1", worktreeId: "/gone", cwd: "/gone", title: "b", panes: [{ id: "p1" }] }],
+      activeTabId: "t1",
+    });
+    render(<DiffPanel />);
+    expect(await screen.findByText(/no changes/i)).toBeTruthy();
+    expect(invoke).not.toHaveBeenCalledWith("worktree_diff", expect.anything());
   });
 });
