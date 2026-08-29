@@ -17,6 +17,8 @@ terminal. Built on Tauri (Rust) + React + xterm.js.
 - **Bring your own agent** — run any CLI (`claude`, `codex`, …); one-click quick-launch buttons.
 - **Live git status** — branch, dirty-file count, and ahead/behind vs upstream per worktree,
   updated instantly via a file watcher.
+- **Diff review** — read every file an agent changed in a worktree (committed *and*
+  uncommitted), drop comments on any line, and send them all back to the agent as one prompt.
 - **GitHub PR/CI** — per-worktree PR number + CI state via the `gh` CLI (click to open).
 - **Open in editor** — one-click tab bar button to open the active worktree in your editor;
   configurable command (`code`, `cursor`, `code-insiders`, …) via Settings.

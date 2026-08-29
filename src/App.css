@@ -1316,3 +1316,190 @@ kbd {
 .settings-check-update:hover {
   background: var(--bg-hover);
 }
+
+/* ---- Diff review panel ---- */
+.diff-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 460px;
+  width: 460px;
+  min-width: 320px;
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  background: var(--bg-alt);
+  font-size: 12px;
+}
+.diff-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.diff-panel-title {
+  font-weight: 600;
+  color: var(--fg-strong);
+}
+.diff-panel-actions {
+  display: flex;
+  gap: 6px;
+}
+.diff-send,
+.diff-clear {
+  background: var(--bg-tab);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 4px;
+  color: var(--fg-muted);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.diff-send:hover:not(:disabled),
+.diff-clear:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.diff-send:disabled,
+.diff-clear:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.diff-empty,
+.diff-loading {
+  padding: 12px;
+  color: var(--fg-dim);
+}
+.diff-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.diff-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 8px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--fg);
+  text-align: left;
+  font: inherit;
+}
+.diff-file:hover,
+.diff-file.selected {
+  background: var(--bg-hover);
+}
+.diff-file-path {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.diff-status {
+  width: 1em;
+  text-align: center;
+  opacity: 0.8;
+}
+.diff-status-added {
+  color: var(--green);
+}
+.diff-status-deleted {
+  color: var(--red);
+}
+.diff-status-untracked {
+  color: var(--accent);
+}
+.diff-added {
+  color: var(--green);
+}
+.diff-removed {
+  color: var(--red);
+}
+.diff-binary {
+  color: var(--fg-dim);
+}
+.diff-view {
+  font-family: "Cascadia Code", Consolas, monospace;
+}
+.diff-hunk {
+  margin-bottom: 4px;
+}
+.diff-hunk-header {
+  padding: 2px 8px;
+  color: var(--fg-dim);
+  background: var(--bg);
+}
+.diff-row {
+  display: flex;
+  gap: 8px;
+  padding: 0 8px;
+  white-space: pre;
+  cursor: pointer;
+}
+.diff-row:hover {
+  background: var(--bg-hover);
+}
+.diff-row-add {
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+}
+.diff-row-del {
+  background: color-mix(in srgb, var(--red) 14%, transparent);
+}
+.diff-row-meta {
+  color: var(--fg-dim);
+  font-style: italic;
+  cursor: default;
+}
+.diff-lineno {
+  width: 3.5em;
+  text-align: right;
+  color: var(--fg-dim);
+  user-select: none;
+}
+.diff-text {
+  flex: 1;
+  overflow-x: auto;
+}
+.diff-comment {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 2px 8px 2px 7em;
+  padding: 4px 6px;
+  border-left: 2px solid var(--accent);
+  background: var(--bg);
+}
+.diff-comment-body {
+  flex: 1;
+  white-space: pre-wrap;
+}
+.diff-comment-delete {
+  background: none;
+  border: none;
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 11px;
+}
+.diff-comment-delete:hover {
+  color: var(--red);
+}
+.diff-comment-editor {
+  display: flex;
+  gap: 6px;
+  margin: 4px 8px 4px 7em;
+}
+.diff-comment-editor textarea {
+  flex: 1;
+  min-height: 3em;
+  font: inherit;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 4px;
+  padding: 4px 6px;
+}
