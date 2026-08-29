@@ -378,8 +378,8 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             <span>Remember terminal scrollback between launches</span>
           </label>
           <small>
-            Saved locally in plain text under AgentPanel's app-data folder. Never transmitted.
-            Turning this off deletes everything already saved.
+            Saved locally in plain text under AgentPanel's app-data folder, capped at 256 KB per
+            terminal. Never transmitted. Turning this off deletes everything already saved.
           </small>
           <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
             <button
