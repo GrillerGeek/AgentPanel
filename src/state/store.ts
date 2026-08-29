@@ -24,6 +24,20 @@ const nextTabId = () => `t${++tabSeq}`;
 let paneSeq = 0;
 const nextPaneId = () => `p${++paneSeq}`;
 
+/**
+ * Advance the pane-id counter past every id restored from a saved session.
+ *
+ * Without this, `paneSeq` restarts at 0 each launch and would re-issue `p1` to
+ * the next new pane while a restored `p1` is still open. The two panes would
+ * then share a `paneSessions` entry and a scrollback file.
+ */
+function adoptPaneSeq(ids: string[]): void {
+  for (const id of ids) {
+    const n = Number(/^p(\d+)$/.exec(id)?.[1]);
+    if (Number.isFinite(n) && n > paneSeq) paneSeq = n;
+  }
+}
+
 const SESSION_KEY = "agentpanel.session";
 /** Gates session persistence until restore has run, so boot-time store
  *  mutations (loading repos/worktrees) can't clobber the saved session. */
@@ -343,6 +357,7 @@ export const useStore = create<AppState>((set, get) => ({
               cwd: string;
               title: string;
               panes?: number;
+              paneIds?: string[];
               color?: string;
             }>;
             activeIndex: number;
@@ -353,9 +368,19 @@ export const useStore = create<AppState>((set, get) => ({
         const existing = new Set(Object.values(get().worktrees).flat().map((w) => w.id));
         const valid = saved.tabs.filter((t) => existing.has(t.worktreeId));
         if (valid.length) {
+          // Pre-pass: adopt every restored id BEFORE minting any, so a legacy
+          // tab (count only) can't be handed an id a later tab is about to
+          // restore.
+          adoptPaneSeq(valid.flatMap((t) => t.paneIds ?? []));
+
           const tabs: TerminalTab[] = valid.map((t) => {
-            const count = Math.max(1, Math.min(2, t.panes ?? 1));
-            const panes: Pane[] = Array.from({ length: count }, () => ({ id: nextPaneId() }));
+            const saved = t.paneIds?.slice(0, 2) ?? [];
+            const count = Math.max(1, Math.min(2, t.panes ?? saved.length ?? 1));
+            // Sessions written by v0.6.x stored only a count; mint ids for those.
+            const panes: Pane[] =
+              saved.length > 0
+                ? saved.map((id) => ({ id }))
+                : Array.from({ length: count }, () => ({ id: nextPaneId() }));
             return {
               id: nextTabId(),
               worktreeId: t.worktreeId,
@@ -681,7 +706,9 @@ useStore.subscribe((s) => {
       worktreeId: t.worktreeId,
       cwd: t.cwd,
       title: t.title,
-      panes: t.panes.length,
+      // Ids, not a count: scrollback is keyed on them and must survive a
+      // restart. `panes` is still read on restore for v0.6.x sessions.
+      paneIds: t.panes.map((p) => p.id),
       color: t.color,
     })),
     activeIndex: s.terminals.findIndex((t) => t.id === s.activeTabId),
