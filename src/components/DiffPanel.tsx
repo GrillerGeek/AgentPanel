@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useStore, selectActiveWorktreeId } from "../state/store";
@@ -36,13 +36,20 @@ export function DiffPanel() {
   const sendReviewToAgent = useStore((s) => s.sendReviewToAgent);
   const clearDiffComments = useStore((s) => s.clearDiffComments);
   const [files, setFiles] = useState<DiffFile[]>([]);
+  const reqRef = useRef(0);
 
   const refresh = useCallback(async () => {
     if (!activeWorktreeId) return;
+    // Overlapping refreshes are normal here: the panel re-fetches on every
+    // worktrees-changed event AND on worktree switch. Ignore any response that
+    // is no longer the newest request, or a slow older call can land last and
+    // show the wrong worktree's files.
+    const seq = ++reqRef.current;
     try {
-      setFiles(await invoke<DiffFile[]>("worktree_diff", { path: activeWorktreeId }));
+      const next = await invoke<DiffFile[]>("worktree_diff", { path: activeWorktreeId });
+      if (seq === reqRef.current) setFiles(next);
     } catch {
-      setFiles([]); // spec R8 — an unreadable diff is "nothing to show"
+      if (seq === reqRef.current) setFiles([]); // spec R8 — never toast
     }
   }, [activeWorktreeId]);
 

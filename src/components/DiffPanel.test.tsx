@@ -69,4 +69,26 @@ describe("DiffPanel", () => {
     render(<DiffPanel />);
     await waitFor(() => expect(invoke).toHaveBeenCalledWith("worktree_diff", { path: "/wt1" }));
   });
+
+  it("ignores a stale worktree_diff response that resolves after a newer one", async () => {
+    let resolveSlow: (v: DiffFile[]) => void = () => {};
+    const slow = new Promise<DiffFile[]>((r) => { resolveSlow = r; });
+    const FAST: DiffFile[] = [{ path: "new.ts", status: "modified", added: 1, removed: 0, binary: false }];
+
+    vi.mocked(invoke)
+      .mockReturnValueOnce(slow as never)          // first (older) worktree
+      .mockResolvedValueOnce(FAST as never);       // second (newer) worktree
+
+    activateWorktree();
+    const { rerender } = render(<DiffPanel />);
+    // Switch worktrees, triggering the second fetch.
+    useStore.setState({ terminals: [{ id: "t2", worktreeId: "/wt2", cwd: "/wt2", title: "c", panes: [{ id: "p2" }] }], activeTabId: "t2" });
+    rerender(<DiffPanel />);
+    expect(await screen.findByText("new.ts")).toBeTruthy();
+
+    // The older call now resolves with different data — it must be ignored.
+    resolveSlow([{ path: "STALE.ts", status: "modified", added: 9, removed: 9, binary: false }]);
+    await waitFor(() => expect(screen.queryByText("STALE.ts")).toBeNull());
+    expect(screen.getByText("new.ts")).toBeTruthy();
+  });
 });
