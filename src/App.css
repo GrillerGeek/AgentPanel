@@ -1407,6 +1407,9 @@ kbd {
 .diff-status-added {
   color: var(--green);
 }
+.diff-status-modified {
+  color: var(--yellow);
+}
 .diff-status-deleted {
   color: var(--red);
 }
