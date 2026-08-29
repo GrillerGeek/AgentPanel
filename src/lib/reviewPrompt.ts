@@ -32,11 +32,14 @@ export function composeReviewPrompt(comments: DiffComment[]): string {
   for (const [file, list] of byFile) {
     parts.push(`${file}:`);
     for (const comment of list) {
-      parts.push(
-        comment.line === null
-          ? "  (whole file)"
-          : `  line ${comment.line}: ${comment.code.trim()}`,
-      );
+      if (comment.line === null) {
+        parts.push("  (whole file)");
+      } else {
+        const code = comment.code.trim();
+        // `code` is the diff line's text, which is legitimately empty when the
+        // comment anchors to a blank line — don't emit a dangling colon.
+        parts.push(code ? `  line ${comment.line}: ${code}` : `  line ${comment.line}`);
+      }
       parts.push(`    -> ${comment.body.trim()}`);
     }
     parts.push("");

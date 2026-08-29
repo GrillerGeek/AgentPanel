@@ -49,4 +49,11 @@ describe("composeReviewPrompt", () => {
   it("does not end with a newline, so the agent's input box gets no stray blank line", () => {
     expect(composeReviewPrompt([c({})]).endsWith("\n")).toBe(false);
   });
+
+  it("omits the colon when the anchored line's source text is blank", () => {
+    const out = composeReviewPrompt([c({ line: 42, code: "   ", body: "why is this blank?" })]);
+    expect(out).toContain("line 42");
+    expect(out).not.toMatch(/line 42:/);
+    expect(out).toContain("why is this blank?");
+  });
 });
