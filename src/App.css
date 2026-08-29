@@ -1506,3 +1506,26 @@ kbd {
   border-radius: 4px;
   padding: 4px 6px;
 }
+.diff-file-comment {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--bg-elevated);
+}
+/* No line-number gutter above the hunks, so the file-level editor/comments
+ * don't inherit the 7em indent that lines up line comments under it. */
+.diff-file-comment .diff-comment,
+.diff-file-comment .diff-comment-editor {
+  margin-left: 0;
+}
+.diff-file-comment-add {
+  background: none;
+  border: 1px solid var(--bg-elevated);
+  border-radius: 4px;
+  color: var(--fg-dim);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 3px 8px;
+}
+.diff-file-comment-add:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}

@@ -16,10 +16,32 @@ const EMPTY_COMMENTS: DiffComment[] = [];
  * in the agent's current file, so it is the one the agent can act on. Deleted
  * lines have no new-side number and are therefore not commentable — comment on
  * the surrounding context instead, or use the file-level comment.
+ *
+ * `worktreeId` and `path` are deliberately separate: `worktreeId` keys the
+ * comment store (matching `notes`, `terminals`, etc. everywhere else in the
+ * app), while `path` is the filesystem path handed to the Rust `worktree_*`
+ * commands. They coincide for a real git worktree but not for a plain folder
+ * (whose id is `"folder:" + path`) — passing the id where a path is expected
+ * broke `worktree_file_patch` for that case.
  */
-export function DiffView({ worktreeId, file }: { worktreeId: string; file: string }) {
+export function DiffView({
+  worktreeId,
+  path,
+  file,
+  refreshNonce,
+}: {
+  worktreeId: string;
+  path: string;
+  file: string;
+  /** Bumped by DiffPanel on every worktrees-changed event, so an open diff
+   *  re-fetches instead of going stale while the file list beneath it updates. */
+  refreshNonce: number;
+}) {
   const [hunks, setHunks] = useState<DiffHunk[] | null>(null);
-  const [openLine, setOpenLine] = useState<number | null>(null);
+  // `openLine` uses the sentinel "file" (rather than reusing `null`, which is
+  // also a valid anchor) so a line-comment editor and the file-comment editor
+  // can never both read as "open" at once.
+  const [openLine, setOpenLine] = useState<number | "file" | null>(null);
   const [draft, setDraft] = useState("");
   const comments = useStore((s) => s.diffComments[worktreeId] ?? EMPTY_COMMENTS);
   const addDiffComment = useStore((s) => s.addDiffComment);
@@ -27,7 +49,7 @@ export function DiffView({ worktreeId, file }: { worktreeId: string; file: strin
 
   useEffect(() => {
     let cancelled = false;
-    void invoke<string>("worktree_file_patch", { path: worktreeId, file })
+    void invoke<string>("worktree_file_patch", { path, file })
       .then((patch) => {
         if (!cancelled) setHunks(parseUnifiedDiff(patch));
       })
@@ -37,9 +59,10 @@ export function DiffView({ worktreeId, file }: { worktreeId: string; file: strin
     return () => {
       cancelled = true;
     };
-  }, [worktreeId, file]);
+  }, [path, file, refreshNonce]);
 
   const fileComments = comments.filter((c) => c.file === file);
+  const wholeFileComments = fileComments.filter((c) => c.line === null);
 
   const submit = (line: number | null, code: string) => {
     const body = draft.trim();
@@ -54,6 +77,44 @@ export function DiffView({ worktreeId, file }: { worktreeId: string; file: strin
 
   return (
     <div className="diff-view">
+      <div className="diff-file-comment">
+        <button
+          className="diff-file-comment-add"
+          onClick={() => {
+            setDraft("");
+            setOpenLine(openLine === "file" ? null : "file");
+          }}
+        >
+          Comment on this file
+        </button>
+
+        {wholeFileComments.map((c) => (
+          <div className="diff-comment" key={c.id}>
+            <span className="diff-comment-body">{c.body}</span>
+            <button
+              className="diff-comment-delete"
+              aria-label="Delete comment"
+              onClick={() => removeDiffComment(worktreeId, c.id)}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+
+        {openLine === "file" && (
+          <div className="diff-comment-editor">
+            <textarea
+              autoFocus
+              value={draft}
+              placeholder="Comment on this file…"
+              onChange={(e) => setDraft(e.target.value)}
+            />
+            <button onClick={() => submit(null, "")}>Add comment</button>
+            <button onClick={() => setOpenLine(null)}>Cancel</button>
+          </div>
+        )}
+      </div>
+
       {hunks.map((hunk, hi) => (
         <div className="diff-hunk" key={`${hunk.header}-${hi}`}>
           <div className="diff-hunk-header">{hunk.header}</div>
