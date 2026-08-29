@@ -379,7 +379,9 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </label>
           <small>
             Saved locally in plain text under AgentPanel's app-data folder, capped at 256 KB per
-            terminal. Never transmitted. Turning this off deletes everything already saved.
+            terminal. Never transmitted. Turning this off deletes everything already saved. The
+            button below only clears files from previous sessions — terminals open right now will
+            save again when the window is hidden or closed, unless you turn this setting off.
           </small>
           <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
             <button
@@ -389,7 +391,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                 pushToast("Saved scrollback cleared.", "info");
               }}
             >
-              Clear saved scrollback
+              Clear scrollback from previous sessions
             </button>
           </div>
         </div>
