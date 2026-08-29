@@ -63,6 +63,34 @@ describe("parseUnifiedDiff", () => {
     expect(hunks[1].lines[1].newNo).toBe(50);
   });
 
+  it("skips a second file's header block instead of parsing it as diff lines", () => {
+    const patch = [
+      "diff --git a/src/a.ts b/src/a.ts",
+      "index 1111111..2222222 100644",
+      "--- a/src/a.ts",
+      "+++ b/src/a.ts",
+      "@@ -1,1 +1,1 @@",
+      "-old a",
+      "+new a",
+      "diff --git a/src/b.ts b/src/b.ts",
+      "index 3333333..4444444 100644",
+      "--- a/src/b.ts",
+      "+++ b/src/b.ts",
+      "@@ -50,1 +50,1 @@",
+      "-old b",
+      "+new b",
+      "",
+    ].join("\n");
+
+    const hunks = parseUnifiedDiff(patch);
+    expect(hunks).toHaveLength(2);
+    // The second file's --- / +++ lines must not appear as del/add lines.
+    expect(hunks[0].lines.map((l) => l.text)).toEqual(["old a", "new a"]);
+    expect(hunks[1].lines.map((l) => l.text)).toEqual(["old b", "new b"]);
+    // And the second hunk must number from its own header, not carry over.
+    expect(hunks[1].lines[1].newNo).toBe(50);
+  });
+
   it("returns an empty array for an empty patch", () => {
     expect(parseUnifiedDiff("")).toEqual([]);
   });
