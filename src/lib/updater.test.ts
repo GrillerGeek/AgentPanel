@@ -6,6 +6,7 @@ vi.mock("@tauri-apps/plugin-updater", () => ({ check: vi.fn() }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn().mockResolvedValue("0.3.2") }));
 
+import { invoke } from "@tauri-apps/api/core";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { runUpdateCheck, restartToUpdate } from "./updater";
@@ -29,6 +30,10 @@ beforeEach(() => {
   useStore.setState({ updateStatus: "idle", updateVersion: null, toasts: [] });
   vi.mocked(check).mockReset();
   vi.mocked(relaunch).mockClear();
+  // Default: updates are installable on this build (Windows/macOS/AppImage).
+  // Tests for the .deb gate override this to resolve `false`.
+  vi.mocked(invoke).mockReset();
+  vi.mocked(invoke).mockResolvedValue(true);
 });
 
 describe("runUpdateCheck", () => {
@@ -112,6 +117,52 @@ describe("runUpdateCheck", () => {
     await runUpdateCheck();
     expect(check).not.toHaveBeenCalled();
     expect(useStore.getState().updateStatus).toBe("idle");
+  });
+});
+
+// A .deb install has no $APPIMAGE for the plugin to overwrite, so
+// updater_supported() returns false and the check must not run at all.
+describe("runUpdateCheck when the install can't apply an update (.deb)", () => {
+  it("never checks for an update, and status stays idle", async () => {
+    vi.mocked(invoke).mockResolvedValue(false);
+    await runUpdateCheck();
+    expect(check).not.toHaveBeenCalled();
+    expect(useStore.getState().updateStatus).toBe("idle");
+  });
+
+  it("(manual) toasts that updates go through the package manager instead", async () => {
+    vi.mocked(invoke).mockResolvedValue(false);
+    await runUpdateCheck({ manual: true });
+    expect(check).not.toHaveBeenCalled();
+    expect(
+      useStore
+        .getState()
+        .toasts.some((t) => t.message.includes("package manager")),
+    ).toBe(true);
+  });
+
+  it("stays silent (no toast) on an automatic check", async () => {
+    vi.mocked(invoke).mockResolvedValue(false);
+    await runUpdateCheck();
+    expect(useStore.getState().toasts).toHaveLength(0);
+  });
+
+  it("proceeds with the check when updater_supported resolves true", async () => {
+    vi.mocked(invoke).mockResolvedValue(true);
+    const update = fakeUpdate();
+    vi.mocked(check).mockResolvedValue(update as never);
+    await runUpdateCheck();
+    expect(check).toHaveBeenCalledOnce();
+    expect(useStore.getState().updateStatus).toBe("ready");
+  });
+
+  it("falls back to checking when the updater_supported invoke rejects", async () => {
+    vi.mocked(invoke).mockRejectedValue(new Error("command not found"));
+    const update = fakeUpdate();
+    vi.mocked(check).mockResolvedValue(update as never);
+    await runUpdateCheck();
+    expect(check).toHaveBeenCalledOnce();
+    expect(useStore.getState().updateStatus).toBe("ready");
   });
 });
 

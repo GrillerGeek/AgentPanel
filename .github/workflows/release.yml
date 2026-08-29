@@ -84,6 +84,13 @@ jobs:
           - platform: windows-latest
             args: ""
             rust-target: ""
+          # Linux x86_64. Pinned to 22.04 deliberately — DO NOT move to
+          # ubuntu-latest. An AppImage inherits its builder's glibc floor, so
+          # building on 24.04 would raise the floor to glibc 2.39 and lock out
+          # Debian 12, Ubuntu 22.04, and Mint 21.
+          - platform: ubuntu-22.04
+            args: ""
+            rust-target: ""
 
     runs-on: ${{ matrix.platform }}
 
@@ -120,6 +127,25 @@ jobs:
           # Both macOS legs share a job id and runner OS. Without a distinct key
           # they collide on one cache entry and thrash it every run.
           key: ${{ matrix.rust-target }}
+
+      # WebKitGTK and friends aren't on the runner image. Linux-only: the
+      # `if` keeps this a no-op on the Windows and macOS legs.
+      - name: Install Linux system dependencies
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev
 
       - name: Install frontend dependencies
         run: npm ci
@@ -209,7 +235,7 @@ jobs:
                     -H "Accept: application/octet-stream" "$asset" -o latest.json
           cat latest.json
           fail=0
-          for key in darwin-aarch64 darwin-x86_64 windows-x86_64; do
+          for key in darwin-aarch64 darwin-x86_64 windows-x86_64 linux-x86_64; do
             if ! jq -e --arg k "$key" '.platforms[$k].url' latest.json >/dev/null; then
               echo "::error::latest.json is missing the '$key' platform entry"
               fail=1
@@ -219,4 +245,4 @@ jobs:
             echo "Do not publish this draft — those users would never see an update."
             exit 1
           fi
-          echo "latest.json covers all three platforms."
+          echo "latest.json covers all four platform keys."

@@ -222,6 +222,7 @@ pub fn run() {
             commands::worktree_status,
             commands::worktree_pr,
             commands::open_in_editor,
+            commands::updater_supported,
             watcher::set_watched_paths,
             shells::list_shells,
             fonts::list_fonts,

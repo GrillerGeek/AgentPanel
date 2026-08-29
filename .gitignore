@@ -28,3 +28,6 @@ dist-ssr
 
 # Playwright MCP artifacts
 .playwright-mcp/
+
+# Subagent-driven-development scratch (ledger, briefs, review packages)
+.superpowers/

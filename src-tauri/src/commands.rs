@@ -228,3 +228,21 @@ pub fn delete_worktree(
     git::remove_worktree(&repo_path, &worktree_path)?;
     git::list_worktrees(&repo_path, &id)
 }
+
+/// Whether an auto-update could actually be installed on this build.
+///
+/// Windows and macOS: always true. Linux: `tauri-plugin-updater` installs by
+/// overwriting the file named by `$APPIMAGE`, which only an AppImage launch
+/// sets. A `.deb` install can therefore download an update but never apply it,
+/// so offering its users a "Restart now" button fails every time, forever.
+#[tauri::command]
+pub fn updater_supported() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        std::env::var_os("APPIMAGE").is_some()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        true
+    }
+}

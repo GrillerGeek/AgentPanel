@@ -27,7 +27,7 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "targets": ["nsis", "app", "dmg"],
+    "targets": ["nsis", "app", "dmg", "appimage", "deb"],
     "publisher": "Jason Robey",
     "copyright": "Copyright © 2026 Jason Robey",
     "category": "DeveloperTool",
@@ -43,6 +43,11 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"]
       }
     },
     "macOS": {

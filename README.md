@@ -2,16 +2,16 @@
 
 <img width="1344" height="761" alt="Screenshot 2026-07-23 at 9 39 23 PM" src="https://github.com/user-attachments/assets/2ec11c8a-bdb5-45f0-8f1f-4945af21f4d4" />
 
-A cross-platform (**Windows** and **macOS**) command center for running multiple AI coding agents in
-parallel — each isolated in its own **git worktree**, each with its own terminal. Built on Tauri
-(Rust) + React + xterm.js.
+A cross-platform (**Windows**, **macOS**, and **Linux**) command center for running multiple AI
+coding agents in parallel — each isolated in its own **git worktree**, each with its own
+terminal. Built on Tauri (Rust) + React + xterm.js.
 
 ## Features
 
 - **Repositories & worktrees** — add any folder/git repo; create, list, and remove git worktrees
   from the sidebar (an isolated branch per agent).
-- **Parallel terminal tabs** — a real ConPTY shell per pane, all running at once; tabs survive
-  switching, and you can **split** a tab into two side-by-side terminals.
+- **Parallel terminal tabs** — a real PTY shell per pane (ConPTY on Windows), all running at
+  once; tabs survive switching, and you can **split** a tab into two side-by-side terminals.
 - **Bring your own agent** — run any CLI (`claude`, `codex`, …); one-click quick-launch buttons.
 - **Live git status** — branch, dirty-file count, and ahead/behind vs upstream per worktree,
   updated instantly via a file watcher.
@@ -23,9 +23,12 @@ parallel — each isolated in its own **git worktree**, each with its own termin
 
 ## Runtime requirements
 
-- **Windows 10 1809+ / Windows 11**, or **macOS 11+** (Apple Silicon or Intel).
+- **Windows 10 1809+ / Windows 11**, **macOS 11+** (Apple Silicon or Intel), or **Linux**
+  (x86_64, glibc 2.35+ — Ubuntu 22.04, Debian 12, Fedora 36 and newer).
 - **WebView2 runtime** (Windows only) — preinstalled on Windows 11; the installer fetches it if
-  missing. macOS uses the system WebKit.
+  missing. macOS uses the system WebKit. Linux uses **WebKitGTK 4.1**
+  (`libwebkit2gtk-4.1-0`); the `.deb` declares it as a dependency, and the AppImage
+  expects it to be present.
 - **Git** on `PATH` (required for worktrees).
 - Optional: **GitHub CLI (`gh`)** for PR/CI info; your agent CLIs (`claude`, etc.).
 
@@ -38,9 +41,12 @@ Download the latest build for your platform from
 - **macOS (Apple Silicon)** — `AgentPanel_<version>_aarch64.dmg`. This is every Mac from 2020 on;
   check the Apple menu → About This Mac if unsure.
 - **macOS (Intel)** — `AgentPanel_<version>_x64.dmg`.
+- **Linux (x86_64)** — `AgentPanel_<version>_amd64.AppImage` (portable — `chmod +x` and run),
+  or `AgentPanel_<version>_amd64.deb` for Debian/Ubuntu. Auto-update works on the
+  AppImage only.
 
-Both are signed and notarized by Apple — open the `.dmg` and drag the app to Applications; no
-security workarounds needed.
+The macOS builds are signed and notarized by Apple — open the `.dmg` and drag the app to
+Applications; no security workarounds needed.
 
 ### macOS shell PATH tip
 
@@ -48,11 +54,25 @@ If a GUI-launched terminal cannot find tools like `starship` or `fnm`, open **Se
 environment overrides** and click **Import PATH from login shell**. You can also enable
 **Auto-sync PATH from login shell** so new terminals inherit a Terminal.app-like PATH.
 
+### Linux blank-window tip
+
+On some NVIDIA proprietary drivers, WebKitGTK renders a blank or corrupted
+window. Launch with the DMABUF renderer disabled:
+
+```sh
+WEBKIT_DISABLE_DMABUF_RENDERER=1 ./AgentPanel_<version>_amd64.AppImage
+```
+
+AgentPanel does not set this itself — it turns off hardware acceleration, which
+the majority of Linux users do not need.
+
 ## Build from source
 
 Prerequisites: [Rust](https://rustup.rs) (stable), Node.js 18+, and the
 [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS — on Windows: the MSVC
-toolchain, VS C++ Build Tools, and WebView2; on macOS: the Xcode Command Line Tools.
+toolchain, VS C++ Build Tools, and WebView2; on macOS: the Xcode Command Line Tools; on
+Linux: `libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+patchelf build-essential libxdo-dev libssl-dev`.
 
 ```sh
 npm install
@@ -61,7 +81,7 @@ npm run tauri build    # produce the release build + installer
 ```
 
 Bundles are written under `src-tauri/target/release/bundle/` — `nsis/` on Windows, `dmg/` and
-`macos/` on macOS.
+`macos/` on macOS, `appimage/` and `deb/` on Linux.
 
 ### Tests
 

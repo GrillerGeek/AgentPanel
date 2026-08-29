@@ -1,12 +1,29 @@
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getVersion } from "@tauri-apps/api/app";
+import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "../state/store";
 
 /** True only inside a bundled Tauri webview (not dev-server browser / jsdom
  *  without the flag). Keeps the update path a silent no-op during development. */
 function inTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+/**
+ * Whether this install can actually apply an update.
+ *
+ * False only for a non-AppImage Linux install (e.g. `.deb`), where the plugin
+ * has no file to overwrite. Falls back to `true` if the command is missing, so
+ * an older Rust build keeps its previous behavior rather than silently losing
+ * updates.
+ */
+async function updatesInstallable(): Promise<boolean> {
+  try {
+    return await invoke<boolean>("updater_supported");
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -36,6 +53,21 @@ let staged: Update | null = null;
 export async function runUpdateCheck(opts: { manual?: boolean } = {}): Promise<void> {
   const { manual = false } = opts;
   if (!inTauri()) return;
+
+  // A .deb install can download an update but never apply it (see
+  // updater_supported in commands.rs). Don't stage one we can't install.
+  if (!(await updatesInstallable())) {
+    if (manual) {
+      useStore
+        .getState()
+        .pushToast(
+          "This install updates through your package manager, not in-app.",
+          "info",
+        );
+    }
+    return;
+  }
+
   const st = useStore.getState();
   const prevStatus = st.updateStatus;
   const prevVersion = st.updateVersion;
