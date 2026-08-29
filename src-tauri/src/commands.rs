@@ -230,24 +230,34 @@ pub fn delete_worktree(
     git::list_worktrees(&repo_path, &id)
 }
 
+/// Every file changed in a worktree relative to the review base.
+///
+/// Like `worktree_status`, this MUST stay off the main thread: it shells out to
+/// `git` several times and reads every untracked file, and the review panel
+/// refreshes on every file-watcher event, precisely while an agent is writing.
+#[tauri::command]
+pub async fn worktree_diff(path: String) -> Result<Vec<DiffFile>, String> {
+    tauri::async_runtime::spawn_blocking(move || diff::diff_files(&path))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// The unified patch for one file in a worktree.
+///
+/// Off the main thread for the same reason as `worktree_diff`.
+#[tauri::command]
+pub async fn worktree_file_patch(path: String, file: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || diff::diff_file_patch(&path, &file))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 /// Whether an auto-update could actually be installed on this build.
 ///
 /// Windows and macOS: always true. Linux: `tauri-plugin-updater` installs by
 /// overwriting the file named by `$APPIMAGE`, which only an AppImage launch
 /// sets. A `.deb` install can therefore download an update but never apply it,
 /// so offering its users a "Restart now" button fails every time, forever.
-/// Every file changed in a worktree relative to the review base.
-#[tauri::command]
-pub fn worktree_diff(path: String) -> Result<Vec<DiffFile>, String> {
-    diff::diff_files(&path)
-}
-
-/// The unified patch for one file in a worktree.
-#[tauri::command]
-pub fn worktree_file_patch(path: String, file: String) -> Result<String, String> {
-    diff::diff_file_patch(&path, &file)
-}
-
 #[tauri::command]
 pub fn updater_supported() -> bool {
     #[cfg(target_os = "linux")]
