@@ -16,6 +16,7 @@ import type {
 import type { AgentState } from "./activity";
 import { DEFAULT_THEME } from "../themes/apply";
 import { saveAllScrollback } from "../lib/scrollbackRegistry";
+import { pasteToPane } from "../lib/paneWriters";
 import { composeReviewPrompt } from "../lib/reviewPrompt";
 
 let toastSeq = 0;
@@ -601,25 +602,27 @@ export const useStore = create<AppState>((set, get) => ({
       s.pushToast("No review comments to send.", "info");
       return;
     }
-    const tab = s.terminals.find((t) => t.id === s.activeTabId);
-    const paneId = tab?.panes[0]?.id;
-    const sessionId = paneId ? s.paneSessions[paneId] : undefined;
-    if (sessionId === undefined) {
-      s.pushToast("Open a terminal in this worktree first.", "error");
-      return;
-    }
+    const paneId = s.terminals.find((t) => t.id === s.activeTabId)?.panes[0]?.id;
     // Inserted, not submitted (spec D6): the user reads it in the agent's own
     // input box and presses Enter. Auto-submitting could fire a large prompt at
     // an agent that is mid-task or waiting on a different question.
-    try {
-      await invoke("pty_write", { id: sessionId, data: composeReviewPrompt(comments) });
-      s.pushToast(
-        `Inserted ${comments.length} comment(s) — press Enter in the terminal to send.`,
-        "info",
-      );
-    } catch (err) {
-      s.pushToast(`Couldn't send review: ${err}`);
+    //
+    // Routed through term.paste() (via the pane-writer registry), NEVER
+    // pty_write directly: composeReviewPrompt is always multi-line, and a bare
+    // `\n` written straight to a PTY is Enter to readline — a raw pty_write
+    // would EXECUTE the review comments as shell commands in a plain shell
+    // pane. term.paste() consults the terminal's actual bracketed-paste mode,
+    // exactly like a real clipboard paste (see paneWriters.ts and
+    // terminalClipboard.ts's "exactly one paste pipeline"). If there's no live
+    // pane to paste into, that's an error to surface, not a fallback to write.
+    if (!paneId || !pasteToPane(paneId, composeReviewPrompt(comments))) {
+      s.pushToast("Open a terminal in this worktree first.", "error");
+      return;
     }
+    s.pushToast(
+      `Inserted ${comments.length} comment(s) — press Enter in the terminal to send.`,
+      "info",
+    );
   },
 
   setUpdate: (status, version) =>
