@@ -462,11 +462,8 @@ export const useStore = create<AppState>((set, get) => ({
         const removedIds = prev.filter((w) => !stillThere.has(w.id)).map((w) => w.id);
         const notes = { ...s.notes };
         for (const wtId of removedIds) delete notes[wtId];
-        // diffComments are keyed by the worktree's absolute path, which is
-        // exactly `worktreePath` here — not necessarily `w.id` (a distinct
-        // synthetic id in some worktree records).
         const diffComments = { ...s.diffComments };
-        delete diffComments[worktreePath];
+        for (const wtId of removedIds) delete diffComments[wtId];
         return { worktrees: { ...s.worktrees, [repoId]: list }, notes, diffComments };
       });
     } catch (err) {

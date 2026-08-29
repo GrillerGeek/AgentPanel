@@ -101,7 +101,7 @@ describe("diff review comments", () => {
   it("deleteWorktree prunes the removed worktree's comments", async () => {
     vi.mocked(invoke).mockImplementation(async (cmd: string) => (cmd === "delete_worktree" ? [] : undefined));
     useStore.setState({
-      worktrees: { r1: [{ id: "wt1", repoId: "r1", path: "/wt1", name: "b", branch: "b", isPrimary: false }] },
+      worktrees: { r1: [{ id: "/wt1", repoId: "r1", path: "/wt1", name: "b", branch: "b", isPrimary: false }] },
       diffComments: {
         "/wt1": [{ id: "c1", file: "a.ts", line: 1, code: "a", body: "gone soon" }],
         wt2: [{ id: "c2", file: "b.ts", line: 1, code: "b", body: "stays" }],
