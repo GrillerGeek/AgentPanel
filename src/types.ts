@@ -116,3 +116,25 @@ export interface WorktreeStatus {
   behind: number;
   lastCommit: string | null;
 }
+
+/** One changed file in a worktree's review diff (mirrors Rust `DiffFile`). */
+export interface DiffFile {
+  path: string;
+  /** added | modified | deleted | untracked */
+  status: string;
+  added: number;
+  removed: number;
+  binary: boolean;
+}
+
+/** A review comment anchored to a line of a worktree's diff. */
+export interface DiffComment {
+  id: string;
+  /** worktree-relative path, as reported by `worktree_diff` */
+  file: string;
+  /** the new-side line number, or null for a comment about the whole file */
+  line: number | null;
+  /** the source text at the time of commenting, so a stale anchor still reads */
+  code: string;
+  body: string;
+}
