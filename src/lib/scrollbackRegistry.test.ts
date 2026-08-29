@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   registerPane,
   unregisterPane,
@@ -10,10 +10,21 @@ import { invoke } from "@tauri-apps/api/core";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn().mockResolvedValue(undefined) }));
 
+let warnSpy: ReturnType<typeof vi.spyOn>;
+
 beforeEach(() => {
   for (const id of livePaneIds()) unregisterPane(id);
   vi.mocked(invoke).mockReset();
   vi.mocked(invoke).mockResolvedValue(undefined);
+  // The registry logs a console.warn when it swallows a failure (a throwing
+  // serializer, a rejected save) so a silent total failure is diagnosable.
+  // Spy it out here so passing-test output stays pristine, while still
+  // letting individual tests assert it fired.
+  warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+});
+
+afterEach(() => {
+  warnSpy.mockRestore();
 });
 
 describe("scrollbackRegistry", () => {
@@ -40,6 +51,7 @@ describe("scrollbackRegistry", () => {
     });
     registerPane("good", () => "kept");
     expect(snapshotAll()).toEqual([{ paneId: "good", data: "kept" }]);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("bad"), expect.anything());
   });
 
   it("skips empty buffers so a fresh pane does not write a useless file", () => {
@@ -61,5 +73,6 @@ describe("scrollbackRegistry", () => {
     vi.mocked(invoke).mockRejectedValue("disk full");
     registerPane("p1", () => "one");
     await expect(saveAllScrollback()).resolves.toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("p1"), expect.anything());
   });
 });

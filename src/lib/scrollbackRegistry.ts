@@ -37,7 +37,8 @@ export function snapshotAll(): Array<{ paneId: string; data: string }> {
     let data: string;
     try {
       data = serialize();
-    } catch {
+    } catch (err) {
+      console.warn(`[scrollback] pane ${paneId} failed to serialize, skipping save:`, err);
       continue;
     }
     if (data) out.push({ paneId, data });
@@ -52,7 +53,9 @@ export function snapshotAll(): Array<{ paneId: string; data: string }> {
 export async function saveAllScrollback(): Promise<void> {
   await Promise.all(
     snapshotAll().map(({ paneId, data }) =>
-      invoke("scrollback_save", { paneId, data }).catch(() => {}),
+      invoke("scrollback_save", { paneId, data }).catch((err) => {
+        console.warn(`[scrollback] pane ${paneId} failed to save:`, err);
+      }),
     ),
   );
 }

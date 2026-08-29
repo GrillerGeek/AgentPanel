@@ -370,10 +370,12 @@ export const useStore = create<AppState>((set, get) => ({
         const existing = new Set(Object.values(get().worktrees).flat().map((w) => w.id));
         const valid = saved.tabs.filter((t) => existing.has(t.worktreeId));
         if (valid.length) {
-          // Pre-pass: adopt every restored id BEFORE minting any, so a legacy
-          // tab (count only) can't be handed an id a later tab is about to
-          // restore.
-          adoptPaneSeq(valid.flatMap((t) => t.paneIds ?? []));
+          // Pre-pass: adopt every restored id BEFORE minting any, from ALL
+          // saved tabs (not just `valid`). Ids belonging to a dropped tab
+          // (worktree gone) must still be reserved — their scrollback files
+          // may not be pruned yet, so re-minting one of those ids for a
+          // brand-new pane would load a dead tab's leftover history.
+          adoptPaneSeq(saved.tabs.flatMap((t) => t.paneIds ?? []));
 
           const tabs: TerminalTab[] = valid.map((t) => {
             const saved = t.paneIds?.slice(0, 2) ?? [];
