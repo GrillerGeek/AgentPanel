@@ -153,8 +153,20 @@ mod tests {
         run_raw(&repo, &["add", "."]);
         run_raw(&repo, &["commit", "-m", "work"]);
 
+        // Advance main past the fork point too, so main's tip and the fork
+        // point genuinely differ -- otherwise an implementation that skips
+        // merge-base entirely (just returning main's resolved SHA) would
+        // still pass.
+        run_raw(&repo, &["checkout", "main"]);
+        fs::write(repo.join("b.txt"), "two\n").unwrap();
+        run_raw(&repo, &["add", "."]);
+        run_raw(&repo, &["commit", "-m", "main moved on"]);
+        let main_tip = head_sha(&repo);
+
+        run_raw(&repo, &["checkout", "feature"]);
         let got = detect_base_rev(&repo.to_string_lossy());
         assert_eq!(got, fork, "base must be where the branch left main");
+        assert_ne!(got, main_tip, "must be the merge-base, not main's tip");
         let _ = fs::remove_dir_all(&base_dir);
     }
 
