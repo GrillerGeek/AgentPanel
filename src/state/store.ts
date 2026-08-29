@@ -579,11 +579,8 @@ export const useStore = create<AppState>((set, get) => ({
 
   updateSettings: (partial) => {
     // Turning the feature off must also delete what is already on disk —
-    // an off switch that leaves the data behind is not an off switch. Fires
-    // whenever the caller explicitly sets it false (not gated on the prior
-    // value being true) so it stays idempotent: a second "off" while already
-    // off still purges rather than silently trusting stale on-disk state.
-    if (partial.persistScrollback === false) {
+    // an off switch that leaves the data behind is not an off switch.
+    if (partial.persistScrollback === false && get().settings.persistScrollback) {
       void invoke("scrollback_clear").catch(() => {});
     }
     set((s) => {

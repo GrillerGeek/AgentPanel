@@ -12,7 +12,13 @@ beforeEach(() => {
   vi.useFakeTimers();
   localStorage.clear();
   for (const id of livePaneIds()) unregisterPane(id);
-  useStore.setState({ terminals: [], activeTabId: null, worktrees: { r1: [WT] }, paneSessions: {} });
+  useStore.setState({
+    terminals: [],
+    activeTabId: null,
+    worktrees: { r1: [WT] },
+    paneSessions: {},
+    settings: { ...useStore.getState().settings, persistScrollback: true },
+  });
   vi.runOnlyPendingTimers();
   localStorage.clear();
   vi.mocked(invoke).mockReset();
