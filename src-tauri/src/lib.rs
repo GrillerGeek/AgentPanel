@@ -4,6 +4,7 @@ mod gh;
 mod git;
 mod model;
 mod pty;
+mod scrollback;
 mod shells;
 mod store;
 mod telemetry;
@@ -230,6 +231,10 @@ pub fn run() {
             write_bench,
             telemetry::get_telemetry_consent,
             telemetry::set_telemetry_consent,
+            scrollback::scrollback_save,
+            scrollback::scrollback_load,
+            scrollback::scrollback_prune,
+            scrollback::scrollback_clear,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
