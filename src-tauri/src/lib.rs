@@ -1,4 +1,5 @@
 mod commands;
+mod diff;
 mod fonts;
 mod gh;
 mod git;
