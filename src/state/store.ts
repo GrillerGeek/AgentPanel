@@ -62,6 +62,7 @@ const DEFAULT_SETTINGS: Settings = {
   notifications: true,
   autoTabTitles: true,
   confirmsDisabled: [],
+  persistScrollback: true,
 };
 function readSettings(): Settings {
   try {
