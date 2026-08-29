@@ -59,11 +59,13 @@ describe("notes store", () => {
   it("removeRepository prunes notes for that repo's worktrees, keeping others", async () => {
     useStore.setState({
       repositories: [{ id: "r1", path: "/r1", name: "r1", isGit: true }],
-      worktrees: { r1: [{ id: "wt1", repoId: "r1", path: "/r1", name: "main", branch: "main", isPrimary: true }] },
-      notes: { wt1: "will go", wtOther: "stays" },
+      // id === path, matching git.rs (which sets `id: path.clone()`) — a
+      // fixture where they differ describes a worktree that cannot occur.
+      worktrees: { r1: [{ id: "/r1", repoId: "r1", path: "/r1", name: "main", branch: "main", isPrimary: true }] },
+      notes: { "/r1": "will go", wtOther: "stays" },
     });
     await useStore.getState().removeRepository("r1");
-    expect(useStore.getState().notes.wt1).toBeUndefined();
+    expect(useStore.getState().notes["/r1"]).toBeUndefined();
     expect(useStore.getState().notes.wtOther).toBe("stays");
   });
 
@@ -73,11 +75,13 @@ describe("notes store", () => {
       return undefined; // pty_close etc.
     });
     useStore.setState({
-      worktrees: { r1: [{ id: "wt1", repoId: "r1", path: "/wt1", name: "b", branch: "b", isPrimary: false }] },
-      notes: { wt1: "gone soon", wt2: "stays" },
+      // id === path, matching git.rs (which sets `id: path.clone()`) — a
+      // fixture where they differ describes a worktree that cannot occur.
+      worktrees: { r1: [{ id: "/wt1", repoId: "r1", path: "/wt1", name: "b", branch: "b", isPrimary: false }] },
+      notes: { "/wt1": "gone soon", wt2: "stays" },
     });
     await useStore.getState().deleteWorktree("r1", "/wt1");
-    expect(useStore.getState().notes.wt1).toBeUndefined();
+    expect(useStore.getState().notes["/wt1"]).toBeUndefined();
     expect(useStore.getState().notes.wt2).toBe("stays");
   });
 
