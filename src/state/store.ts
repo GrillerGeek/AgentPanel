@@ -14,6 +14,7 @@ import type {
 } from "../types";
 import type { AgentState } from "./activity";
 import { DEFAULT_THEME } from "../themes/apply";
+import { saveAllScrollback } from "../lib/scrollbackRegistry";
 
 let toastSeq = 0;
 // Resolver for the in-flight confirmation Promise (kept off-store; not serializable).
@@ -576,7 +577,15 @@ export const useStore = create<AppState>((set, get) => ({
       return { terminals: arr };
     }),
 
-  updateSettings: (partial) =>
+  updateSettings: (partial) => {
+    // Turning the feature off must also delete what is already on disk —
+    // an off switch that leaves the data behind is not an off switch. Fires
+    // whenever the caller explicitly sets it false (not gated on the prior
+    // value being true) so it stays idempotent: a second "off" while already
+    // off still purges rather than silently trusting stale on-disk state.
+    if (partial.persistScrollback === false) {
+      void invoke("scrollback_clear").catch(() => {});
+    }
     set((s) => {
       const settings = { ...s.settings, ...partial };
       try {
@@ -585,7 +594,8 @@ export const useStore = create<AppState>((set, get) => ({
         console.error("settings persist failed", err);
       }
       return { settings };
-    }),
+    });
+  },
 
   closeWorktreeTerminals: async (worktreeId) => {
     const tabs = get().terminals.filter((t) => t.worktreeId === worktreeId);
@@ -724,6 +734,12 @@ useStore.subscribe((s) => {
     } catch (err) {
       console.error("session persist failed", err);
     }
+    // Drop saved buffers for panes that no longer exist (spec R3). Rides the
+    // debounced session write, so closing a tab cleans up within ~300ms rather
+    // than leaving an orphan file until the next launch.
+    void invoke("scrollback_prune", {
+      keep: useStore.getState().terminals.flatMap((t) => t.panes.map((p) => p.id)),
+    }).catch(() => {});
   }, 300);
 });
 
@@ -785,15 +801,25 @@ function flushSession() {
     console.error("session flush failed", err);
   }
 }
+/** Snapshot every live terminal to disk. Called from the same hide/unload
+ *  hooks as the notes and session flushes — the window going to the background
+ *  is the last reliable signal before a crash or a force-quit. */
+function flushScrollback() {
+  if (!useStore.getState().settings.persistScrollback) return;
+  void saveAllScrollback();
+}
+
 if (typeof window !== "undefined") {
   window.addEventListener("beforeunload", () => {
     flushNotes();
     flushSession();
+    flushScrollback();
   });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       flushNotes();
       flushSession();
+      flushScrollback();
     }
   });
 }
