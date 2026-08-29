@@ -6,9 +6,10 @@ use std::process::Command;
 
 use tauri::{AppHandle, State};
 
+use crate::diff;
 use crate::git;
 use crate::gh;
-use crate::model::{PrInfo, Repository, Worktree, WorktreeStatus};
+use crate::model::{DiffFile, PrInfo, Repository, Worktree, WorktreeStatus};
 use crate::store::{self, AppStore};
 
 /// On Windows, prevent a console window from flashing for the editor subprocess.
@@ -235,6 +236,18 @@ pub fn delete_worktree(
 /// overwriting the file named by `$APPIMAGE`, which only an AppImage launch
 /// sets. A `.deb` install can therefore download an update but never apply it,
 /// so offering its users a "Restart now" button fails every time, forever.
+/// Every file changed in a worktree relative to the review base.
+#[tauri::command]
+pub fn worktree_diff(path: String) -> Result<Vec<DiffFile>, String> {
+    diff::diff_files(&path)
+}
+
+/// The unified patch for one file in a worktree.
+#[tauri::command]
+pub fn worktree_file_patch(path: String, file: String) -> Result<String, String> {
+    diff::diff_file_patch(&path, &file)
+}
+
 #[tauri::command]
 pub fn updater_supported() -> bool {
     #[cfg(target_os = "linux")]

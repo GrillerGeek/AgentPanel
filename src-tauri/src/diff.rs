@@ -180,6 +180,49 @@ pub fn diff_files(worktree_path: &str) -> Result<Vec<DiffFile>, String> {
     Ok(out)
 }
 
+/// The unified patch for one file, relative to the review base.
+///
+/// Tracked files go through `git diff`. Untracked files are synthesized as a
+/// single all-added hunk, because git will not diff a file it does not know
+/// about (spec D3).
+pub fn diff_file_patch(worktree_path: &str, file: &str) -> Result<String, String> {
+    if !is_work_tree(worktree_path) {
+        return Ok(String::new());
+    }
+
+    // `ls-files --error-unmatch` exits non-zero for a path git isn't tracking.
+    // A tracked-but-deleted file still matches, so deletions take this branch.
+    let tracked = try_git(worktree_path, &["ls-files", "--error-unmatch", "--", file]).is_some();
+    if tracked {
+        let base = detect_base_rev(worktree_path);
+        return Ok(
+            try_git(worktree_path, &["diff", "--no-renames", &base, "--", file])
+                .unwrap_or_default(),
+        );
+    }
+
+    let full = Path::new(worktree_path).join(file);
+    let bytes = fs::read(&full).map_err(|e| format!("cannot read {file}: {e}"))?;
+    if looks_binary(&bytes) {
+        return Ok(format!(
+            "diff --git a/{file} b/{file}\nnew file (untracked)\nBinary file — not shown\n"
+        ));
+    }
+
+    let text = String::from_utf8_lossy(&bytes);
+    let lines: Vec<&str> = text.lines().collect();
+    let mut patch = format!(
+        "diff --git a/{file} b/{file}\n--- /dev/null\n+++ b/{file}\n@@ -0,0 +1,{} @@\n",
+        lines.len()
+    );
+    for l in lines {
+        patch.push('+');
+        patch.push_str(l);
+        patch.push('\n');
+    }
+    Ok(patch)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -370,6 +413,59 @@ mod tests {
         let blob = files.iter().find(|f| f.path == "blob.bin").unwrap();
         assert!(blob.binary);
         assert_eq!(blob.added, 0);
+        let _ = fs::remove_dir_all(&base_dir);
+    }
+
+    #[test]
+    fn patches_a_tracked_modified_file() {
+        let base_dir = scratch("patchtracked");
+        let repo = base_dir.join("repo");
+        init_repo(&repo);
+        fs::write(repo.join("README.md"), "hi\nthere\n").unwrap();
+
+        let patch = diff_file_patch(&repo.to_string_lossy(), "README.md").unwrap();
+        assert!(patch.contains("@@"), "has a hunk header: {patch}");
+        assert!(patch.contains("+there"), "shows the added line: {patch}");
+        let _ = fs::remove_dir_all(&base_dir);
+    }
+
+    #[test]
+    fn synthesizes_an_all_added_patch_for_an_untracked_file() {
+        let base_dir = scratch("patchuntracked");
+        let repo = base_dir.join("repo");
+        init_repo(&repo);
+        fs::write(repo.join("new.txt"), "alpha\nbeta\n").unwrap();
+
+        let patch = diff_file_patch(&repo.to_string_lossy(), "new.txt").unwrap();
+        assert!(patch.contains("--- /dev/null"));
+        assert!(patch.contains("@@ -0,0 +1,2 @@"));
+        assert!(patch.contains("+alpha"));
+        assert!(patch.contains("+beta"));
+        let _ = fs::remove_dir_all(&base_dir);
+    }
+
+    #[test]
+    fn reports_an_untracked_binary_file_without_dumping_bytes() {
+        let base_dir = scratch("patchbinary");
+        let repo = base_dir.join("repo");
+        init_repo(&repo);
+        fs::write(repo.join("blob.bin"), [0x00, 0xFF, 0x00]).unwrap();
+
+        let patch = diff_file_patch(&repo.to_string_lossy(), "blob.bin").unwrap();
+        assert!(patch.contains("Binary file"));
+        assert!(!patch.contains('\u{0}'), "must not dump raw bytes");
+        let _ = fs::remove_dir_all(&base_dir);
+    }
+
+    #[test]
+    fn a_plain_folder_yields_an_empty_patch_not_an_error() {
+        let base_dir = scratch("patchplain");
+        fs::create_dir_all(&base_dir).unwrap();
+        fs::write(base_dir.join("loose.txt"), "hi\n").unwrap();
+        assert_eq!(
+            diff_file_patch(&base_dir.to_string_lossy(), "loose.txt").unwrap(),
+            ""
+        );
         let _ = fs::remove_dir_all(&base_dir);
     }
 }

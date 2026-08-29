@@ -223,6 +223,8 @@ pub fn run() {
             commands::delete_worktree,
             commands::worktree_status,
             commands::worktree_pr,
+            commands::worktree_diff,
+            commands::worktree_file_patch,
             commands::open_in_editor,
             commands::updater_supported,
             watcher::set_watched_paths,
