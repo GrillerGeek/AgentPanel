@@ -7,7 +7,12 @@
 //! single command covers committed *and* uncommitted work — an agent that
 //! commits mid-task must not make its own changes disappear from the panel.
 
+use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 use std::process::Command;
+
+use crate::model::DiffFile;
 
 /// On Windows, prevent a console window from flashing for each git subprocess.
 /// The panel refreshes on every file-watcher event, so an unwrapped Command
@@ -92,6 +97,87 @@ fn count_lines(bytes: &[u8]) -> usize {
         n += 1;
     }
     n
+}
+
+/// Map git's `--name-status` letter to the word the frontend renders.
+fn status_word(code: &str) -> &'static str {
+    match code.chars().next() {
+        Some('A') => "added",
+        Some('D') => "deleted",
+        _ => "modified",
+    }
+}
+
+/// Every file changed in `worktree_path` relative to the review base, plus
+/// untracked files (which `git diff` never reports).
+///
+/// A non-git folder, a repo with no commits, or a clean tree all yield an
+/// empty list — never an error (spec R8).
+pub fn diff_files(worktree_path: &str) -> Result<Vec<DiffFile>, String> {
+    if !Path::new(worktree_path).is_dir() {
+        return Err(format!("not a directory: {worktree_path}"));
+    }
+    if !is_work_tree(worktree_path) {
+        return Ok(Vec::new());
+    }
+
+    let base = detect_base_rev(worktree_path);
+    let mut out: Vec<DiffFile> = Vec::new();
+
+    // Two passes over the same diff: --numstat carries the counts,
+    // --name-status carries the add/modify/delete letter. Joined on path.
+    let name_status = try_git(
+        worktree_path,
+        &["diff", "--no-renames", "--name-status", &base],
+    )
+    .unwrap_or_default();
+    let mut status_by_path: HashMap<&str, &'static str> = HashMap::new();
+    for line in name_status.lines() {
+        let mut parts = line.splitn(2, '\t');
+        if let (Some(code), Some(path)) = (parts.next(), parts.next()) {
+            status_by_path.insert(path, status_word(code));
+        }
+    }
+
+    let numstat = try_git(worktree_path, &["diff", "--no-renames", "--numstat", &base])
+        .unwrap_or_default();
+    for line in numstat.lines() {
+        let mut parts = line.splitn(3, '\t');
+        let (Some(a), Some(r), Some(path)) = (parts.next(), parts.next(), parts.next()) else {
+            continue;
+        };
+        // git writes "-\t-\tpath" for a binary file.
+        let binary = a == "-" || r == "-";
+        out.push(DiffFile {
+            path: path.to_string(),
+            status: status_by_path.get(path).copied().unwrap_or("modified").to_string(),
+            added: a.parse().unwrap_or(0),
+            removed: r.parse().unwrap_or(0),
+            binary,
+        });
+    }
+
+    // Untracked files: an agent's brand-new file is exactly what you most want
+    // to read, and `git diff` will not show it (spec D3).
+    let untracked = try_git(
+        worktree_path,
+        &["ls-files", "--others", "--exclude-standard"],
+    )
+    .unwrap_or_default();
+    for path in untracked.lines().filter(|l| !l.is_empty()) {
+        let bytes = fs::read(Path::new(worktree_path).join(path)).unwrap_or_default();
+        let binary = looks_binary(&bytes);
+        out.push(DiffFile {
+            path: path.to_string(),
+            status: "untracked".to_string(),
+            added: if binary { 0 } else { count_lines(&bytes) },
+            removed: 0,
+            binary,
+        });
+    }
+
+    out.sort_by(|a, b| a.path.cmp(&b.path));
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -202,5 +288,88 @@ mod tests {
     fn detects_binary_by_nul_byte() {
         assert!(!looks_binary(b"plain text\n"));
         assert!(looks_binary(b"pre\0post"));
+    }
+
+    #[test]
+    fn lists_modified_committed_and_untracked_files_together() {
+        let base_dir = scratch("filelist");
+        let repo = base_dir.join("repo");
+        init_repo(&repo);
+        run_raw(&repo, &["checkout", "-b", "feature"]);
+
+        // (a) a committed change on the branch
+        fs::write(repo.join("committed.txt"), "one\ntwo\n").unwrap();
+        run_raw(&repo, &["add", "."]);
+        run_raw(&repo, &["commit", "-m", "add committed.txt"]);
+
+        // (b) an uncommitted edit to a tracked file
+        fs::write(repo.join("README.md"), "hi\nthere\n").unwrap();
+
+        // (c) an untracked new file
+        fs::write(repo.join("brand-new.txt"), "x\ny\nz\n").unwrap();
+
+        let files = diff_files(&repo.to_string_lossy()).unwrap();
+        let by: std::collections::HashMap<_, _> =
+            files.iter().map(|f| (f.path.as_str(), f)).collect();
+
+        // The committed file must appear — an agent that commits mid-task
+        // must not vanish from the panel.
+        assert_eq!(by["committed.txt"].status, "added");
+        assert_eq!(by["committed.txt"].added, 2);
+
+        assert_eq!(by["README.md"].status, "modified");
+        assert_eq!(by["README.md"].added, 1);
+
+        assert_eq!(by["brand-new.txt"].status, "untracked");
+        assert_eq!(by["brand-new.txt"].added, 3);
+
+        assert!(files.windows(2).all(|w| w[0].path <= w[1].path), "sorted by path");
+        let _ = fs::remove_dir_all(&base_dir);
+    }
+
+    #[test]
+    fn reports_deleted_files() {
+        let base_dir = scratch("deleted");
+        let repo = base_dir.join("repo");
+        init_repo(&repo);
+        fs::remove_file(repo.join("README.md")).unwrap();
+
+        let files = diff_files(&repo.to_string_lossy()).unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "README.md");
+        assert_eq!(files[0].status, "deleted");
+        let _ = fs::remove_dir_all(&base_dir);
+    }
+
+    #[test]
+    fn a_plain_folder_yields_an_empty_list_not_an_error() {
+        let base_dir = scratch("plainfolder");
+        fs::create_dir_all(&base_dir).unwrap();
+        fs::write(base_dir.join("loose.txt"), "hi\n").unwrap();
+        assert_eq!(diff_files(&base_dir.to_string_lossy()).unwrap().len(), 0);
+        let _ = fs::remove_dir_all(&base_dir);
+    }
+
+    #[test]
+    fn a_clean_repo_yields_an_empty_list() {
+        let base_dir = scratch("clean");
+        let repo = base_dir.join("repo");
+        init_repo(&repo);
+        assert_eq!(diff_files(&repo.to_string_lossy()).unwrap().len(), 0);
+        let _ = fs::remove_dir_all(&base_dir);
+    }
+
+    #[test]
+    fn flags_untracked_binary_files_without_counting_lines() {
+        let base_dir = scratch("binary");
+        let repo = base_dir.join("repo");
+        init_repo(&repo);
+        fs::write(repo.join("blob.bin"), [0x00, 0x01, 0x02, 0x00]).unwrap();
+
+        let files = diff_files(&repo.to_string_lossy()).unwrap();
+        let blob = files.iter().find(|f| f.path == "blob.bin").unwrap();
+        assert!(blob.binary);
+        assert_eq!(blob.added, 0);
+        let _ = fs::remove_dir_all(&base_dir);
     }
 }
