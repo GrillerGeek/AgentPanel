@@ -87,14 +87,16 @@ describe("diff review comments", () => {
   it("removeRepository prunes comments for that repo's worktrees, keeping others", async () => {
     useStore.setState({
       repositories: [{ id: "r1", path: "/r1", name: "r1", isGit: true }],
-      worktrees: { r1: [{ id: "wt1", repoId: "r1", path: "/r1", name: "main", branch: "main", isPrimary: true }] },
+      // id === path, matching git.rs (which sets `id: path.clone()`) — a
+      // fixture where they differ describes a worktree that cannot occur.
+      worktrees: { r1: [{ id: "/r1", repoId: "r1", path: "/r1", name: "main", branch: "main", isPrimary: true }] },
       diffComments: {
-        wt1: [{ id: "c1", file: "a.ts", line: 1, code: "a", body: "will go" }],
+        "/r1": [{ id: "c1", file: "a.ts", line: 1, code: "a", body: "will go" }],
         wtOther: [{ id: "c2", file: "b.ts", line: 1, code: "b", body: "stays" }],
       },
     });
     await useStore.getState().removeRepository("r1");
-    expect(useStore.getState().diffComments.wt1).toBeUndefined();
+    expect(useStore.getState().diffComments["/r1"]).toBeUndefined();
     expect(useStore.getState().diffComments.wtOther).toHaveLength(1);
   });
 
