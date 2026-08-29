@@ -9,6 +9,7 @@
 
 use std::collections::HashMap;
 use std::fs;
+use std::io::Read;
 use std::path::Path;
 use std::process::Command;
 
@@ -31,9 +32,15 @@ fn configure_no_window(_cmd: &mut Command) {}
 ///
 /// Deliberately not `Result`: every caller here treats "git said no" as
 /// "there is nothing to show", never as an error to surface (spec R8).
+///
+/// `-c core.quotepath=false` disables git's default of quoting non-ASCII
+/// filenames in output (e.g. `café.ts` -> `"caf\303\251.ts"`, literal quotes
+/// and all) — everything from `--numstat` to `ls-files --others` goes through
+/// here, and the reported path is exactly what the UI shows and what a later
+/// `diff_file_patch` call is asked to look up.
 fn try_git(repo: &str, args: &[&str]) -> Option<String> {
     let mut cmd = Command::new("git");
-    cmd.arg("-C").arg(repo).args(args);
+    cmd.args(["-c", "core.quotepath=false", "-C", repo]).args(args);
     configure_no_window(&mut cmd);
     let out = cmd.output().ok()?;
     if !out.status.success() {
@@ -84,6 +91,33 @@ pub fn detect_base_rev(worktree_path: &str) -> String {
 /// the same heuristic git itself uses.
 fn looks_binary(bytes: &[u8]) -> bool {
     bytes.iter().take(8000).any(|b| *b == 0)
+}
+
+/// Bytes read from an untracked file just to sniff whether it's binary.
+/// Bounded because `diff_files` runs on every file-watcher event (spec R7),
+/// i.e. potentially once per file an agent touches — an uncapped `fs::read`
+/// here would turn one un-ignored build directory into hundreds of MB of disk
+/// I/O per event. `diff_file_patch` (one read per user click, not per event)
+/// still reads untracked files whole; see its doc comment.
+const BINARY_SNIFF_CAP: u64 = 8 * 1024;
+
+/// Above this size, `diff_files` skips the line count for an untracked file
+/// rather than reading it whole, reporting `added: 0` instead. Same
+/// per-watcher-event reasoning as `BINARY_SNIFF_CAP`.
+const LINE_COUNT_CAP: u64 = 1024 * 1024;
+
+/// Whether `path` looks binary, reading at most `BINARY_SNIFF_CAP` bytes.
+/// Any I/O failure (permissions, a file that vanished mid-scan) reads as
+/// "not binary" — `diff_files` never errors on one bad untracked file.
+fn sniff_binary(path: &Path) -> bool {
+    let Ok(file) = fs::File::open(path) else {
+        return false;
+    };
+    let mut buf = Vec::new();
+    if file.take(BINARY_SNIFF_CAP).read_to_end(&mut buf).is_err() {
+        return false;
+    }
+    looks_binary(&buf)
 }
 
 /// Count lines the way a diff does: a final line without a trailing newline
@@ -165,12 +199,20 @@ pub fn diff_files(worktree_path: &str) -> Result<Vec<DiffFile>, String> {
     )
     .unwrap_or_default();
     for path in untracked.lines().filter(|l| !l.is_empty()) {
-        let bytes = fs::read(Path::new(worktree_path).join(path)).unwrap_or_default();
-        let binary = looks_binary(&bytes);
+        let full = Path::new(worktree_path).join(path);
+        let binary = sniff_binary(&full);
+        let len = fs::metadata(&full).map(|m| m.len()).unwrap_or(0);
+        // Binary and oversized files both skip the whole-file read that a line
+        // count needs — see BINARY_SNIFF_CAP / LINE_COUNT_CAP above.
+        let added = if binary || len > LINE_COUNT_CAP {
+            0
+        } else {
+            fs::read(&full).map(|b| count_lines(&b)).unwrap_or(0)
+        };
         out.push(DiffFile {
             path: path.to_string(),
             status: "untracked".to_string(),
-            added: if binary { 0 } else { count_lines(&bytes) },
+            added,
             removed: 0,
             binary,
         });
@@ -413,6 +455,41 @@ mod tests {
         let blob = files.iter().find(|f| f.path == "blob.bin").unwrap();
         assert!(blob.binary);
         assert_eq!(blob.added, 0);
+        let _ = fs::remove_dir_all(&base_dir);
+    }
+
+    #[test]
+    fn skips_the_line_count_for_an_oversized_untracked_file() {
+        let base_dir = scratch("oversized");
+        let repo = base_dir.join("repo");
+        init_repo(&repo);
+        // One byte past LINE_COUNT_CAP, all newlines so a naive full read
+        // would report a huge (and slow-to-compute) line count.
+        let huge = vec![b'\n'; (LINE_COUNT_CAP + 1) as usize];
+        fs::write(repo.join("huge.txt"), &huge).unwrap();
+
+        let files = diff_files(&repo.to_string_lossy()).unwrap();
+        let huge_file = files.iter().find(|f| f.path == "huge.txt").unwrap();
+        assert!(!huge_file.binary, "plain text, just large");
+        assert_eq!(huge_file.added, 0, "line count must be skipped, not computed");
+        let _ = fs::remove_dir_all(&base_dir);
+    }
+
+    #[test]
+    fn sniffs_binary_from_only_the_first_bytes_of_a_large_file() {
+        let base_dir = scratch("sniffcap");
+        let repo = base_dir.join("repo");
+        init_repo(&repo);
+        // A NUL well past BINARY_SNIFF_CAP must NOT be found — the point of
+        // the cap is that it is never read.
+        let mut bytes = vec![b'a'; (BINARY_SNIFF_CAP + 10) as usize];
+        let last = bytes.len() - 1;
+        bytes[last] = 0;
+        fs::write(repo.join("mostly-text.dat"), &bytes).unwrap();
+
+        let files = diff_files(&repo.to_string_lossy()).unwrap();
+        let f = files.iter().find(|f| f.path == "mostly-text.dat").unwrap();
+        assert!(!f.binary, "the NUL past the cap must not be seen");
         let _ = fs::remove_dir_all(&base_dir);
     }
 
