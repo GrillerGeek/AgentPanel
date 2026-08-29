@@ -37,6 +37,11 @@ fn try_git(repo: &str, args: &[&str]) -> Option<String> {
     Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
+/// True when `repo` is inside a git working tree.
+fn is_work_tree(repo: &str) -> bool {
+    try_git(repo, &["rev-parse", "--is-inside-work-tree"]).as_deref() == Some("true")
+}
+
 /// The revision the review diff is taken against: the merge-base of HEAD and
 /// the repository's default branch.
 ///
