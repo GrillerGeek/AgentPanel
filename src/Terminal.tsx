@@ -317,7 +317,11 @@ export function TerminalPane({
       if (paneId) {
         if (useStore.getState().settings.persistScrollback) {
           try {
-            void invoke("scrollback_save", { paneId, data: serialize.serialize() }).catch(() => {});
+            // An empty buffer means we never got a real capture (e.g. unmounted
+            // before the restore load resolved) — writing it would overwrite this
+            // pane's real history on disk with a blank "restored" banner.
+            const data = serialize.serialize();
+            if (data) void invoke("scrollback_save", { paneId, data }).catch(() => {});
           } catch {
             // Serialization can throw if the buffer is already torn down.
           }
