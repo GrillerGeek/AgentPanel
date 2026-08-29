@@ -44,6 +44,8 @@ export function CommandPalette({
       { id: "add-repo", title: "Add repository…", run: addRepository },
       { id: "pr-dash", title: "Pull requests across all repos…", run: onOpenPrDashboard },
       { id: "settings", title: "Open settings…", run: onOpenSettings },
+      { id: "toggle-notes", title: "Toggle notes panel", run: () => useStore.getState().toggleNotes() },
+      { id: "toggle-diff", title: "Toggle diff review panel", run: () => useStore.getState().toggleDiff() },
     ];
     if (activeTabId) {
       cmds.push({ id: "new-term", title: "New terminal (current worktree)", run: duplicateActiveTerminal });

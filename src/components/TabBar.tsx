@@ -50,10 +50,14 @@ export function TabBar({
   onOpenSettings,
   onToggleNotes,
   notesOpen = false,
+  onToggleDiff,
+  diffOpen = false,
 }: {
   onOpenSettings: () => void;
   onToggleNotes?: () => void;
   notesOpen?: boolean;
+  onToggleDiff?: () => void;
+  diffOpen?: boolean;
 }) {
   const allTerminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
@@ -247,6 +251,13 @@ export function TabBar({
           ))}
         </span>
       )}
+      <button
+        className={`gear diff-toggle ${diffOpen ? "active" : ""}`}
+        title="Diff review — comment on this agent's changes"
+        onClick={() => onToggleDiff?.()}
+      >
+        ⑂
+      </button>
       <button
         className={`gear notes-toggle ${notesOpen ? "active" : ""}`}
         title="Notes for this session"

@@ -16,6 +16,7 @@ import type {
 import type { AgentState } from "./activity";
 import { DEFAULT_THEME } from "../themes/apply";
 import { saveAllScrollback } from "../lib/scrollbackRegistry";
+import { composeReviewPrompt } from "../lib/reviewPrompt";
 
 let toastSeq = 0;
 // Resolver for the in-flight confirmation Promise (kept off-store; not serializable).
@@ -197,6 +198,8 @@ interface AppState {
   /** open/close the diff review panel */
   toggleDiff: () => void;
   setSelectedDiffFile: (file: string | null) => void;
+  /** insert every review comment for a worktree into its active agent terminal */
+  sendReviewToAgent: (worktreeId: string) => Promise<void>;
   setUpdate: (status: AppState["updateStatus"], version?: string | null) => void;
   /** replace the derived per-pane agent-state map (called by the 1s ticker) */
   setAgentStatus: (status: Record<string, AgentState>) => void;
@@ -590,6 +593,34 @@ export const useStore = create<AppState>((set, get) => ({
   toggleDiff: () => set((s) => ({ diffOpen: !s.diffOpen, notesOpen: false })),
 
   setSelectedDiffFile: (file) => set({ selectedDiffFile: file }),
+
+  sendReviewToAgent: async (worktreeId) => {
+    const s = get();
+    const comments = s.diffComments[worktreeId] ?? [];
+    if (comments.length === 0) {
+      s.pushToast("No review comments to send.", "info");
+      return;
+    }
+    const tab = s.terminals.find((t) => t.id === s.activeTabId);
+    const paneId = tab?.panes[0]?.id;
+    const sessionId = paneId ? s.paneSessions[paneId] : undefined;
+    if (sessionId === undefined) {
+      s.pushToast("Open a terminal in this worktree first.", "error");
+      return;
+    }
+    // Inserted, not submitted (spec D6): the user reads it in the agent's own
+    // input box and presses Enter. Auto-submitting could fire a large prompt at
+    // an agent that is mid-task or waiting on a different question.
+    try {
+      await invoke("pty_write", { id: sessionId, data: composeReviewPrompt(comments) });
+      s.pushToast(
+        `Inserted ${comments.length} comment(s) — press Enter in the terminal to send.`,
+        "info",
+      );
+    } catch (err) {
+      s.pushToast(`Couldn't send review: ${err}`);
+    }
+  },
 
   setUpdate: (status, version) =>
     set((s) => ({

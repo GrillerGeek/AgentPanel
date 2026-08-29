@@ -40,6 +40,9 @@ const SettingsModal = lazy(() =>
 const PrDashboard = lazy(() =>
   import("./components/PrDashboard").then((m) => ({ default: m.PrDashboard })),
 );
+const DiffPanel = lazy(() =>
+  import("./components/DiffPanel").then((m) => ({ default: m.DiffPanel })),
+);
 
 /** Draggable divider between the two panes of a split tab. */
 function PaneDivider({ onResize }: { onResize: (ratio: number) => void }) {
@@ -121,6 +124,8 @@ function App() {
   const updateSettings = useStore((s) => s.updateSettings);
   const notesOpen = useStore((s) => s.notesOpen);
   const toggleNotes = useStore((s) => s.toggleNotes);
+  const diffOpen = useStore((s) => s.diffOpen);
+  const toggleDiff = useStore((s) => s.toggleDiff);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [prDashOpen, setPrDashOpen] = useState(false);
@@ -412,6 +417,8 @@ function App() {
                 onOpenSettings={() => setSettingsOpen(true)}
                 onToggleNotes={toggleNotes}
                 notesOpen={notesOpen}
+                onToggleDiff={toggleDiff}
+                diffOpen={diffOpen}
               />
               <div className="content-row">
                 <div className="terminal-stack">
@@ -464,6 +471,9 @@ function App() {
                   </Suspense>
                 </div>
                 <NotesPanel />
+                <Suspense fallback={null}>
+                  <DiffPanel />
+                </Suspense>
               </div>
             </>
           )}
