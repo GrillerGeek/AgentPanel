@@ -12,6 +12,8 @@ terminal. Built on Tauri (Rust) + React + xterm.js.
   from the sidebar (an isolated branch per agent).
 - **Parallel terminal tabs** — a real PTY shell per pane (ConPTY on Windows), all running at
   once; tabs survive switching, and you can **split** a tab into two side-by-side terminals.
+- **Scrollback that survives a restart** — restored tabs come back with their text, not empty.
+  Capped at 256 KB per terminal, stored locally, and switchable off in Settings.
 - **Bring your own agent** — run any CLI (`claude`, `codex`, …); one-click quick-launch buttons.
 - **Live git status** — branch, dirty-file count, and ahead/behind vs upstream per worktree,
   updated instantly via a file watcher.
@@ -121,6 +123,9 @@ sent until you say yes.
 - Reports don't include your IP address, and the Sentry project is configured not to store it —
   note this is a project-level setting on the receiving end, not something the app itself can
   enforce over the network
+- Terminal scrollback saved for session restore — it is written only to AgentPanel's local
+  app-data folder and is never transmitted (turn it off in Settings → "Remember terminal
+  scrollback")
 
 **How it works:** consent lives in a small local file
 (`telemetry.json` in AgentPanel's app-data directory), not in browser storage, because the choice

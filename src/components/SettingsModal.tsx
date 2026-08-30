@@ -372,6 +372,34 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           <label className="settings-check">
             <input
               type="checkbox"
+              checked={settings.persistScrollback}
+              onChange={(e) => updateSettings({ persistScrollback: e.currentTarget.checked })}
+            />
+            <span>Remember terminal scrollback between launches</span>
+          </label>
+          <small>
+            Saved locally in plain text under AgentPanel's app-data folder, capped at 256 KB per
+            terminal. Never transmitted. Turning this off deletes everything already saved. The
+            button below only clears files from previous sessions — terminals open right now will
+            save again when the window is hidden or closed, unless you turn this setting off.
+          </small>
+          <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
+            <button
+              className="danger-btn"
+              onClick={() => {
+                void invoke("scrollback_clear").catch(() => {});
+                pushToast("Saved scrollback cleared.", "info");
+              }}
+            >
+              Clear scrollback from previous sessions
+            </button>
+          </div>
+        </div>
+
+        <div className="settings-field">
+          <label className="settings-check">
+            <input
+              type="checkbox"
               checked={crashReports}
               onChange={(e) => void onCrashReportsChange(e.currentTarget.checked)}
             />

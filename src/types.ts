@@ -67,6 +67,9 @@ export interface Settings {
   autoTabTitles: boolean;
   /** dontAskKeys the user dismissed via "don't ask again" on a confirm dialog */
   confirmsDisabled: string[];
+  /** keep each terminal's scrollback on disk so restored tabs come back with
+   *  their text; stored locally in plain text, never transmitted */
+  persistScrollback: boolean;
 }
 
 /** A pending confirmation prompt (driven through the store, resolved by a Promise). */

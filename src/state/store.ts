@@ -14,6 +14,7 @@ import type {
 } from "../types";
 import type { AgentState } from "./activity";
 import { DEFAULT_THEME } from "../themes/apply";
+import { saveAllScrollback } from "../lib/scrollbackRegistry";
 
 let toastSeq = 0;
 // Resolver for the in-flight confirmation Promise (kept off-store; not serializable).
@@ -23,6 +24,20 @@ let tabSeq = 0;
 const nextTabId = () => `t${++tabSeq}`;
 let paneSeq = 0;
 const nextPaneId = () => `p${++paneSeq}`;
+
+/**
+ * Advance the pane-id counter past every id restored from a saved session.
+ *
+ * Without this, `paneSeq` restarts at 0 each launch and would re-issue `p1` to
+ * the next new pane while a restored `p1` is still open. The two panes would
+ * then share a `paneSessions` entry and a scrollback file.
+ */
+function adoptPaneSeq(ids: string[]): void {
+  for (const id of ids) {
+    const n = Number(/^p(\d+)$/.exec(id)?.[1]);
+    if (Number.isFinite(n) && n > paneSeq) paneSeq = n;
+  }
+}
 
 const SESSION_KEY = "agentpanel.session";
 /** Gates session persistence until restore has run, so boot-time store
@@ -48,6 +63,7 @@ const DEFAULT_SETTINGS: Settings = {
   notifications: true,
   autoTabTitles: true,
   confirmsDisabled: [],
+  persistScrollback: true,
 };
 function readSettings(): Settings {
   try {
@@ -343,6 +359,7 @@ export const useStore = create<AppState>((set, get) => ({
               cwd: string;
               title: string;
               panes?: number;
+              paneIds?: string[];
               color?: string;
             }>;
             activeIndex: number;
@@ -353,9 +370,21 @@ export const useStore = create<AppState>((set, get) => ({
         const existing = new Set(Object.values(get().worktrees).flat().map((w) => w.id));
         const valid = saved.tabs.filter((t) => existing.has(t.worktreeId));
         if (valid.length) {
+          // Pre-pass: adopt every restored id BEFORE minting any, from ALL
+          // saved tabs (not just `valid`). Ids belonging to a dropped tab
+          // (worktree gone) must still be reserved — their scrollback files
+          // may not be pruned yet, so re-minting one of those ids for a
+          // brand-new pane would load a dead tab's leftover history.
+          adoptPaneSeq(saved.tabs.flatMap((t) => t.paneIds ?? []));
+
           const tabs: TerminalTab[] = valid.map((t) => {
-            const count = Math.max(1, Math.min(2, t.panes ?? 1));
-            const panes: Pane[] = Array.from({ length: count }, () => ({ id: nextPaneId() }));
+            const saved = t.paneIds?.slice(0, 2) ?? [];
+            const count = Math.max(1, Math.min(2, t.panes ?? saved.length ?? 1));
+            // Sessions written by v0.6.x stored only a count; mint ids for those.
+            const panes: Pane[] =
+              saved.length > 0
+                ? saved.map((id) => ({ id }))
+                : Array.from({ length: count }, () => ({ id: nextPaneId() }));
             return {
               id: nextTabId(),
               worktreeId: t.worktreeId,
@@ -550,7 +579,12 @@ export const useStore = create<AppState>((set, get) => ({
       return { terminals: arr };
     }),
 
-  updateSettings: (partial) =>
+  updateSettings: (partial) => {
+    // Turning the feature off must also delete what is already on disk —
+    // an off switch that leaves the data behind is not an off switch.
+    if (partial.persistScrollback === false && get().settings.persistScrollback) {
+      void invoke("scrollback_clear").catch(() => {});
+    }
     set((s) => {
       const settings = { ...s.settings, ...partial };
       try {
@@ -559,7 +593,8 @@ export const useStore = create<AppState>((set, get) => ({
         console.error("settings persist failed", err);
       }
       return { settings };
-    }),
+    });
+  },
 
   closeWorktreeTerminals: async (worktreeId) => {
     const tabs = get().terminals.filter((t) => t.worktreeId === worktreeId);
@@ -681,7 +716,9 @@ useStore.subscribe((s) => {
       worktreeId: t.worktreeId,
       cwd: t.cwd,
       title: t.title,
-      panes: t.panes.length,
+      // Ids, not a count: scrollback is keyed on them and must survive a
+      // restart. `panes` is still read on restore for v0.6.x sessions.
+      paneIds: t.panes.map((p) => p.id),
       color: t.color,
     })),
     activeIndex: s.terminals.findIndex((t) => t.id === s.activeTabId),
@@ -696,6 +733,12 @@ useStore.subscribe((s) => {
     } catch (err) {
       console.error("session persist failed", err);
     }
+    // Drop saved buffers for panes that no longer exist (spec R3). Rides the
+    // debounced session write, so closing a tab cleans up within ~300ms rather
+    // than leaving an orphan file until the next launch.
+    void invoke("scrollback_prune", {
+      keep: useStore.getState().terminals.flatMap((t) => t.panes.map((p) => p.id)),
+    }).catch(() => {});
   }, 300);
 });
 
@@ -757,15 +800,25 @@ function flushSession() {
     console.error("session flush failed", err);
   }
 }
+/** Snapshot every live terminal to disk. Called from the same hide/unload
+ *  hooks as the notes and session flushes — the window going to the background
+ *  is the last reliable signal before a crash or a force-quit. */
+function flushScrollback() {
+  if (!useStore.getState().settings.persistScrollback) return;
+  void saveAllScrollback();
+}
+
 if (typeof window !== "undefined") {
   window.addEventListener("beforeunload", () => {
     flushNotes();
     flushSession();
+    flushScrollback();
   });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       flushNotes();
       flushSession();
+      flushScrollback();
     }
   });
 }

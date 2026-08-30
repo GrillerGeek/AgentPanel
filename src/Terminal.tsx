@@ -3,6 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebglAddon } from "@xterm/addon-webgl";
+import { SerializeAddon } from "@xterm/addon-serialize";
 import { invoke, Channel } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
@@ -13,6 +14,7 @@ import {
 } from "./lib/terminalClipboard";
 import { useStore } from "./state/store";
 import { noteOutput, noteExit, forgetPane } from "./state/agentRuntime";
+import { registerPane, unregisterPane } from "./lib/scrollbackRegistry";
 import { schemeBySlug, xtermThemeFor } from "./themes/apply";
 import "@xterm/xterm/css/xterm.css";
 
@@ -164,6 +166,8 @@ export function TerminalPane({
     const search = new SearchAddon();
     term.loadAddon(search);
     searchRef.current = search;
+    const serialize = new SerializeAddon();
+    term.loadAddon(serialize);
     term.open(container);
 
     // Copy/paste (issue #31): one paste pipeline only. Pasted text goes
@@ -222,29 +226,48 @@ export function TerminalPane({
       else unlistenExit = u;
     });
 
-    void resolveSpawnEnv(shell, terminalEnv, syncLoginPath)
-      .then((env) =>
-        invoke<number>("pty_spawn", {
-          cwd: cwd ?? null,
-          rows: term.rows,
-          cols: term.cols,
-          shell: shell || null,
-          env,
-          onOutput,
-        }),
-      )
-      .then((id) => {
-        if (disposed) {
-          void invoke("pty_close", { id });
-          return;
+    // Restore the saved buffer BEFORE the shell spawns, so the new prompt lands
+    // after the restored text rather than racing it.
+    //
+    // The setting is read from the store here rather than taken as a hook
+    // dependency on purpose: adding it to this effect's dep array would remount
+    // every terminal — killing its PTY — whenever the toggle changes.
+    const restoreThenSpawn = async () => {
+      if (paneId && useStore.getState().settings.persistScrollback) {
+        try {
+          const saved = await invoke<string>("scrollback_load", { paneId });
+          if (!disposed && saved) {
+            term.write(saved);
+            // Dim rule so a stale buffer is never mistaken for a live agent.
+            term.write("\r\n\x1b[2m── restored from your last session ──\x1b[0m\r\n");
+          }
+        } catch {
+          // No saved buffer, or the store is unreadable — start clean.
         }
-        sessionId = id;
-        sessionRef.current = id;
-        if (paneId) setPaneSession(paneId, id);
-        // Agent quick-launch: run the command once the shell is up.
-        if (initialCommand) void invoke("pty_write", { id, data: initialCommand + "\r" });
-      })
-      .catch((err) => term.writeln(`\r\n[pty_spawn error] ${err}`));
+      }
+      if (disposed) return;
+      if (paneId) registerPane(paneId, () => serialize.serialize());
+
+      const env = await resolveSpawnEnv(shell, terminalEnv, syncLoginPath);
+      const id = await invoke<number>("pty_spawn", {
+        cwd: cwd ?? null,
+        rows: term.rows,
+        cols: term.cols,
+        shell: shell || null,
+        env,
+        onOutput,
+      });
+      if (disposed) {
+        void invoke("pty_close", { id });
+        return;
+      }
+      sessionId = id;
+      sessionRef.current = id;
+      if (paneId) setPaneSession(paneId, id);
+      // Agent quick-launch: run the command once the shell is up.
+      if (initialCommand) void invoke("pty_write", { id, data: initialCommand + "\r" });
+    };
+    void restoreThenSpawn().catch((err) => term.writeln(`\r\n[pty_spawn error] ${err}`));
 
     // Forward keystrokes -> PTY.
     const dataSub = term.onData((data) => {
@@ -291,6 +314,20 @@ export function TerminalPane({
       unlistenExit?.();
       if (paneId) forgetPane(paneId);
       if (sessionId !== null) void invoke("pty_close", { id: sessionId });
+      if (paneId) {
+        if (useStore.getState().settings.persistScrollback) {
+          try {
+            // An empty buffer means we never got a real capture (e.g. unmounted
+            // before the restore load resolved) — writing it would overwrite this
+            // pane's real history on disk with a blank "restored" banner.
+            const data = serialize.serialize();
+            if (data) void invoke("scrollback_save", { paneId, data }).catch(() => {});
+          } catch {
+            // Serialization can throw if the buffer is already torn down.
+          }
+        }
+        unregisterPane(paneId);
+      }
       term.dispose(); // also disposes loaded addons (incl. WebGL, search)
       termRef.current = null;
       webglRef.current = null;
