@@ -24,6 +24,10 @@ describe("paletteModeForKey", () => {
     expect(paletteModeForKey(ev({ altKey: true }))).toBeNull();
   });
 
+  it("ignores Ctrl+Meta+P so Cmd+P on macOS isn't shadowed", () => {
+    expect(paletteModeForKey(ev({ metaKey: true }))).toBeNull();
+  });
+
   it("is case-insensitive", () => {
     expect(paletteModeForKey(ev({ key: "P" }))).toBe("files");
     expect(paletteModeForKey(ev({ key: "p", shiftKey: true }))).toBe("commands");
