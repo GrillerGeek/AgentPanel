@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useStore, selectActiveWorktreeId, worktreeLabels } from "../state/store";
 import { fuzzyScore } from "../lib/fuzzy";
 import { SCHEMES } from "../themes/schemes";
@@ -11,10 +12,12 @@ interface Command {
 }
 
 export function CommandPalette({
+  mode,
   onClose,
   onOpenSettings,
   onOpenPrDashboard,
 }: {
+  mode: "commands" | "files";
   onClose: () => void;
   onOpenSettings: () => void;
   onOpenPrDashboard: () => void;
@@ -38,6 +41,12 @@ export function CommandPalette({
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+
+  const [files, setFiles] = useState<string[]>([]);
+  const editorCommand = useStore((s) => s.settings.editorCommand);
+  const activeWorktree = useStore((s) =>
+    Object.values(s.worktrees).flat().find((w) => w.id === selectActiveWorktreeId(s)) ?? null,
+  );
 
   const commands = useMemo<Command[]>(() => {
     const cmds: Command[] = [
@@ -104,6 +113,24 @@ export function CommandPalette({
     openWorktreeTerminal,
   ]);
 
+  // Fetched on open and discarded on close — no cache. A palette open is a
+  // deliberate, infrequent action, and caching would need invalidating against
+  // the file-watcher event that fires constantly while an agent writes.
+  useEffect(() => {
+    if (mode !== "files" || !activeWorktree) return;
+    let cancelled = false;
+    void invoke<string[]>("worktree_files", { path: activeWorktree.path })
+      .then((f) => {
+        if (!cancelled) setFiles(f);
+      })
+      .catch(() => {
+        if (!cancelled) setFiles([]); // spec R5 — never toast
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, activeWorktree]);
+
   const filtered = useMemo(() => {
     const scored = commands
       .map((c) => ({ c, score: fuzzyScore(query, `${c.title} ${c.subtitle ?? ""}`) }))
@@ -111,6 +138,19 @@ export function CommandPalette({
     if (query) scored.sort((a, b) => b.score - a.score);
     return scored.map((x) => x.c);
   }, [commands, query]);
+
+  const MAX_ROWS = 200;
+
+  const filteredFiles = useMemo(() => {
+    const scored = files
+      .map((f) => ({ f, score: fuzzyScore(query, f) }))
+      .filter((x): x is { f: string; score: number } => x.score !== null);
+    if (query) scored.sort((a, b) => b.score - a.score);
+    return scored.map((x) => x.f);
+  }, [files, query]);
+
+  const shownFiles = filteredFiles.slice(0, MAX_ROWS);
+  const truncated = filteredFiles.length - shownFiles.length;
 
   // Reset selection when the result set changes.
   useEffect(() => setSelected(0), [query]);
@@ -121,6 +161,20 @@ export function CommandPalette({
   }, [selected]);
 
   const runSelected = () => {
+    if (mode === "files") {
+      const file = shownFiles[selected];
+      if (file && activeWorktree) {
+        // Reuses the shipped open_in_editor command and editorCommand setting.
+        void invoke("open_in_editor", {
+          command: editorCommand,
+          path: `${activeWorktree.path}/${file}`,
+        }).catch(() => {
+          /* the editor command is user-configured; a bad one is their setting to fix */
+        });
+      }
+      onClose();
+      return;
+    }
     const cmd = filtered[selected];
     if (cmd) void cmd.run();
     onClose();
@@ -132,13 +186,14 @@ export function CommandPalette({
         <input
           autoFocus
           className="palette-input"
-          placeholder="Jump to a worktree or run a command…"
+          placeholder={mode === "files" ? "Find a file in this worktree…" : "Jump to a worktree or run a command…"}
           value={query}
           onChange={(e) => setQuery(e.currentTarget.value)}
           onKeyDown={(e) => {
+            const listLength = mode === "files" ? shownFiles.length : filtered.length;
             if (e.key === "ArrowDown") {
               e.preventDefault();
-              setSelected((i) => Math.min(i + 1, filtered.length - 1));
+              setSelected((i) => Math.min(i + 1, listLength - 1));
             } else if (e.key === "ArrowUp") {
               e.preventDefault();
               setSelected((i) => Math.max(i - 1, 0));
@@ -152,19 +207,43 @@ export function CommandPalette({
           }}
         />
         <div className="palette-list" ref={listRef}>
-          {filtered.length === 0 && <div className="palette-empty">No matches</div>}
-          {filtered.map((cmd, i) => (
-            <div
-              key={cmd.id}
-              data-idx={i}
-              className={`palette-item ${i === selected ? "active" : ""}`}
-              onMouseEnter={() => setSelected(i)}
-              onClick={runSelected}
-            >
-              <span className="palette-title">{cmd.title}</span>
-              {cmd.subtitle && <span className="palette-subtitle">{cmd.subtitle}</span>}
-            </div>
-          ))}
+          {mode === "files" ? (
+            <>
+              {shownFiles.length === 0 && <div className="palette-empty">No matches</div>}
+              {shownFiles.map((file, i) => (
+                <div
+                  key={file}
+                  data-idx={i}
+                  className={`palette-item ${i === selected ? "active" : ""}`}
+                  onMouseEnter={() => setSelected(i)}
+                  onClick={runSelected}
+                >
+                  <span className="palette-title">{file}</span>
+                </div>
+              ))}
+              {truncated > 0 && (
+                <div className="palette-empty">
+                  Showing {shownFiles.length} of {filteredFiles.length} — keep typing to narrow
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {filtered.length === 0 && <div className="palette-empty">No matches</div>}
+              {filtered.map((cmd, i) => (
+                <div
+                  key={cmd.id}
+                  data-idx={i}
+                  className={`palette-item ${i === selected ? "active" : ""}`}
+                  onMouseEnter={() => setSelected(i)}
+                  onClick={runSelected}
+                >
+                  <span className="palette-title">{cmd.title}</span>
+                  {cmd.subtitle && <span className="palette-subtitle">{cmd.subtitle}</span>}
+                </div>
+              ))}
+            </>
+          )}
         </div>
       </div>
     </div>
