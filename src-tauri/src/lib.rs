@@ -225,6 +225,7 @@ pub fn run() {
             commands::worktree_pr,
             commands::worktree_diff,
             commands::worktree_file_patch,
+            commands::worktree_files,
             commands::open_in_editor,
             commands::updater_supported,
             watcher::set_watched_paths,

@@ -252,6 +252,18 @@ pub async fn worktree_file_patch(path: String, file: String) -> Result<String, S
         .map_err(|e| e.to_string())?
 }
 
+/// Every file git knows about in a worktree, for Quick Open.
+///
+/// Like `worktree_status`, this MUST stay off the main thread: it shells out to
+/// `git` and a synchronous Tauri command would freeze the window while a large
+/// repository is listed.
+#[tauri::command]
+pub async fn worktree_files(path: String) -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(move || git::list_files(&path))
+        .await
+        .unwrap_or_default()
+}
+
 /// Whether an auto-update could actually be installed on this build.
 ///
 /// Windows and macOS: always true. Linux: `tauri-plugin-updater` installs by
