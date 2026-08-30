@@ -15,6 +15,7 @@ import {
 import { useStore } from "./state/store";
 import { noteOutput, noteExit, forgetPane } from "./state/agentRuntime";
 import { registerPane, unregisterPane } from "./lib/scrollbackRegistry";
+import { registerPaneWriter, unregisterPaneWriter } from "./lib/paneWriters";
 import { schemeBySlug, xtermThemeFor } from "./themes/apply";
 import "@xterm/xterm/css/xterm.css";
 
@@ -247,6 +248,7 @@ export function TerminalPane({
       }
       if (disposed) return;
       if (paneId) registerPane(paneId, () => serialize.serialize());
+      if (paneId) registerPaneWriter(paneId, (text) => term.paste(text));
 
       const env = await resolveSpawnEnv(shell, terminalEnv, syncLoginPath);
       const id = await invoke<number>("pty_spawn", {
@@ -327,6 +329,7 @@ export function TerminalPane({
           }
         }
         unregisterPane(paneId);
+        unregisterPaneWriter(paneId);
       }
       term.dispose(); // also disposes loaded addons (incl. WebGL, search)
       termRef.current = null;

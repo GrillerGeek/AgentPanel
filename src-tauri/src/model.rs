@@ -51,3 +51,18 @@ pub struct WorktreeStatus {
     pub behind: usize,
     pub last_commit: Option<String>,
 }
+
+/// One changed file in a worktree's review diff.
+///
+/// `status` is a lowercase word rather than git's letter code so the frontend
+/// never has to know git's alphabet: `added` | `modified` | `deleted` |
+/// `untracked`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiffFile {
+    pub path: String,
+    pub status: String,
+    pub added: usize,
+    pub removed: usize,
+    pub binary: bool,
+}

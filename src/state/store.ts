@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import type {
   ConfirmRequest,
+  DiffComment,
   Pane,
   PrInfo,
   Repository,
@@ -15,6 +16,8 @@ import type {
 import type { AgentState } from "./activity";
 import { DEFAULT_THEME } from "../themes/apply";
 import { saveAllScrollback } from "../lib/scrollbackRegistry";
+import { pasteToPane } from "../lib/paneWriters";
+import { composeReviewPrompt } from "../lib/reviewPrompt";
 
 let toastSeq = 0;
 // Resolver for the in-flight confirmation Promise (kept off-store; not serializable).
@@ -95,6 +98,21 @@ function readNotesOpen(): boolean {
   }
 }
 
+const DIFF_COMMENTS_KEY = "agentpanel.diffComments";
+
+function readDiffComments(): Record<string, DiffComment[]> {
+  try {
+    const raw = localStorage.getItem(DIFF_COMMENTS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, DiffComment[]>) : {};
+  } catch {
+    return {};
+  }
+}
+
+let commentSeq = 0;
+const nextCommentId = () => `c${Date.now().toString(36)}${++commentSeq}`;
+
 interface AppState {
   repositories: Repository[];
   /** worktrees keyed by repository id */
@@ -124,6 +142,12 @@ interface AppState {
   notes: Record<string, string>;
   /** whether the notes side panel is open (global toggle) */
   notesOpen: boolean;
+  /** review comments keyed by worktree id, mirroring `notes` */
+  diffComments: Record<string, DiffComment[]>;
+  /** whether the diff review side panel is open (mutually exclusive with notes) */
+  diffOpen: boolean;
+  /** the diff file currently being read, or null for "none selected" */
+  selectedDiffFile: string | null;
   /** auto-update state machine (issue #12) */
   updateStatus: "idle" | "checking" | "downloading" | "ready" | "error";
   /** the staged update's version, for the banner */
@@ -168,6 +192,15 @@ interface AppState {
   setNote: (worktreeId: string, text: string) => void;
   /** open/close the notes side panel */
   toggleNotes: () => void;
+  /** attach a review comment to a line (or to a whole file when line is null) */
+  addDiffComment: (worktreeId: string, draft: Omit<DiffComment, "id">) => void;
+  removeDiffComment: (worktreeId: string, id: string) => void;
+  clearDiffComments: (worktreeId: string) => void;
+  /** open/close the diff review panel */
+  toggleDiff: () => void;
+  setSelectedDiffFile: (file: string | null) => void;
+  /** insert every review comment for a worktree into its active agent terminal */
+  sendReviewToAgent: (worktreeId: string) => Promise<void>;
   setUpdate: (status: AppState["updateStatus"], version?: string | null) => void;
   /** replace the derived per-pane agent-state map (called by the 1s ticker) */
   setAgentStatus: (status: Record<string, AgentState>) => void;
@@ -214,6 +247,9 @@ export const useStore = create<AppState>((set, get) => ({
   worktreeMru: {},
   notes: readNotes(),
   notesOpen: readNotesOpen(),
+  diffComments: readDiffComments(),
+  diffOpen: false,
+  selectedDiffFile: null,
   updateStatus: "idle",
   updateVersion: null,
   settings: readSettings(),
@@ -265,6 +301,8 @@ export const useStore = create<AppState>((set, get) => ({
       for (const t of removed) for (const p of t.panes) delete paneSessions[p.id];
       const notes = { ...s.notes };
       for (const wtId of wtIds) delete notes[wtId];
+      const diffComments = { ...s.diffComments };
+      for (const wtId of wtIds) delete diffComments[wtId];
       const activeTabId =
         s.activeTabId && terminals.some((t) => t.id === s.activeTabId)
           ? s.activeTabId
@@ -275,6 +313,7 @@ export const useStore = create<AppState>((set, get) => ({
         terminals,
         paneSessions,
         notes,
+        diffComments,
         activeTabId,
       };
     });
@@ -427,7 +466,9 @@ export const useStore = create<AppState>((set, get) => ({
         const removedIds = prev.filter((w) => !stillThere.has(w.id)).map((w) => w.id);
         const notes = { ...s.notes };
         for (const wtId of removedIds) delete notes[wtId];
-        return { worktrees: { ...s.worktrees, [repoId]: list }, notes };
+        const diffComments = { ...s.diffComments };
+        for (const wtId of removedIds) delete diffComments[wtId];
+        return { worktrees: { ...s.worktrees, [repoId]: list }, notes, diffComments };
       });
     } catch (err) {
       get().pushToast(`Couldn't remove worktree: ${err}`);
@@ -527,7 +568,62 @@ export const useStore = create<AppState>((set, get) => ({
   setNote: (worktreeId, text) =>
     set((s) => ({ notes: { ...s.notes, [worktreeId]: text } })),
 
-  toggleNotes: () => set((s) => ({ notesOpen: !s.notesOpen })),
+  toggleNotes: () => set((s) => ({ notesOpen: !s.notesOpen, diffOpen: false })),
+
+  addDiffComment: (worktreeId, draft) =>
+    set((s) => ({
+      diffComments: {
+        ...s.diffComments,
+        [worktreeId]: [...(s.diffComments[worktreeId] ?? []), { ...draft, id: nextCommentId() }],
+      },
+    })),
+
+  removeDiffComment: (worktreeId, id) =>
+    set((s) => ({
+      diffComments: {
+        ...s.diffComments,
+        [worktreeId]: (s.diffComments[worktreeId] ?? []).filter((c) => c.id !== id),
+      },
+    })),
+
+  clearDiffComments: (worktreeId) =>
+    set((s) => ({ diffComments: { ...s.diffComments, [worktreeId]: [] } })),
+
+  // Only one side panel at a time, so the terminal never loses two panels'
+  // width (spec D8).
+  toggleDiff: () => set((s) => ({ diffOpen: !s.diffOpen, notesOpen: false })),
+
+  setSelectedDiffFile: (file) => set({ selectedDiffFile: file }),
+
+  sendReviewToAgent: async (worktreeId) => {
+    const s = get();
+    const comments = s.diffComments[worktreeId] ?? [];
+    if (comments.length === 0) {
+      s.pushToast("No review comments to send.", "info");
+      return;
+    }
+    const paneId = s.terminals.find((t) => t.id === s.activeTabId)?.panes[0]?.id;
+    // Inserted, not submitted (spec D6): the user reads it in the agent's own
+    // input box and presses Enter. Auto-submitting could fire a large prompt at
+    // an agent that is mid-task or waiting on a different question.
+    //
+    // Routed through term.paste() (via the pane-writer registry), NEVER
+    // pty_write directly: composeReviewPrompt is always multi-line, and a bare
+    // `\n` written straight to a PTY is Enter to readline — a raw pty_write
+    // would EXECUTE the review comments as shell commands in a plain shell
+    // pane. term.paste() consults the terminal's actual bracketed-paste mode,
+    // exactly like a real clipboard paste (see paneWriters.ts and
+    // terminalClipboard.ts's "exactly one paste pipeline"). If there's no live
+    // pane to paste into, that's an error to surface, not a fallback to write.
+    if (!paneId || !pasteToPane(paneId, composeReviewPrompt(comments))) {
+      s.pushToast("Open a terminal in this worktree first.", "error");
+      return;
+    }
+    s.pushToast(
+      `Inserted ${comments.length} comment(s) — press Enter in the terminal to send.`,
+      "info",
+    );
+  },
 
   setUpdate: (status, version) =>
     set((s) => ({
@@ -775,6 +871,37 @@ useStore.subscribe((s) => {
   }, 300);
 });
 
+// Persist review comments, debounced like notes (typing a comment body fires a
+// store write per keystroke).
+let lastDiffCommentsSnapshot = JSON.stringify(useStore.getState().diffComments);
+let diffCommentsWriteTimer: ReturnType<typeof setTimeout> | undefined;
+useStore.subscribe((s) => {
+  const snapshot = JSON.stringify(s.diffComments);
+  if (snapshot === lastDiffCommentsSnapshot) return;
+  lastDiffCommentsSnapshot = snapshot;
+  if (diffCommentsWriteTimer) clearTimeout(diffCommentsWriteTimer);
+  diffCommentsWriteTimer = setTimeout(() => {
+    diffCommentsWriteTimer = undefined;
+    try {
+      localStorage.setItem(DIFF_COMMENTS_KEY, snapshot);
+    } catch (err) {
+      console.error("diff comments persist failed", err);
+    }
+  }, 300);
+});
+
+/** Flush a pending comment write on hide/unload, like flushNotes. */
+function flushDiffComments() {
+  if (diffCommentsWriteTimer === undefined) return;
+  clearTimeout(diffCommentsWriteTimer);
+  diffCommentsWriteTimer = undefined;
+  try {
+    localStorage.setItem(DIFF_COMMENTS_KEY, lastDiffCommentsSnapshot);
+  } catch (err) {
+    console.error("diff comments flush failed", err);
+  }
+}
+
 // Flush a pending (debounced) notes write synchronously when the window is
 // hidden or closing, so the last keystrokes aren't lost if the app quits
 // within the debounce window.
@@ -811,12 +938,14 @@ function flushScrollback() {
 if (typeof window !== "undefined") {
   window.addEventListener("beforeunload", () => {
     flushNotes();
+    flushDiffComments();
     flushSession();
     flushScrollback();
   });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       flushNotes();
+      flushDiffComments();
       flushSession();
       flushScrollback();
     }
