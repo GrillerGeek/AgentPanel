@@ -110,6 +110,16 @@ function SidebarDivider({ onCommit }: { onCommit: (px: number) => void }) {
   );
 }
 
+/** Which palette a keystroke opens, or null if it isn't a palette hotkey.
+ *
+ *  Ctrl+P / Ctrl+Shift+P follow VS Code, which is where this app's users live.
+ *  Alt is excluded so we never shadow an OS or terminal binding. */
+export function paletteModeForKey(e: KeyboardEvent): "files" | "commands" | null {
+  if (!e.ctrlKey || e.altKey || e.metaKey) return null;
+  if (e.key !== "p" && e.key !== "P") return null;
+  return e.shiftKey ? "commands" : "files";
+}
+
 function App() {
   const loadRepositories = useStore((s) => s.loadRepositories);
   const refreshStatuses = useStore((s) => s.refreshStatuses);
@@ -126,7 +136,7 @@ function App() {
   const toggleNotes = useStore((s) => s.toggleNotes);
   const diffOpen = useStore((s) => s.diffOpen);
   const toggleDiff = useStore((s) => s.toggleDiff);
-  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteMode, setPaletteMode] = useState<"files" | "commands" | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [prDashOpen, setPrDashOpen] = useState(false);
 
@@ -291,15 +301,16 @@ function App() {
     };
   }, [refreshStatuses, refreshPrs]);
 
-  // Global command-palette hotkey (Ctrl+Shift+P). Capture phase so it fires
-  // before xterm.js consumes the keystroke when a terminal is focused.
+  // Global command-palette hotkeys (Ctrl+P files, Ctrl+Shift+P commands).
+  // Capture phase so it fires before xterm.js consumes the keystroke when a
+  // terminal is focused.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && (e.key === "P" || e.key === "p")) {
-        e.preventDefault();
-        e.stopPropagation();
-        setPaletteOpen((o) => !o);
-      }
+      const mode = paletteModeForKey(e);
+      if (!mode) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setPaletteMode((cur) => (cur === mode ? null : mode));
     };
     window.addEventListener("keydown", onKey, { capture: true });
     return () => window.removeEventListener("keydown", onKey, { capture: true });
@@ -369,16 +380,17 @@ function App() {
       <UpdateBanner />
       <TelemetryBanner />
       <ConfirmDialog />
-      {paletteOpen && (
+      {paletteMode && (
         <Suspense fallback={null}>
           <CommandPalette
-            onClose={() => setPaletteOpen(false)}
+            mode={paletteMode}
+            onClose={() => setPaletteMode(null)}
             onOpenSettings={() => {
-              setPaletteOpen(false);
+              setPaletteMode(null);
               setSettingsOpen(true);
             }}
             onOpenPrDashboard={() => {
-              setPaletteOpen(false);
+              setPaletteMode(null);
               setPrDashOpen(true);
             }}
           />

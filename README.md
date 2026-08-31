@@ -22,8 +22,9 @@ terminal. Built on Tauri (Rust) + React + xterm.js.
 - **GitHub PR/CI** — per-worktree PR number + CI state via the `gh` CLI (click to open).
 - **Open in editor** — one-click tab bar button to open the active worktree in your editor;
   configurable command (`code`, `cursor`, `code-insiders`, …) via Settings.
-- **Command palette** (`Ctrl+Shift+P`), keyboard shortcuts (`Ctrl+T/W/Tab/1–9`), session restore,
-  and **12 themes** (Tokyo Night, Catppuccin, Dracula, Nord, Solarized, …).
+- **Quick open** (`Ctrl+P`, active worktree), **command palette** (`Ctrl+Shift+P`), keyboard
+  shortcuts (`Ctrl+T/W/Tab/1–9`), session restore, and **12 themes** (Tokyo Night, Catppuccin,
+  Dracula, Nord, Solarized, …).
 
 ## Runtime requirements
 

@@ -163,6 +163,39 @@ pub fn worktree_status(path: &str) -> Result<WorktreeStatus, String> {
     })
 }
 
+/// Cap on how many paths a single worktree contributes to Quick Open.
+///
+/// Beyond this, per-keystroke fuzzy scoring in the palette gets janky no matter
+/// what the UI does, so the honest move is to truncate here and say so.
+pub const MAX_FILES: usize = 20_000;
+
+/// Turns raw `git ls-files` output into a capped list of paths. Split out from
+/// `list_files` so the cap can be tested against a synthetic listing instead
+/// of writing tens of thousands of real files to disk.
+fn parse_file_list(out: &str) -> Vec<String> {
+    out.lines()
+        .filter(|l| !l.is_empty())
+        .take(MAX_FILES)
+        .map(str::to_string)
+        .collect()
+}
+
+/// Files in `repo_path` that git knows about: everything tracked, plus
+/// untracked files that `.gitignore` does not exclude.
+///
+/// Returns an empty vector for a plain folder, a repo with no commits, or a
+/// missing `git` — never an error. Quick Open having nothing to offer is a
+/// normal state, not a failure to report.
+pub fn list_files(repo_path: &str) -> Vec<String> {
+    let Ok(out) = run_git(
+        repo_path,
+        &["ls-files", "--cached", "--others", "--exclude-standard"],
+    ) else {
+        return Vec::new();
+    };
+    parse_file_list(&out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -222,6 +255,45 @@ mod tests {
         assert_eq!(st.dirty, 1, "one untracked file");
 
         let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn lists_tracked_and_unignored_untracked_files() {
+        let base = std::env::temp_dir().join(format!("agentpanel_lsfiles_{}", std::process::id()));
+        let repo = base.join("repo");
+        init_repo(&repo); // creates + commits README.md
+
+        fs::write(repo.join("untracked.txt"), "hi").unwrap();
+        fs::write(repo.join(".gitignore"), "ignored.txt\n").unwrap();
+        fs::write(repo.join("ignored.txt"), "nope").unwrap();
+
+        let files = list_files(&repo.to_string_lossy());
+        assert!(files.contains(&"README.md".to_string()), "tracked: {files:?}");
+        assert!(files.contains(&"untracked.txt".to_string()), "untracked: {files:?}");
+        assert!(files.contains(&".gitignore".to_string()), "gitignore itself: {files:?}");
+        assert!(!files.contains(&"ignored.txt".to_string()), "ignored must be excluded: {files:?}");
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn a_plain_folder_lists_nothing_rather_than_erroring() {
+        let base = std::env::temp_dir().join(format!("agentpanel_lsplain_{}", std::process::id()));
+        fs::create_dir_all(&base).unwrap();
+        fs::write(base.join("loose.txt"), "hi").unwrap();
+        assert!(list_files(&base.to_string_lossy()).is_empty());
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    // Rewritten per controller ruling: the brief's version wrote MAX_FILES + 5
+    // real files to disk (20,005 writes) on every `cargo test` run. Instead,
+    // the truncation is exercised directly against `parse_file_list`, the pure
+    // helper `list_files` delegates to, using a synthetic in-memory listing.
+    // This still fails if `.take(MAX_FILES)` were removed from that helper.
+    #[test]
+    fn caps_the_returned_list() {
+        let synthetic: String = (0..(MAX_FILES + 5)).map(|i| format!("f{i}.txt\n")).collect();
+        let files = parse_file_list(&synthetic);
+        assert_eq!(files.len(), MAX_FILES, "must truncate to the cap");
     }
 
     #[test]

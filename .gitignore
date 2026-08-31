@@ -31,3 +31,6 @@ dist-ssr
 
 # Subagent-driven-development scratch (ledger, briefs, review packages)
 .superpowers/
+
+# Harness-created isolation worktrees (never commit a worktree)
+.claude/worktrees/
