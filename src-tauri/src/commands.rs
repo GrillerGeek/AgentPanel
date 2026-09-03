@@ -100,6 +100,7 @@ pub fn add_repository(
         path: path.clone(),
         name,
         is_git: git::is_git_repository(p),
+        default_branch: None,
     };
 
     let mut repos = store.repos.lock().map_err(|e| e.to_string())?;
@@ -160,14 +161,38 @@ fn repo_handle(store: &State<'_, AppStore>, repo_id: &str) -> Result<(String, St
     Ok((repo.path.clone(), repo.id.clone(), repo.is_git))
 }
 
-/// Create a new worktree on a new branch. The worktree is placed in a sibling
-/// `<repo>-worktrees/<branch>` directory so it stays out of the main tree.
-/// Returns the refreshed worktree list.
+/// Which local branch a new worktree starts from: the explicitly requested
+/// one, else the repo's saved default, else `None` (= primary checkout HEAD).
+fn resolve_base_branch(requested: Option<&str>, saved: Option<&str>) -> Option<String> {
+    requested
+        .map(str::trim)
+        .filter(|b| !b.is_empty())
+        .or(saved)
+        .map(String::from)
+}
+
+/// Local branch names of a repository (for the "based on" picker).
+#[tauri::command]
+pub fn list_branches(store: State<'_, AppStore>, repo_id: String) -> Result<Vec<String>, String> {
+    let (repo_path, _, is_git) = repo_handle(&store, &repo_id)?;
+    if !is_git {
+        return Ok(Vec::new());
+    }
+    git::list_branches(&repo_path)
+}
+
+/// Create a new worktree on a new branch, started from `base` (or the repo's
+/// saved default branch, or HEAD when neither is set). A given `base` is
+/// remembered as the repo's default for next time. The worktree is placed in
+/// a sibling `<repo>-worktrees/<branch>` directory so it stays out of the
+/// main tree. Returns the refreshed worktree list.
 #[tauri::command]
 pub fn create_worktree(
+    app: AppHandle,
     store: State<'_, AppStore>,
     repo_id: String,
     branch: String,
+    base: Option<String>,
 ) -> Result<Vec<Worktree>, String> {
     let (repo_path, id, is_git) = repo_handle(&store, &repo_id)?;
     if !is_git {
@@ -177,6 +202,11 @@ pub fn create_worktree(
     if branch.is_empty() {
         return Err("branch name is required".into());
     }
+    let saved = {
+        let repos = store.repos.lock().map_err(|e| e.to_string())?;
+        repos.iter().find(|r| r.id == id).and_then(|r| r.default_branch.clone())
+    };
+    let base = resolve_base_branch(base.as_deref(), saved.as_deref());
 
     let repo = Path::new(&repo_path);
     let parent = repo.parent().ok_or("repository has no parent directory")?;
@@ -187,7 +217,15 @@ pub fn create_worktree(
     let safe_branch = branch.replace(['/', '\\', ':'], "-");
     let wt_dir = parent.join(format!("{repo_name}-worktrees")).join(&safe_branch);
 
-    git::add_worktree(&repo_path, &wt_dir.to_string_lossy(), branch)?;
+    git::add_worktree(&repo_path, &wt_dir.to_string_lossy(), branch, base.as_deref())?;
+
+    if base != saved {
+        let mut repos = store.repos.lock().map_err(|e| e.to_string())?;
+        if let Some(repo) = repos.iter_mut().find(|r| r.id == id) {
+            repo.default_branch = base;
+        }
+        store::save(&app, &repos)?;
+    }
     git::list_worktrees(&repo_path, &id)
 }
 
@@ -279,5 +317,26 @@ pub fn updater_supported() -> bool {
     #[cfg(not(target_os = "linux"))]
     {
         true
+    }
+}
+
+#[cfg(test)]
+mod base_branch_tests {
+    use super::resolve_base_branch;
+
+    #[test]
+    fn an_explicit_base_wins_over_the_saved_default() {
+        assert_eq!(resolve_base_branch(Some(" develop "), Some("main")), Some("develop".into()));
+    }
+
+    #[test]
+    fn falls_back_to_the_saved_default() {
+        assert_eq!(resolve_base_branch(None, Some("main")), Some("main".into()));
+        assert_eq!(resolve_base_branch(Some("  "), Some("main")), Some("main".into()));
+    }
+
+    #[test]
+    fn nothing_set_means_head() {
+        assert_eq!(resolve_base_branch(None, None), None);
     }
 }

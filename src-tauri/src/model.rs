@@ -14,6 +14,10 @@ pub struct Repository {
     pub path: String,
     pub name: String,
     pub is_git: bool,
+    /// Local branch new worktrees start from. `None` = the primary checkout's
+    /// current HEAD (the pre-0.8 behaviour). Absent in older saved files.
+    #[serde(default)]
+    pub default_branch: Option<String>,
 }
 
 /// An isolated work unit. For git repos this is a real git worktree; for plain
@@ -65,4 +69,29 @@ pub struct DiffFile {
     pub added: usize,
     pub removed: usize,
     pub binary: bool,
+}
+
+#[cfg(test)]
+mod default_branch_tests {
+    use super::*;
+
+    #[test]
+    fn repository_saved_before_default_branch_existed_still_loads() {
+        let json = r#"{"id":"C:\r","path":"C:\r","name":"r","isGit":true}"#;
+        let repo: Repository = serde_json::from_str(json).unwrap();
+        assert_eq!(repo.default_branch, None);
+    }
+
+    #[test]
+    fn default_branch_round_trips_as_camel_case() {
+        let repo = Repository {
+            id: "x".into(),
+            path: "x".into(),
+            name: "x".into(),
+            is_git: true,
+            default_branch: Some("main".into()),
+        };
+        let json = serde_json::to_string(&repo).unwrap();
+        assert!(json.contains(r#""defaultBranch":"main""#), "{json}");
+    }
 }

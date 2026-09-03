@@ -709,6 +709,19 @@ kbd {
   border-color: var(--accent);
 }
 
+/* "based on <branch>" row in the new-worktree form */
+.wt-base {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--fg-muted, var(--fg));
+}
+.wt-base select {
+  flex: 1;
+  min-width: 0;
+}
+
 .new-worktree-actions {
   display: flex;
   gap: 6px;

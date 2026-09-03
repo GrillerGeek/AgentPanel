@@ -9,7 +9,8 @@ terminal. Built on Tauri (Rust) + React + xterm.js.
 ## Features
 
 - **Repositories & worktrees** — add any folder/git repo; create, list, and remove git worktrees
-  from the sidebar (an isolated branch per agent).
+  from the sidebar (an isolated branch per agent). Pick which branch a new worktree is *based
+  on*; the choice is remembered per repo.
 - **Parallel terminal tabs** — a real PTY shell per pane (ConPTY on Windows), all running at
   once; tabs survive switching, and you can **split** a tab into two side-by-side terminals.
 - **Scrollback that survives a restart** — restored tabs come back with their text, not empty.

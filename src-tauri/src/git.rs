@@ -95,16 +95,36 @@ pub fn list_worktrees(repo_path: &str, repo_id: &str) -> Result<Vec<Worktree>, S
     Ok(worktrees)
 }
 
-/// Create a new worktree on a new branch `branch` at `new_path`. If the branch
-/// already exists, check it out into the new worktree instead.
-pub fn add_worktree(repo_path: &str, new_path: &str, branch: &str) -> Result<(), String> {
-    match run_git(repo_path, &["worktree", "add", "-b", branch, new_path]) {
+/// Create a new worktree on a new branch `branch` at `new_path`, started from
+/// `base` (a local branch name) or, when `None`, from the primary checkout's
+/// HEAD. If the branch already exists, check it out into the new worktree
+/// instead (its history is what it is; `base` is ignored).
+pub fn add_worktree(
+    repo_path: &str,
+    new_path: &str,
+    branch: &str,
+    base: Option<&str>,
+) -> Result<(), String> {
+    let mut args = vec!["worktree", "add", "-b", branch, new_path];
+    if let Some(b) = base {
+        args.push(b);
+    }
+    match run_git(repo_path, &args) {
         Ok(_) => Ok(()),
         Err(e) if e.contains("already exists") => {
             run_git(repo_path, &["worktree", "add", new_path, branch]).map(|_| ())
         }
         Err(e) => Err(e),
     }
+}
+
+/// Local branch names, sorted. Used to pick a base branch for new worktrees.
+pub fn list_branches(repo_path: &str) -> Result<Vec<String>, String> {
+    let out = run_git(
+        repo_path,
+        &["for-each-ref", "--sort=refname", "--format=%(refname:short)", "refs/heads"],
+    )?;
+    Ok(out.lines().map(str::trim).filter(|l| !l.is_empty()).map(String::from).collect())
 }
 
 /// Remove a worktree (does not delete the branch). Uses `--force` to handle
@@ -309,7 +329,7 @@ mod tests {
 
         let wt_path = base.join("wt-feature");
         let wt_str = wt_path.to_string_lossy().to_string();
-        add_worktree(&repo_str, &wt_str, "feature").unwrap();
+        add_worktree(&repo_str, &wt_str, "feature", None).unwrap();
 
         let wts = list_worktrees(&repo_str, &repo_str).unwrap();
         assert_eq!(wts.len(), 2, "added worktree should appear");
@@ -319,6 +339,78 @@ mod tests {
         let wts = list_worktrees(&repo_str, &repo_str).unwrap();
         assert_eq!(wts.len(), 1, "removed worktree should be gone");
 
+        let _ = fs::remove_dir_all(&base);
+    }
+}
+
+#[cfg(test)]
+mod base_branch_tests {
+    use super::*;
+    use std::fs;
+    use std::path::Path;
+    use std::process::Command;
+
+    fn git(dir: &Path, args: &[&str]) -> String {
+        let mut cmd = Command::new("git");
+        cmd.arg("-C").arg(dir).args(args);
+        configure_no_window(&mut cmd);
+        let out = cmd.output().expect("git on PATH");
+        assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    }
+
+    /// main + a second branch `other` with one extra commit, checked out.
+    fn repo_on_other(tag: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+        let base = std::env::temp_dir().join(format!("agentpanel_{tag}_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let repo = base.join("repo");
+        fs::create_dir_all(&repo).unwrap();
+        git(&repo, &["init", "-b", "main"]);
+        git(&repo, &["config", "user.email", "t@example.com"]);
+        git(&repo, &["config", "user.name", "T"]);
+        fs::write(repo.join("a.txt"), "a").unwrap();
+        git(&repo, &["add", "."]);
+        git(&repo, &["commit", "-m", "init"]);
+        git(&repo, &["checkout", "-b", "other"]);
+        fs::write(repo.join("b.txt"), "b").unwrap();
+        git(&repo, &["add", "."]);
+        git(&repo, &["commit", "-m", "other"]);
+        (base, repo)
+    }
+
+    #[test]
+    fn add_worktree_starts_from_the_given_base_not_head() {
+        let (base, repo) = repo_on_other("wtbase");
+        let repo_str = repo.to_string_lossy().to_string();
+        let main_sha = git(&repo, &["rev-parse", "main"]);
+        let other_sha = git(&repo, &["rev-parse", "other"]);
+        assert_ne!(main_sha, other_sha);
+
+        let wt = base.join("wt-feature");
+        add_worktree(&repo_str, &wt.to_string_lossy(), "feature", Some("main")).unwrap();
+
+        assert_eq!(git(&wt, &["rev-parse", "HEAD"]), main_sha, "must branch from main, not HEAD (other)");
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn add_worktree_without_base_keeps_using_head() {
+        let (base, repo) = repo_on_other("wthead");
+        let repo_str = repo.to_string_lossy().to_string();
+        let other_sha = git(&repo, &["rev-parse", "other"]);
+
+        let wt = base.join("wt-feature");
+        add_worktree(&repo_str, &wt.to_string_lossy(), "feature", None).unwrap();
+
+        assert_eq!(git(&wt, &["rev-parse", "HEAD"]), other_sha);
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn list_branches_returns_local_branch_names_sorted() {
+        let (base, repo) = repo_on_other("wtlist");
+        let branches = list_branches(&repo.to_string_lossy()).unwrap();
+        assert_eq!(branches, vec!["main".to_string(), "other".to_string()]);
         let _ = fs::remove_dir_all(&base);
     }
 }

@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import { configDefaults } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 // @ts-expect-error process is a nodejs global
@@ -7,6 +8,12 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+
+  test: {
+    // Git worktrees parked under .claude/ carry their own copy of the tests;
+    // they have no node_modules of their own and must not run from here.
+    exclude: [...configDefaults.exclude, "**/.claude/**"],
+  },
 
   build: {
     // Crash reporting (docs/superpowers/specs/2026-07-23-crash-reporting-design.md):
