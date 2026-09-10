@@ -219,6 +219,7 @@ pub fn run() {
             commands::list_repositories,
             commands::remove_repository,
             commands::list_worktrees,
+            commands::list_branches,
             commands::create_worktree,
             commands::delete_worktree,
             commands::worktree_status,

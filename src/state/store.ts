@@ -169,7 +169,12 @@ interface AppState {
   refreshPrs: () => Promise<void>;
   /** reopen previously-open worktree terminals (fresh shells) */
   restoreSession: () => void;
-  createWorktree: (repoId: string, branch: string) => Promise<void>;
+  /** Create a worktree on new branch `branch`, started from `base` (a local
+   *  branch). Passing `base` also saves it as the repo's default for next time;
+   *  omitting it uses the saved default (or HEAD when none is saved). */
+  createWorktree: (repoId: string, branch: string, base?: string) => Promise<void>;
+  /** Local branch names of a repo, for the "based on" picker. */
+  listBranches: (repoId: string) => Promise<string[]>;
   deleteWorktree: (repoId: string, worktreePath: string) => Promise<void>;
 
   /** open (or focus the existing) terminal for a worktree */
@@ -444,15 +449,20 @@ export const useStore = create<AppState>((set, get) => ({
     hydrated = true;
   },
 
-  createWorktree: async (repoId, branch) => {
-    const list = await invoke<Worktree[]>("create_worktree", { repoId, branch });
+  createWorktree: async (repoId, branch, base) => {
+    const list = await invoke<Worktree[]>("create_worktree", { repoId, branch, base });
     set((s) => ({
       worktrees: { ...s.worktrees, [repoId]: list },
       expanded: { ...s.expanded, [repoId]: true },
+      repositories: base
+        ? s.repositories.map((r) => (r.id === repoId ? { ...r, defaultBranch: base } : r))
+        : s.repositories,
     }));
     const wt = list.find((w) => w.branch === branch);
     if (wt) get().openWorktreeTerminal(wt);
   },
+
+  listBranches: (repoId) => invoke<string[]>("list_branches", { repoId }),
 
   deleteWorktree: async (repoId, worktreePath) => {
     // Kill the worktree's terminals FIRST so the OS releases the directory

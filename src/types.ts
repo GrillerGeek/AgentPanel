@@ -5,6 +5,8 @@ export interface Repository {
   path: string;
   name: string;
   isGit: boolean;
+  /** Local branch new worktrees start from; null = the primary checkout's HEAD. */
+  defaultBranch: string | null;
 }
 
 export interface Worktree {

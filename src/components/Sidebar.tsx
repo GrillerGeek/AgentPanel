@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useStore, selectActiveWorktreeId } from "../state/store";
 import { sortWorktrees, aggregateAgentState, type AgentState } from "../state/activity";
@@ -6,12 +6,34 @@ import { ActiveSessions } from "./ActiveSessions";
 import logoIcon from "../../resources/AgentPanelIcon-NoText.png";
 import type { Repository, Worktree } from "../types";
 
-function NewWorktreeForm({ repo }: { repo: Repository }) {
+export function NewWorktreeForm({ repo }: { repo: Repository }) {
   const createWorktree = useStore((s) => s.createWorktree);
+  const listBranches = useStore((s) => s.listBranches);
+  // The branch checked out in the main folder: what git would use with no
+  // explicit base, so it's the natural pre-selection when nothing is saved.
+  const headBranch = useStore((s) => s.worktrees[repo.id]?.find((w) => w.isPrimary)?.branch ?? null);
   const [open, setOpen] = useState(false);
   const [branch, setBranch] = useState("");
+  const [branches, setBranches] = useState<string[]>([]);
+  const [base, setBase] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setBase(repo.defaultBranch ?? headBranch ?? "");
+    listBranches(repo.id)
+      .then((list) => {
+        if (!cancelled) setBranches(list);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(String(e));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, repo.id, repo.defaultBranch, headBranch, listBranches]);
 
   if (!open) {
     return (
@@ -35,7 +57,7 @@ function NewWorktreeForm({ repo }: { repo: Repository }) {
     setBusy(true);
     setError(null);
     try {
-      await createWorktree(repo.id, name);
+      await createWorktree(repo.id, name, base || undefined);
       setBranch("");
       setOpen(false);
     } catch (e) {
@@ -64,6 +86,23 @@ function NewWorktreeForm({ repo }: { repo: Repository }) {
           if (e.key === "Escape") setOpen(false);
         }}
       />
+      <label className="wt-base" title="The new branch starts from this branch. Your pick is remembered for this repo.">
+        <span>based on</span>
+        <select
+          aria-label="Base branch"
+          className="wt-input"
+          value={base}
+          disabled={busy}
+          onChange={(e) => setBase(e.currentTarget.value)}
+        >
+          {branches.length === 0 && <option value={base}>{base || "current HEAD"}</option>}
+          {branches.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
+      </label>
       <div className="wt-path-preview" title="Where this worktree will be created on disk">
         ↳ {pathPreview}
       </div>
