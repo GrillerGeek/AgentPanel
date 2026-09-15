@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build (for example, v0.7.1)
+        required: true
+        type: string
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
 
 permissions:
   contents: write
@@ -20,7 +29,14 @@ jobs:
 
       - name: Check manifest versions match the tag
         run: |
-          tag="${GITHUB_REF_NAME#v}"
+          case "$RELEASE_TAG" in
+            v*) ;;
+            *)
+              echo "::error::release tag must start with 'v' (got '$RELEASE_TAG')"
+              exit 1
+              ;;
+          esac
+          tag="${RELEASE_TAG#v}"
           pkg=$(jq -r .version package.json)
           lock=$(jq -r .version package-lock.json)
           lockpkg=$(jq -r '.packages[""].version' package-lock.json)
@@ -175,7 +191,7 @@ jobs:
           # init_telemetry) and the JS SDK's (src/lib/telemetry.ts's initTelemetry) --
           # otherwise traces from one side won't symbolicate against these maps.
           npx --yes @sentry/cli sourcemaps upload \
-            --release "agentpanel@${GITHUB_REF_NAME#v}" \
+            --release "agentpanel@${RELEASE_TAG#v}" \
             dist
 
       - name: Build the app
@@ -197,8 +213,8 @@ jobs:
           # they still build releases, just with telemetry compiled inert.
           AGENTPANEL_SENTRY_DSN: ${{ secrets.AGENTPANEL_SENTRY_DSN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "AgentPanel ${{ github.ref_name }}"
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: "AgentPanel ${{ env.RELEASE_TAG }}"
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
@@ -217,17 +233,17 @@ jobs:
         run: |
           # `GET /releases/tags/{tag}` omits drafts, so list and match instead.
           assets=$(gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate --jq \
-            ".[] | select(.tag_name == \"${GITHUB_REF_NAME}\") | .assets[] | select(.name == \"latest.json\") | .url")
+            ".[] | select(.tag_name == \"${RELEASE_TAG}\") | .assets[] | select(.name == \"latest.json\") | .url")
           count=$(printf '%s\n' "$assets" | grep -c '^https' || true)
           if [ "$count" -eq 0 ]; then
-            echo "::error::no latest.json asset on the ${GITHUB_REF_NAME} release"
+            echo "::error::no latest.json asset on the ${RELEASE_TAG} release"
             exit 1
           fi
           # More than one means the build legs raced and each wrote a partial
           # manifest -- the v0.6.0 failure. strategy.max-parallel is meant to
           # prevent it; if this fires, that serialization has regressed.
           if [ "$count" -gt 1 ]; then
-            echo "::error::${count} assets named latest.json on the ${GITHUB_REF_NAME} release -- the build legs raced and each wrote a partial manifest. Check strategy.max-parallel, delete the release, and re-run every leg."
+            echo "::error::${count} assets named latest.json on the ${RELEASE_TAG} release -- the build legs raced and each wrote a partial manifest. Check strategy.max-parallel, delete the release, and re-run every leg."
             exit 1
           fi
           asset="$assets"
