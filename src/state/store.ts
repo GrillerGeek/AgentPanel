@@ -161,6 +161,12 @@ interface AppState {
   loadRepositories: () => Promise<void>;
   addRepository: () => Promise<void>;
   removeRepository: (id: string) => Promise<void>;
+  /** move repository `fromId` to the position of `toId` (sidebar drag; not saved) */
+  moveRepository: (fromId: string, toId: string) => void;
+  /** persist the current sidebar order (call when a drag ends) */
+  saveRepositoryOrder: () => Promise<void>;
+  /** sort repositories A→Z by name and persist */
+  sortRepositoriesByName: () => Promise<void>;
   loadWorktrees: (repoId: string) => Promise<void>;
   toggleExpand: (repoId: string) => Promise<void>;
   /** expand or collapse every repository at once */
@@ -285,6 +291,35 @@ export const useStore = create<AppState>((set, get) => ({
         : { repositories: [...s.repositories, repo], expanded: { ...s.expanded, [repo.id]: true } },
     );
     await get().loadWorktrees(repo.id);
+  },
+
+  moveRepository: (fromId, toId) =>
+    set((s) => {
+      if (fromId === toId) return s;
+      const arr = [...s.repositories];
+      const from = arr.findIndex((r) => r.id === fromId);
+      const to = arr.findIndex((r) => r.id === toId);
+      if (from < 0 || to < 0) return s;
+      const [moved] = arr.splice(from, 1);
+      arr.splice(to, 0, moved);
+      return { repositories: arr };
+    }),
+
+  saveRepositoryOrder: async () => {
+    try {
+      await invoke("reorder_repositories", { ids: get().repositories.map((r) => r.id) });
+    } catch (err) {
+      get().pushToast(`Couldn't save repository order: ${err}`);
+    }
+  },
+
+  sortRepositoriesByName: async () => {
+    set((s) => ({
+      repositories: [...s.repositories].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true }),
+      ),
+    }));
+    await get().saveRepositoryOrder();
   },
 
   removeRepository: async (id) => {

@@ -1,4 +1,10 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useStore, selectActiveWorktreeId } from "../state/store";
 import { sortWorktrees, aggregateAgentState, type AgentState } from "../state/activity";
@@ -123,10 +129,12 @@ function RepoRow({
   repo,
   query,
   attentionOnly,
+  drag,
 }: {
   repo: Repository;
   query: string;
   attentionOnly: boolean;
+  drag: RepoDragHandlers;
 }) {
   const expanded = useStore((s) => s.expanded[repo.id] ?? false);
   const worktrees = useStore((s) => s.worktrees[repo.id]);
@@ -173,8 +181,15 @@ function RepoRow({
   const rows = filtering ? visible : (sorted ?? []);
 
   return (
-    <div className="repo">
-      <div className="repo-header">
+    <div className={`repo ${drag.draggingId === repo.id ? "dragging" : ""}`} data-repoid={repo.id}>
+      <div
+        className="repo-header"
+        onPointerDown={(e) => drag.onPointerDown(e, repo.id)}
+        onPointerMove={drag.onPointerMove}
+        onPointerUp={drag.onPointerUp}
+        onPointerCancel={drag.onPointerUp}
+        onClickCapture={drag.onClickCapture}
+      >
         <button className="disclosure" onClick={() => toggleExpand(repo.id)} title={repo.path}>
           <span className={`chevron ${expanded ? "open" : ""}`}>▶</span>
           <span className="repo-name">{repo.name}</span>
@@ -276,10 +291,73 @@ function RepoRow({
   );
 }
 
+interface RepoDragHandlers {
+  draggingId: string | null;
+  onPointerDown: (e: ReactPointerEvent, id: string) => void;
+  onPointerMove: (e: ReactPointerEvent) => void;
+  onPointerUp: () => void;
+  onClickCapture: (e: ReactMouseEvent) => void;
+}
+
+/**
+ * Drag a repo header to reorder the list. Pointer-based like the tab bar's
+ * reorder (native HTML5 drag-and-drop doesn't survive remote desktop). The
+ * pointer is only captured once the movement threshold is crossed, so plain
+ * clicks on the header's buttons behave normally; the order is saved on drop.
+ */
+function useRepoDrag(): RepoDragHandlers {
+  const moveRepository = useStore((s) => s.moveRepository);
+  const saveRepositoryOrder = useStore((s) => s.saveRepositoryOrder);
+  const drag = useRef<{ id: string; startY: number; active: boolean } | null>(null);
+  const suppressClick = useRef(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  return {
+    draggingId,
+    onPointerDown: (e, id) => {
+      // A cancelled drag never gets its click, so don't let a stale flag eat this one.
+      suppressClick.current = false;
+      if (e.button !== 0) return;
+      // The remove button (and any other icon button) is not a drag handle.
+      if ((e.target as HTMLElement).closest(".icon-btn")) return;
+      drag.current = { id, startY: e.clientY, active: false };
+    },
+    onPointerMove: (e) => {
+      const d = drag.current;
+      if (!d) return;
+      if (!d.active) {
+        if (Math.abs(e.clientY - d.startY) < 5) return; // movement threshold
+        d.active = true;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        setDraggingId(d.id);
+      }
+      const overId = document
+        .elementFromPoint(e.clientX, e.clientY)
+        ?.closest<HTMLElement>("[data-repoid]")?.dataset.repoid;
+      if (overId && overId !== d.id) moveRepository(d.id, overId);
+    },
+    onPointerUp: () => {
+      const wasDragging = drag.current?.active;
+      drag.current = null;
+      if (!wasDragging) return;
+      suppressClick.current = true;
+      setDraggingId(null);
+      void saveRepositoryOrder();
+    },
+    onClickCapture: (e) => {
+      if (!suppressClick.current) return;
+      suppressClick.current = false;
+      e.stopPropagation(); // this "click" was the end of a drag, not a toggle
+    },
+  };
+}
+
 export function Sidebar() {
   const repositories = useStore((s) => s.repositories);
   const addRepository = useStore((s) => s.addRepository);
   const setAllExpanded = useStore((s) => s.setAllExpanded);
+  const sortRepositoriesByName = useStore((s) => s.sortRepositoriesByName);
+  const repoDrag = useRepoDrag();
   const expanded = useStore((s) => s.expanded);
   const [query, setQuery] = useState("");
   const [attentionOnly, setAttentionOnly] = useState(false);
@@ -292,6 +370,15 @@ export function Sidebar() {
       <div className="sidebar-header">
         <span>Repositories</span>
         <span className="header-actions">
+          {repositories.length > 1 && (
+            <button
+              className="icon-btn sort-repos"
+              title="Sort repositories A→Z (drag a repository to reorder by hand)"
+              onClick={() => void sortRepositoriesByName()}
+            >
+              A→Z
+            </button>
+          )}
           {repositories.length > 0 && (
             <button
               className="icon-btn collapse-all"
@@ -358,7 +445,13 @@ export function Sidebar() {
           </div>
         )}
         {repositories.map((repo) => (
-          <RepoRow key={repo.id} repo={repo} query={query} attentionOnly={attentionOnly} />
+          <RepoRow
+            key={repo.id}
+            repo={repo}
+            query={query}
+            attentionOnly={attentionOnly}
+            drag={repoDrag}
+          />
         ))}
       </div>
     </aside>

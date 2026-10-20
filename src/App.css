@@ -276,6 +276,15 @@ body,
   justify-content: space-between;
 }
 
+/* Repo being dragged to a new position in the list. */
+.repo.dragging {
+  opacity: 0.6;
+}
+
+.repo.dragging .repo-header {
+  cursor: grabbing;
+}
+
 .disclosure {
   flex: 1 1 auto;
   display: flex;
@@ -772,6 +781,11 @@ kbd {
 }
 .collapse-all {
   font-size: 12px;
+}
+
+.sort-repos {
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 /* ---- Sidebar search + filter (fleet scale) ---- */

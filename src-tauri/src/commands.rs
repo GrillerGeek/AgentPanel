@@ -127,6 +127,33 @@ pub fn remove_repository(
     store::save(&app, &repos)
 }
 
+/// Persist a new sidebar order. `ids` is the full order the frontend shows;
+/// see `apply_order` for how stale or partial lists are handled.
+#[tauri::command]
+pub fn reorder_repositories(
+    app: AppHandle,
+    store: State<'_, AppStore>,
+    ids: Vec<String>,
+) -> Result<(), String> {
+    let mut repos = store.repos.lock().map_err(|e| e.to_string())?;
+    *repos = apply_order(std::mem::take(&mut *repos), &ids);
+    store::save(&app, &repos)
+}
+
+/// Reorder `repos` to follow `ids`. Unknown ids are ignored, and repos missing
+/// from `ids` keep their relative order at the end — so a stale list from the
+/// frontend can never drop a repository.
+fn apply_order(mut repos: Vec<Repository>, ids: &[String]) -> Vec<Repository> {
+    let mut ordered = Vec::with_capacity(repos.len());
+    for id in ids {
+        if let Some(i) = repos.iter().position(|r| &r.id == id) {
+            ordered.push(repos.remove(i));
+        }
+    }
+    ordered.extend(repos);
+    ordered
+}
+
 /// List a repository's worktrees. Plain folders get one synthesized "main"
 /// worktree so the UI treats them uniformly with git repos.
 #[tauri::command]
@@ -338,5 +365,47 @@ mod base_branch_tests {
     #[test]
     fn nothing_set_means_head() {
         assert_eq!(resolve_base_branch(None, None), None);
+    }
+}
+
+#[cfg(test)]
+mod reorder_tests {
+    use super::apply_order;
+    use crate::model::Repository;
+
+    fn repo(id: &str) -> Repository {
+        Repository {
+            id: id.into(),
+            path: id.into(),
+            name: id.into(),
+            is_git: true,
+            default_branch: None,
+        }
+    }
+
+    fn ids(repos: &[Repository]) -> Vec<&str> {
+        repos.iter().map(|r| r.id.as_str()).collect()
+    }
+
+    fn order(list: &[&str]) -> Vec<String> {
+        list.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn follows_the_given_order() {
+        let out = apply_order(vec![repo("a"), repo("b"), repo("c")], &order(&["c", "a", "b"]));
+        assert_eq!(ids(&out), ["c", "a", "b"]);
+    }
+
+    #[test]
+    fn unlisted_repos_are_kept_at_the_end() {
+        let out = apply_order(vec![repo("a"), repo("b"), repo("c")], &order(&["b"]));
+        assert_eq!(ids(&out), ["b", "a", "c"]);
+    }
+
+    #[test]
+    fn unknown_and_duplicate_ids_are_ignored() {
+        let out = apply_order(vec![repo("a"), repo("b")], &order(&["x", "b", "b", "a"]));
+        assert_eq!(ids(&out), ["b", "a"]);
     }
 }
