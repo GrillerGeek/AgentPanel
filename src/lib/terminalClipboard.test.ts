@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { makeCopyPasteKeyHandler, makeContextMenuHandler } from "./terminalClipboard";
+import {
+  makeCopyPasteKeyHandler,
+  makeContextMenuHandler,
+  makeRightButtonGuard,
+} from "./terminalClipboard";
 
 // Issue #31: paste doubled. The custom key handler must BOTH suppress the
 // WebView's native paste (preventDefault) and be the only paste pipeline
@@ -123,5 +127,35 @@ describe("right-click QuickEdit (issue #31)", () => {
 
     expect(deps.writeClipboard).toHaveBeenCalledWith("SEL");
     expect(deps.pasteToTerminal).not.toHaveBeenCalled();
+  });
+});
+
+// Right-click pasted twice in Claude Code: with mouse tracking on, xterm also
+// forwarded the right button to the app, which pasted on its own.
+describe("right-button guard", () => {
+  const mouseEvent = (button: number) =>
+    ({ button, stopPropagation: vi.fn() }) as unknown as MouseEvent;
+
+  it("swallows right-button press/release while the app tracks the mouse", () => {
+    const guard = makeRightButtonGuard(() => true);
+    const e = mouseEvent(2);
+    guard(e);
+    expect(e.stopPropagation).toHaveBeenCalled();
+  });
+
+  it("leaves right-clicks alone when the app isn't tracking the mouse", () => {
+    const guard = makeRightButtonGuard(() => false);
+    const e = mouseEvent(2);
+    guard(e);
+    expect(e.stopPropagation).not.toHaveBeenCalled();
+  });
+
+  it("never touches left or middle clicks, even while tracking", () => {
+    const guard = makeRightButtonGuard(() => true);
+    for (const button of [0, 1]) {
+      const e = mouseEvent(button);
+      guard(e);
+      expect(e.stopPropagation).not.toHaveBeenCalled();
+    }
   });
 });

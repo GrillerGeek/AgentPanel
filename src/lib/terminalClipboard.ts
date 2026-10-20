@@ -84,3 +84,18 @@ export function makeContextMenuHandler(deps: ClipboardDeps) {
     }
   };
 }
+
+/**
+ * Right-click belongs to the terminal, not the app. When an app enables mouse
+ * tracking (Claude Code does), xterm forwards the right button's press/release
+ * to the PTY as mouse reports — and an app that pastes on right-click then
+ * pastes a second time on top of the contextmenu handler's paste. Attach this
+ * in the CAPTURE phase on xterm's container for mousedown/mouseup: stopping
+ * propagation there keeps the event from reaching xterm's own listeners, while
+ * the contextmenu event (and its single paste) is unaffected.
+ */
+export function makeRightButtonGuard(isMouseTracking: () => boolean) {
+  return (e: MouseEvent): void => {
+    if (e.button === 2 && isMouseTracking()) e.stopPropagation();
+  };
+}

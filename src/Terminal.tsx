@@ -10,6 +10,7 @@ import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
 import {
   makeCopyPasteKeyHandler,
   makeContextMenuHandler,
+  makeRightButtonGuard,
   type ClipboardDeps,
 } from "./lib/terminalClipboard";
 import { useStore } from "./state/store";
@@ -188,6 +189,11 @@ export function TerminalPane({
     term.attachCustomKeyEventHandler(makeCopyPasteKeyHandler(clipboardDeps));
     const onContextMenu = makeContextMenuHandler(clipboardDeps);
     container.addEventListener("contextmenu", onContextMenu);
+    // Keep right-clicks from also reaching a mouse-tracking app (e.g. Claude
+    // Code), which would paste a second time.
+    const onRightButton = makeRightButtonGuard(() => term.modes.mouseTrackingMode !== "none");
+    container.addEventListener("mousedown", onRightButton, true);
+    container.addEventListener("mouseup", onRightButton, true);
 
     // WebGL is the fast renderer locally but streams poorly over remote desktop,
     // and each live context taxes the GPU compositor — so only attach it when
@@ -311,6 +317,8 @@ export function TerminalPane({
       if (rafId) cancelAnimationFrame(rafId);
       observer.disconnect();
       container.removeEventListener("contextmenu", onContextMenu);
+      container.removeEventListener("mousedown", onRightButton, true);
+      container.removeEventListener("mouseup", onRightButton, true);
       dataSub.dispose();
       titleSub.dispose();
       unlistenExit?.();
