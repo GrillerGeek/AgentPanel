@@ -43,10 +43,23 @@ The native test bundle used a temporary identifier override and disabled updater
 
 **Automated validation:**
 
-- 250 frontend tests passed, including runtime persistence, no fallback after connection failure, deferred output credit, no launch replay, explicit detach/terminate, and retaining tabs when termination fails.
-- 66 Rust tests passed in the regular suite, with one live integration test intentionally ignored there.
+- 251 frontend tests passed, including runtime persistence, no fallback after connection failure, deferred output credit, no launch replay, explicit detach/terminate, and retaining tabs when termination fails.
+- 68 Rust tests passed in the regular suite, with two live integration tests intentionally ignored there. Follow-up regressions cover unknown-handle stop refusal and initial status from the subscription snapshot.
 - The ignored live test passed when explicitly run against the official temporary hc binary in scratch state. It exercised the actual Rust adapter, same-process reattachment, 37×101 resize, output exceeding initial credit, reported status events, stale-core refusal, termination, and refusal to replace an ended terminal.
 - TypeScript and Vite production build passed. A native macOS debug app bundle was built and used for the acceptance above.
+- [Platform CI at `37aa9aa`](https://github.com/GrillerGeek/AgentPanel/actions/runs/41309836440) passed frontend build/tests and Rust check/tests on Linux, macOS, and Windows. Linux also passed the actual live adapter test against checksum-verified hc 0.1.16. Windows Herdr mode remains deliberately disabled; compiling the adapter does not verify ConPTY behavior.
+
+**Real-agent macOS acceptance after hardening:** Codex CLI 0.164.0 ran inside the rebuilt test app in the same disposable project. It used `--no-daemon --sandbox read-only --ask-for-approval on-request --no-alt-screen`. One prompt requested exactly `AGENTPANEL-SMOKE-OK`, without tools or file access; the expected response rendered. AgentPanel showed running, then idle, from core's reported status. The permission selector rendered with Read Only current; it was cancelled without changes.
+
+Quitting and reopening the app restored the Codex screen and response. Independent `terminal.get` queries confirmed shell PID **10276**, foreground Codex PID **10769**, terminal **t2**, and live state across the restart. This is attachment to the same running agent, not provider-native conversation recovery. Codex was then exited; explicit tab close was independently confirmed as `finished` / `killed`, and the dedicated core was stopped.
+
+A second bounded check used Codex's default screen mode (omitting `--no-alt-screen`). It requested approval for `touch /private/tmp/agentpanel-ui-project/approval-smoke.txt` outside its read-only sandbox. The actual approval dialog rendered, AgentPanel showed **waiting for input**, and core independently reported `blocked`, kind `permission`. Quit/reopen restored that pending dialog with shell PID **19670** and foreground Codex PID **19969** unchanged. Escape declined the operation; the UI returned to idle, and an independent filesystem check confirmed that the target did not exist. Explicit tab close then reported terminal **t3** as `finished` / `killed`; an independent PID check confirmed that Codex had exited. The dedicated core and app were stopped. This covers one default-screen approval cancellation and repaint path, not every agent interaction or approval type.
+
+Claude Code 2.1.316 rendered its project trust prompt with safe mode, tools disabled, and an empty strict MCP configuration. The default **No, exit** was selected. Its CLI auth status reported no login; authenticated Claude responses and approval flows remain unverified. No credentials, models, subscriptions, or agent installation were changed. Codex's update prompt was skipped.
+
+**Real SSH transport acceptance:** [the disposable SSH runner](../../scripts/spikes/run_herdr_ssh_test.py) passed from macOS to a Linux Docker guest using OpenSSH over loopback TCP, a fresh key pair, and strict host-key checking against a public key read through Docker. The actual Rust adapter attached to `linux/t1`, sent shell input, and resized it to 33×99. Killing the guest's user SSH session forced a transport interruption. Core reconnected; a fresh remote command returned Linux; the Rust adapter reattached successfully; the original remote shell PID **57** was still live. The terminal, dedicated local core, container, and scratch credentials were cleaned up before success was reported.
+
+This verifies machine-qualified binding attachment through core's SSH aggregation. The runner sets up that binding outside AgentPanel. It does not provide machine selection or remote project management in the app, and loopback-to-guest testing does not establish two-physical-computer, WAN, sleep/wake, MFA, or password-prompt acceptance. [CI at `a3e8d65`](https://github.com/GrillerGeek/AgentPanel/actions/runs/41310825672) passed all three platform jobs, including this real SSH fixture in the Linux job.
 
 Reproduce ordinary checks:
 
@@ -60,14 +73,16 @@ Run the actual adapter against an already verified, separately obtained binary:
 
 ```sh
 python3 scripts/spikes/run_herdr_adapter_test.py /absolute/path/to/herdr-core
+# Requires Docker and OpenSSH; builds only a disposable guest fixture:
+python3 scripts/spikes/run_herdr_ssh_test.py /absolute/path/to/herdr-core
 ```
 
 The runner isolates XDG state/config/runtime directories and core session, uses shell-only fixtures, and stops the scratch core after the test. It does not run paid coding agents. `DEVELOPER_DIR` above selects this Mac's working Command Line Tools installation; the Node option avoids Node 25 Web Storage conflicting with jsdom.
 
 ## Remaining acceptance and scope
 
-Windows is explicitly disabled pending ConPTY input encoding acceptance. Linux is unverified. This release slice connects to a local core; real SSH, multiple-machine navigation, remote worktree operations, automatic reconnect, mobile access, and provider-specific native conversation resume are not implemented.
+Windows is explicitly disabled pending ConPTY input encoding acceptance. Linux has automated live-adapter evidence, but no native GUI acceptance. This release slice exposes a local core in the app; SSH transport and known remote bindings have isolated integration evidence. Machine configuration/selection, multiple-machine navigation, remote worktree operations, automatic UI reconnect, mobile access, and provider-specific native conversation resume are not implemented.
 
-Manual reconnect is required after transport loss or a runtime restart. Missing event continuity also requests a reconnect and fresh snapshot. Full-screen coding-agent behavior, real approval dialogs, slow-viewer repaint at the upstream backlog threshold, crash/power-loss recovery, and large-session performance remain unverified. The regular test suite does not install or launch a runtime automatically.
+Manual reconnect is required after transport loss or a runtime restart. Missing event continuity also requests a reconnect and fresh snapshot. Codex interactive rendering, its permission menu, and a default-screen tool approval/cancellation/restart path have bounded native evidence. Authenticated Claude flows, other approval types, slow-viewer repaint at the upstream backlog threshold, crash/power-loss recovery, and large-session performance remain unverified. The regular test suite does not install or launch a runtime automatically; explicit CI acceptance steps download checksum-pinned test binaries and run disposable fixtures.
 
 The [feasibility spike](2026-11-01-runtime-feasibility-spike.md) remains the historical decision record. These notes describe the implemented opt-in adapter and its current acceptance boundary. No third-party runtime binary is committed or bundled, and the original Pages comparison has not been rewritten.
