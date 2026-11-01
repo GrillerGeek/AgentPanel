@@ -14,6 +14,22 @@ Lost connections display a Reconnect action and disable terminal input. Reconnec
 
 Herdr status comes from program reports. An ordinary shell or an agent without OSC 7501 remains **status not reported**. Transport disconnection is distinct from process exit; silence does not imply success.
 
+## Machine and session browser
+
+The **Machines & terminals** sidebar button opens an explicit inventory browser. Choose a separately installed Herdr executable and a local core session, then **Refresh terminals**. It shows the local core plus its configured remote machines, their remote sessions, connection/login state, terminal addresses, original paths, and reported activity. Failed refreshes keep the previous inventory visible as stale and disable attachment. The last successfully browsed endpoint is remembered independently of the default runtime for new worktree terminals.
+
+SSH profiles and authentication stay with Herdr/OpenSSH. For example, configuring a machine for the local `agentpanel` session uses `HC_SESSION=agentpanel hc machine add user@host --name devbox`; the remote session can be selected with core's `--session` option. Follow [core's machine documentation](https://github.com/herdrdev/herdr-core/blob/de82c962fa6d2a7780d4e5058fda288c14bd0d8f/docs/machines.md) for installation and interactive authentication. AgentPanel's browser does not add profiles, install runtimes, store SSH credentials, or bypass host verification.
+
+**Attach** opens the existing program interactively. Imported tabs show machine, remote session, and path. Their sidebar, tab, and command-palette close actions **detach**, leaving the program running. This differs from AgentPanel-created worktree terminals, whose explicit close still terminates their program. App quit detaches either kind.
+
+An imported binding pins the selected endpoint, local core identity, remote core identity where applicable, and exact terminal address/path. Reconnect rejects a changed machine identity or ended program. It cannot create a replacement shell, replay an agent command, change terminal labels, or authorize worktree removal. An offline binding remains visible across restart. Attaching to identical paths/short terminal IDs on different machines produces distinct sessions.
+
+Imported sessions are terminal-only records, separate from local repositories. New terminal, quick-launch, split, editor, file, and diff actions cannot run against their remote path. Local repository records require no migration for this slice. Native Windows clients remain disabled; remote Windows/ConPTY behavior is unverified.
+
+**Native two-machine acceptance:** used the isolated test app and two disposable Linux SSH guests, each with terminal `t1` and path `/home/agentpanel/project`. The browser showed distinct `linux` and `other` machine groups and remote session `adapter-peer-test`. Input through the two attached tabs printed shell PIDs **70** and **75** respectively. Both tabs restored after app restart. Pausing the first guest's SSH listener and ending its SSH session left the second interactive at PID **75**. The first stayed visible as disconnected, with a Reconnect action; after SSH returned, manual reconnect printed PID **70**. Detaching both tabs left both original processes live with empty labels, independently confirmed through core. The runner then stopped the scratch core and both guests and removed ephemeral SSH credentials. This is two SSH endpoints on one physical Mac, not physical-machine/WAN acceptance.
+
+Automated feature checks: 258 frontend tests and 70 regular Rust tests passed locally; the two live tests run explicitly through the supplied runners. The SSH runner now attaches two unlabelled existing terminals through the actual Rust adapter, checks inventory, rejects termination through imported viewers, and proves the second guest usable during interruption of the first. Its [recorded result](runtime-spike/2026-11-01-machine-browser-ssh-results.json) distinguishes automated transport evidence from manual UI acceptance. The native debug bundle was rebuilt for the browser walkthrough. Review also checked keyboard focus containment/restoration, labelled fields, stale responses after modal close, lazy loading, and the separation of local worktree and imported terminal actions. Disconnected/stale rows explicitly mark their process state as last observed and current activity as unavailable.
+
 ## Implementation
 
 - [Rust transport](../../src-tauri/src/herdr.rs) uses `hc connect`, generation 1 capability negotiation, JSON-RPC, and framed raw terminal streams. It never installs core or exposes a TCP service.
@@ -81,7 +97,7 @@ The runner isolates XDG state/config/runtime directories and core session, uses 
 
 ## Remaining acceptance and scope
 
-Windows is explicitly disabled pending ConPTY input encoding acceptance. Linux has automated live-adapter evidence, but no native GUI acceptance. This release slice exposes a local core in the app; SSH transport and known remote bindings have isolated integration evidence. Machine configuration/selection, multiple-machine navigation, remote worktree operations, automatic UI reconnect, mobile access, and provider-specific native conversation resume are not implemented.
+Windows is explicitly disabled pending ConPTY input encoding acceptance. Linux has automated live-adapter evidence, but no native Linux GUI acceptance. The app can browse a selected local core session and attach its existing local/remote terminals. Machine setup/login still uses Herdr/OpenSSH. Remote repository/worktree operations, new remote terminal creation, automatic UI reconnect, mobile access, and provider-specific native conversation resume are not implemented.
 
 Manual reconnect is required after transport loss or a runtime restart. Missing event continuity also requests a reconnect and fresh snapshot. Codex interactive rendering, its permission menu, and a default-screen tool approval/cancellation/restart path have bounded native evidence. Authenticated Claude flows, other approval types, slow-viewer repaint at the upstream backlog threshold, crash/power-loss recovery, and large-session performance remain unverified. The regular test suite does not install or launch a runtime automatically; explicit CI acceptance steps download checksum-pinned test binaries and run disposable fixtures.
 

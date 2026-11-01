@@ -31,7 +31,21 @@ export interface HerdrRuntime {
   executable: string;
   session: string;
   key: string;
-  binding?: { coreId: string; address: string };
+  binding?: { coreId: string; address: string; machineId?: string };
+  /** Imported programs are never started or terminated by this viewer. */
+  attachOnly?: boolean;
+}
+
+export interface HerdrEndpoint { executable: string; session: string }
+export interface HerdrMachine {
+  name: string; coreId: string; host: string; session: string | null;
+  state: string; why: string | null;
+}
+export interface HerdrTerminal {
+  address: string; cwd: string; title: string | null; state: string; status: string | null;
+}
+export interface HerdrInventory {
+  coreId: string; coreName: string; machines: HerdrMachine[]; terminals: HerdrTerminal[];
 }
 
 /** An open terminal tab. All its panes share the worktree (cwd). */
@@ -41,6 +55,8 @@ export interface TerminalTab {
   cwd: string;
   title: string;
   panes: Pane[];
+  /** Terminal-only attachment; never a local repository/worktree handle. */
+  attachment?: { machine: string; session: string };
   /** for a 2-pane split: fraction of width given to the first pane (0.15–0.85) */
   splitRatio?: number;
   /** optional user-assigned tab color (hex), shown as a left accent stripe */
@@ -53,6 +69,7 @@ export interface TerminalTab {
 
 /** User settings (persisted in localStorage). */
 export interface Settings {
+  herdrBrowserEndpoint?: HerdrEndpoint;
   terminalRuntime: "local" | "herdr";
   herdrExecutable: string;
   herdrSession: string;
