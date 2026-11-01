@@ -33,7 +33,7 @@ fn options(binding: Option<Binding>) -> Options {
     Options {
         executable: std::env::var("AGENTPANEL_HC_TEST_BINARY").unwrap_or("herdr-core".into()),
         session: "agentpanel-adapter-test".into(), key: "0123456789abcdef0123456789abcdef".into(),
-        cwd: std::env::var("AGENTPANEL_HC_TEST_CWD").unwrap_or("/tmp".into()),
+        cwd: std::env::var("AGENTPANEL_HC_TEST_CWD").unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().into()),
         shell: "/bin/sh".into(), env: HashMap::new(), binding,
     }
 }
@@ -46,6 +46,17 @@ fn validates_session_and_pane_identity_before_starting_a_process() {
     assert!(validate(&value).is_err());
     value.session = "agentpanel".into(); value.key = "p1".into();
     assert!(validate(&value).is_err());
+}
+
+#[test]
+fn initial_status_comes_from_the_subscription_boundary() {
+    let snapshot = json!({"seq":7,"terminals":[
+        {"address":"t1","status":{"state":"blocked"}},
+        {"address":"t2","status":{"state":"working"}}
+    ]});
+    assert_eq!(subscription_state(&snapshot, "t1").as_deref(), Some("blocked"));
+    assert_eq!(subscription_state(&snapshot, "missing"), None);
+    assert_eq!(subscription_state(&json!({"terminals":[]}), "t1"), None);
 }
 
 async fn marker(rx: &mut mpsc::UnboundedReceiver<Event>, connection: &Connection, marker: &[u8]) -> Vec<u8> {
@@ -110,5 +121,6 @@ async fn live_adapter_reconnects_without_replaying_or_replacing_the_program() {
     let mut wrong = saved.clone(); wrong.core_id = "another-core".into();
     assert!(matches!(open(options(Some(wrong)), 24, 80, |_| true).await, Err(e) if e.contains("another core")));
     resumed.connection.terminate().await.unwrap();
+    resumed.connection.terminate().await.unwrap(); // confirmed stop is idempotent
     assert!(matches!(open(options(Some(saved)), 24, 80, |_| true).await, Err(e) if e.contains("ended")));
 }

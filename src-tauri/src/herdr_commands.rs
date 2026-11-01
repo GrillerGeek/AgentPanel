@@ -17,6 +17,13 @@ impl HerdrManager {
     fn viewer(&self, id: u32) -> Result<Arc<Connection>, String> {
         self.viewers.lock().map_err(|e| e.to_string())?.get(&id).cloned().ok_or("Herdr viewer is detached".into())
     }
+
+    async fn terminate(&self, id: u32) -> Result<(), String> {
+        // An absent handle is not evidence that its runtime process stopped.
+        // Retain known completed handles until the viewer detaches, so a
+        // duplicate cleanup remains idempotent without accepting unknown IDs.
+        self.viewer(id)?.terminate().await
+    }
 }
 
 #[derive(Serialize)]
@@ -60,10 +67,16 @@ pub fn herdr_detach(state: State<'_, HerdrManager>, id: u32) -> Result<(), Strin
 
 #[tauri::command]
 pub async fn herdr_terminate(state: State<'_, HerdrManager>, id: u32) -> Result<(), String> {
-    let viewer = state.viewers.lock().map_err(|e| e.to_string())?.get(&id).cloned();
-    if let Some(viewer) = viewer {
-        viewer.terminate().await?;
-        state.viewers.lock().map_err(|e| e.to_string())?.remove(&id);
+    state.terminate(id).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn unknown_handle_cannot_authorize_worktree_deletion() {
+        let manager = HerdrManager::default();
+        assert!(manager.terminate(42).await.unwrap_err().contains("detached"));
     }
-    Ok(())
 }

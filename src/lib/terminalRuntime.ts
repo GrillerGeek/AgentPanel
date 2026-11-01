@@ -63,6 +63,10 @@ export async function openTerminal(options: {
     id, created,
     write: (data) => invoke(`${prefix}_write`, { id, data }),
     resize: (rows, cols) => invoke(`${prefix}_resize`, { id, rows, cols }),
-    dispose: (terminate) => invoke(options.runtime ? (terminate ? "herdr_terminate" : "herdr_detach") : "pty_close", { id }),
+    dispose: async (terminate) => {
+      if (!options.runtime) { await invoke("pty_close", { id }); return; }
+      if (terminate) await invoke("herdr_terminate", { id });
+      await invoke("herdr_detach", { id });
+    },
   };
 }

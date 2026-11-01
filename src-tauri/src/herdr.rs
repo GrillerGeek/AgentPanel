@@ -192,7 +192,9 @@ pub async fn open(options: Options, rows: u16, cols: u16,
         let channel = stream_channel(&attached)?;
         let subscribed = request(&mut writer, &mut reader, "events.subscribe", json!({"terminal":address}), &mut early).await?;
         let events = stream_channel(&subscribed)?;
-        emit(Event::Status { state: terminal["status"]["state"].as_str().map(String::from) });
+        // Subscribe returns the authoritative snapshot at the start of the
+        // event stream. The earlier get/run result can already be stale.
+        emit(Event::Status { state: subscription_state(&subscribed, &address) });
         Ok((Binding { core_id, address }, created, channel, events, early))
     }).await.map_err(|_| "Herdr connection timed out. Reconnect to inspect uncertain delivery.".to_string())??;
     let (sender, receiver) = mpsc::channel(32);
@@ -204,6 +206,11 @@ pub async fn open(options: Options, rows: u16, cols: u16,
 
 fn stream_channel(value: &Value) -> Result<u32, String> {
     value["channel"].as_u64().and_then(|n| u32::try_from(n).ok()).filter(|n| *n != 0).ok_or("Invalid Herdr stream channel".into())
+}
+
+fn subscription_state(snapshot: &Value, address: &str) -> Option<String> {
+    snapshot["terminals"].as_array()?.iter().find(|t| t["address"] == address)?
+        ["status"]["state"].as_str().map(String::from)
 }
 
 async fn drive(mut child: Child, mut writer: ChildStdin, mut reader: BufReader<ChildStdout>, channel: u32,
@@ -287,7 +294,11 @@ async fn drive(mut child: Child, mut writer: ChildStdin, mut reader: BufReader<C
                                 else { Err("Herdr did not confirm termination".into()) };
                             let success = result.is_ok();
                             if let Some(tx) = terminate.take() { let _ = tx.send(result); }
-                            if success { intentional = true; break; }
+                            if success {
+                                finished.store(true, Ordering::Release);
+                                intentional = true;
+                                break;
+                            }
                         }
                     }
                 }
