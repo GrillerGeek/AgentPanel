@@ -53,6 +53,15 @@ describe("persistent terminal transport", () => {
     expect(invoke).toHaveBeenCalledWith("herdr_write", { id: 9, data: "claude\r" });
     await session.dispose(true);
     expect(invoke).toHaveBeenCalledWith("herdr_terminate", { id: 9 });
+    expect(invoke).toHaveBeenLastCalledWith("herdr_detach", { id: 9 });
+  });
+
+  it("does not discard the viewer when termination is unconfirmed", async () => {
+    vi.mocked(invoke).mockResolvedValueOnce({ id: 9, created: false, binding });
+    const session = await openTerminal(options());
+    vi.mocked(invoke).mockRejectedValueOnce("unconfirmed stop");
+    await expect(session.dispose(true)).rejects.toBe("unconfirmed stop");
+    expect(invoke).not.toHaveBeenCalledWith("herdr_detach", expect.anything());
   });
 
   it("keeps disconnects separate from process exits", async () => {
