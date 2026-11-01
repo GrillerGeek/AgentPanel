@@ -86,7 +86,9 @@ export function MachineBrowser({ onClose }: { onClose: () => void }) {
             {terminals.map((terminal) => <div className="machine-terminal" key={terminal.address}>
               <div><strong>{terminal.title || terminal.address}</strong> {terminal.title && terminal.title !== terminal.address && <code>{terminal.address}</code>}
                 <div className="machine-path">{terminal.cwd || "Path not reported"}</div>
-                <small>{terminal.state} · {terminal.status ?? "status not reported"}</small></div>
+                <small>{stale || machine.state !== "connected"
+                  ? `Last observed ${terminal.state} · current status unavailable`
+                  : `${terminal.state} · ${terminal.status ?? "status not reported"}`}</small></div>
               <button disabled={busy || stale || machine.state !== "connected" || terminal.state !== "live" || !terminal.cwd || !machine.coreId}
                 aria-label={`Attach ${terminal.address}`} onClick={() => {
                   attach(snapshot!.endpoint, inventory!, terminal); onClose();

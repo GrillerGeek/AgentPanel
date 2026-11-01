@@ -44,6 +44,8 @@ it("browses configured machines, shows unknown status, and disables offline term
   const attach = await screen.findByRole("button", { name: "Attach box/t1" });
   expect(screen.getByText("live · status not reported")).toBeTruthy();
   expect(screen.getByText("SSH authentication required")).toBeTruthy();
+  expect(screen.getByText("Last observed live · current status unavailable")).toBeTruthy();
+  expect(screen.queryByText("live · working")).toBeNull();
   expect(screen.getByRole("button", { name: "Attach offline/t1" }).hasAttribute("disabled")).toBe(true);
   fireEvent.click(attach);
   expect(useStore.getState().terminals[0].panes[0].runtime?.binding).toEqual({ coreId: "core", machineId: "remote", address: "box/t1" });
