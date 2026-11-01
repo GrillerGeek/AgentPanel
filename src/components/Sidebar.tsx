@@ -266,18 +266,7 @@ function RepoRow({
                 <button
                   className="icon-btn"
                   title="Remove worktree"
-                  onClick={async () => {
-                    if (
-                      await requestConfirm({
-                        message: `Remove worktree "${wt.name}"?`,
-                        detail: `Deletes this worktree's working directory on disk. The branch "${wt.branch ?? wt.name}" itself is kept; your commits are safe.`,
-                        confirmLabel: "Remove worktree",
-                        danger: true,
-                        dontAskKey: "remove-worktree",
-                      })
-                    )
-                      deleteWorktree(repo.id, wt.path);
-                  }}
+                  onClick={() => void deleteWorktree(repo.id, wt.path)}
                 >
                   ✕
                 </button>

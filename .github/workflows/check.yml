@@ -73,3 +73,45 @@ jobs:
 
       - name: Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Verify and unpack pinned Herdr core test runtime
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 \
+            https://releases.herdr.dev/core/0.1.16/herdr-core-linux-x86_64.tar.gz \
+            -o "$RUNNER_TEMP/herdr-core.tar.gz"
+          printf '%s  %s\n' \
+            58d6861176dc6fe905b58880d5bff07a9959be613a98e5d66b4583b04b6cfa45 \
+            "$RUNNER_TEMP/herdr-core.tar.gz" | sha256sum --check -
+          mkdir -p "$RUNNER_TEMP/herdr-core-test"
+          tar -xzf "$RUNNER_TEMP/herdr-core.tar.gz" -C "$RUNNER_TEMP/herdr-core-test"
+
+      - name: Live Linux adapter acceptance in scratch sessions
+        run: python3 scripts/spikes/run_herdr_adapter_test.py "$RUNNER_TEMP/herdr-core-test/herdr-core"
+
+      - name: SSH attachment and recovery against disposable Linux guest
+        timeout-minutes: 10
+        run: python3 scripts/spikes/run_herdr_ssh_test.py "$RUNNER_TEMP/herdr-core-test/herdr-core"
+
+  desktop:
+    name: ${{ matrix.os }} build and tests
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: "./src-tauri -> target"
+          key: desktop-check-${{ matrix.os }}
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
+      - run: cargo test --manifest-path src-tauri/Cargo.toml

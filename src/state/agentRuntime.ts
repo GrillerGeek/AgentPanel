@@ -11,6 +11,23 @@ const runtime = new Map<string, PaneRuntime>();
 
 const TAIL_MAX = 2048;
 
+/** Explicit runtime status takes precedence over PTY silence heuristics. */
+export function noteRuntimeState(paneId: string, state: AgentState): void {
+  const r = runtime.get(paneId) ?? { lastOutputAt: Date.now(), tail: "", exited: false };
+  r.externalState = state;
+  runtime.set(paneId, r);
+}
+
+export function reportedState(state: string | null): AgentState {
+  switch (state) {
+    case "working": return "running";
+    case "blocked": return "awaiting";
+    case "idle": case "done": return "idle";
+    case "error": return "failed";
+    default: return "unknown";
+  }
+}
+
 /** Record an output chunk for a pane (cheap; no re-render). */
 export function noteOutput(paneId: string, text: string): void {
   const now = Date.now();

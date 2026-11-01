@@ -80,7 +80,11 @@ describe("notes store", () => {
       worktrees: { r1: [{ id: "/wt1", repoId: "r1", path: "/wt1", name: "b", branch: "b", isPrimary: false }] },
       notes: { "/wt1": "gone soon", wt2: "stays" },
     });
-    await useStore.getState().deleteWorktree("r1", "/wt1");
+    const removal = useStore.getState().deleteWorktree("r1", "/wt1");
+    await Promise.resolve(); // preflight completes before asking to stop terminals
+    expect(useStore.getState().confirmState).not.toBeNull();
+    useStore.getState().resolveConfirm(true);
+    await removal;
     expect(useStore.getState().notes["/wt1"]).toBeUndefined();
     expect(useStore.getState().notes.wt2).toBe("stays");
   });
