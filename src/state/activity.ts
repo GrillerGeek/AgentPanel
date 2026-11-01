@@ -5,7 +5,7 @@ import type { Worktree, WorktreeStatus } from "../types";
  * tail (see `agentRuntime.ts`). Deliberately heuristic and conservative: we'd
  * rather under-claim "awaiting" than cry wolf (the report's honesty tension).
  */
-export type AgentState = "running" | "idle" | "awaiting" | "exited";
+export type AgentState = "running" | "idle" | "awaiting" | "exited" | "unknown" | "disconnected" | "failed";
 
 /** Higher = more deserving of your attention; used to aggregate panes. */
 const AGENT_STATE_RANK: Record<AgentState, number> = {
@@ -13,6 +13,7 @@ const AGENT_STATE_RANK: Record<AgentState, number> = {
   exited: 2,
   running: 1,
   idle: 0,
+  unknown: 0, disconnected: 3, failed: 2,
 };
 
 // Strip ANSI / escape sequences so prompt matching works on plain text. Each
@@ -55,6 +56,7 @@ const AWAITING_PATTERNS: RegExp[] = [
 ];
 
 export interface PaneRuntime {
+  externalState?: AgentState;
   lastOutputAt: number;
   tail: string;
   exited: boolean;
@@ -64,6 +66,7 @@ export interface PaneRuntime {
 /** Derive an agent's state from its runtime snapshot at time `now`. */
 export function detectAgentState(r: PaneRuntime, now: number): AgentState {
   if (r.exited) return "exited";
+  if (r.externalState) return r.externalState;
   const quietMs = now - r.lastOutputAt;
   // Search a wider window than a single prompt line: agent permission prompts are
   // multi-line boxes where the question sits several lines above the menu.
@@ -89,6 +92,9 @@ export function aggregateAgentState(states: AgentState[]): AgentState | null {
 /** Short human label for tooltips. */
 export function agentStateLabel(state: AgentState): string {
   switch (state) {
+    case "unknown": return "status not reported";
+    case "disconnected": return "disconnected — reconnect to inspect";
+    case "failed": return "agent reported an error";
     case "awaiting":
       return "waiting for input";
     case "running":
@@ -107,6 +113,7 @@ export function agentStateLabel(state: AgentState): string {
  * Only stable, meaningful states float a session up.
  */
 const SESSION_ATTENTION_RANK: Record<AgentState, number> = {
+  unknown: 0, disconnected: 2, failed: 2,
   awaiting: 2,
   exited: 1,
   running: 0,

@@ -4,6 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type {
   ConfirmRequest,
   DiffComment,
+  HerdrRuntime,
   Pane,
   PrInfo,
   Repository,
@@ -49,6 +50,9 @@ let hydrated = false;
 
 const SETTINGS_KEY = "agentpanel.settings";
 const DEFAULT_SETTINGS: Settings = {
+  terminalRuntime: "local",
+  herdrExecutable: "herdr-core",
+  herdrSession: "agentpanel",
   /** "" = system default: pty_spawn's default_shell() picks PowerShell on
    *  Windows and $SHELL on macOS/Linux. Never hardcode an exe here — a
    *  Windows-only default breaks fresh installs on other platforms. */
@@ -216,6 +220,7 @@ interface AppState {
   /** replace the derived per-pane agent-state map (called by the 1s ticker) */
   setAgentStatus: (status: Record<string, AgentState>) => void;
   setPaneSession: (paneId: string, sessionId: number) => void;
+  setPaneBinding: (paneId: string, binding: NonNullable<HerdrRuntime["binding"]>) => void;
   /** set the split ratio for a 2-pane tab (drag-resize) */
   setSplitRatio: (tabId: string, ratio: number) => void;
   /** rename a tab (right-click → rename); pins the title against auto-updates */
@@ -229,7 +234,7 @@ interface AppState {
   /** move tab `fromId` to the position of `toId` (drag-reorder) */
   reorderTab: (fromId: string, toId: string) => void;
   /** close (await) all panes for a worktree so its directory is unlocked */
-  closeWorktreeTerminals: (worktreeId: string) => Promise<void>;
+  closeWorktreeTerminals: (worktreeId: string, requireStopped?: boolean) => Promise<void>;
   pushToast: (message: string, kind?: Toast["kind"], focusTabId?: string) => void;
   dismissToast: (id: number) => void;
   /** show a confirmation dialog; resolves true if confirmed. Auto-true if the
@@ -240,8 +245,16 @@ interface AppState {
 }
 
 /** Build a fresh single-pane tab for a worktree. */
+function newPane(initialCommand?: string): Pane {
+  const settings = useStore.getState().settings;
+  return { id: nextPaneId(), initialCommand, ...(settings.terminalRuntime === "herdr" ? {
+    runtime: { kind: "herdr" as const, executable: settings.herdrExecutable, session: settings.herdrSession,
+      key: crypto.randomUUID().replaceAll("-", "") },
+  } : {}) };
+}
+
 function newTab(worktreeId: string, cwd: string, title: string, initialCommand?: string, agent?: boolean): TerminalTab {
-  return { id: nextTabId(), worktreeId, cwd, title, panes: [{ id: nextPaneId(), initialCommand }], agent };
+  return { id: nextTabId(), worktreeId, cwd, title, panes: [newPane(initialCommand)], agent };
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -439,6 +452,7 @@ export const useStore = create<AppState>((set, get) => ({
               title: string;
               panes?: number;
               paneIds?: string[];
+              runtimeByPane?: Record<string, HerdrRuntime>;
               color?: string;
             }>;
             activeIndex: number;
@@ -462,7 +476,7 @@ export const useStore = create<AppState>((set, get) => ({
             // Sessions written by v0.6.x stored only a count; mint ids for those.
             const panes: Pane[] =
               saved.length > 0
-                ? saved.map((id) => ({ id }))
+                ? saved.map((id) => ({ id, runtime: t.runtimeByPane?.[id] }))
                 : Array.from({ length: count }, () => ({ id: nextPaneId() }));
             return {
               id: nextTabId(),
@@ -500,11 +514,20 @@ export const useStore = create<AppState>((set, get) => ({
   listBranches: (repoId) => invoke<string[]>("list_branches", { repoId }),
 
   deleteWorktree: async (repoId, worktreePath) => {
-    // Kill the worktree's terminals FIRST so the OS releases the directory
-    // (on Windows a shell's cwd locks the dir and blocks `git worktree remove`).
-    await get().closeWorktreeTerminals(worktreePath);
     const prev = get().worktrees[repoId] ?? [];
     try {
+      const wt = prev.find((w) => w.path === worktreePath);
+      if (!wt || wt.isPrimary) throw new Error("Select a linked worktree to remove.");
+      await invoke("check_worktree_removal", { repoId, worktreePath });
+      if (!await get().requestConfirm({
+        message: `Remove worktree "${wt.name}"?`,
+        detail: "Stops all terminals in this worktree and deletes its directory. The branch is kept. Removal is blocked if modified, untracked, or ignored files are present.",
+        confirmLabel: "Stop terminals and remove",
+        danger: true,
+      })) return;
+      // Release Windows cwd locks only after preflight and explicit consent.
+      // The backend repeats the check to protect edits made since preflight.
+      await get().closeWorktreeTerminals(wt.id, true);
       const list = await invoke<Worktree[]>("delete_worktree", { repoId, worktreePath });
       set((s) => {
         const stillThere = new Set(list.map((w) => w.id));
@@ -548,12 +571,13 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => {
       const tab = s.terminals.find((t) => t.id === s.activeTabId);
       if (!tab || tab.panes.length >= 2) return s;
-      const panes = [...tab.panes, { id: nextPaneId() }];
+      const panes = [...tab.panes, newPane()];
       return { terminals: s.terminals.map((t) => (t.id === tab.id ? { ...t, panes } : t)) };
     }),
 
-  closePane: (tabId, paneId) =>
-    set((s) => {
+  closePane: (tabId, paneId) => {
+    const pane = get().terminals.find((t) => t.id === tabId)?.panes.find((p) => p.id === paneId);
+    const complete = () => set((s) => {
       const tab = s.terminals.find((t) => t.id === tabId);
       if (!tab) return s;
       const paneSessions = { ...s.paneSessions };
@@ -573,10 +597,22 @@ export const useStore = create<AppState>((set, get) => ({
         terminals: s.terminals.map((t) => (t.id === tabId ? { ...t, panes: remaining } : t)),
         paneSessions,
       };
-    }),
+    });
+    if (pane?.runtime) {
+      const id = get().paneSessions[paneId];
+      if (id === undefined) {
+        void get().requestConfirm({ message: "Forget this unconnected pane?",
+          detail: "AgentPanel cannot confirm that its terminal stopped. A terminal may keep running in Herdr core; reconnect first if you want to stop it.",
+          confirmLabel: "Forget pane", danger: true }).then((ok) => { if (ok) complete(); });
+        return;
+      }
+      void invoke("herdr_terminate", { id }).then(complete).catch((err) => get().pushToast(`Could not stop terminal: ${err}`));
+    } else complete();
+  },
 
-  closeTab: (id) =>
-    set((s) => {
+  closeTab: (id) => {
+    const persistent = get().terminals.find((t) => t.id === id)?.panes.filter((p) => p.runtime) ?? [];
+    const complete = () => set((s) => {
       const tab = s.terminals.find((t) => t.id === id);
       const terminals = s.terminals.filter((t) => t.id !== id);
       let activeTabId = s.activeTabId;
@@ -589,7 +625,27 @@ export const useStore = create<AppState>((set, get) => ({
       const paneSessions = { ...s.paneSessions };
       if (tab) for (const p of tab.panes) delete paneSessions[p.id];
       return { terminals, activeTabId, paneSessions };
-    }),
+    });
+    if (persistent.length) {
+      if (persistent.some((p) => get().paneSessions[p.id] === undefined)) {
+        void get().requestConfirm({ message: "Forget unconnected panes in this tab?",
+          detail: "Their terminals may keep running in Herdr core. Connected terminals will be stopped. Reconnect first to confirm every terminal stops.",
+          confirmLabel: "Stop connected terminals and forget tab", danger: true }).then(async (ok) => {
+            if (!ok) return;
+            try {
+              await Promise.all(persistent.flatMap((p) => {
+                const sid = get().paneSessions[p.id];
+                return sid === undefined ? [] : [invoke("herdr_terminate", { id: sid })];
+              }));
+              complete();
+            } catch (err) { get().pushToast(`Could not stop terminal: ${err}`); }
+          });
+        return;
+      }
+      void Promise.all(persistent.map((p) => invoke("herdr_terminate", { id: get().paneSessions[p.id] })))
+        .then(complete).catch((err) => get().pushToast(`Could not stop terminal: ${err}`));
+    } else complete();
+  },
 
   setActiveTab: (id) =>
     set((s) => {
@@ -679,6 +735,11 @@ export const useStore = create<AppState>((set, get) => ({
   setPaneSession: (paneId, sessionId) =>
     set((s) => ({ paneSessions: { ...s.paneSessions, [paneId]: sessionId } })),
 
+  setPaneBinding: (paneId, binding) => set((s) => ({
+    terminals: s.terminals.map((tab) => ({ ...tab, panes: tab.panes.map((pane) =>
+      pane.id === paneId && pane.runtime ? { ...pane, runtime: { ...pane.runtime, binding } } : pane) })),
+  })),
+
   setSplitRatio: (tabId, ratio) =>
     set((s) => ({
       terminals: s.terminals.map((t) => (t.id === tabId ? { ...t, splitRatio: ratio } : t)),
@@ -737,23 +798,31 @@ export const useStore = create<AppState>((set, get) => ({
     });
   },
 
-  closeWorktreeTerminals: async (worktreeId) => {
+  closeWorktreeTerminals: async (worktreeId, requireStopped = false) => {
     const tabs = get().terminals.filter((t) => t.worktreeId === worktreeId);
     const panes = tabs.flatMap((t) => t.panes);
+    if (requireStopped && panes.some((p) => p.runtime && get().paneSessions[p.id] === undefined)) {
+      throw new Error("A persistent terminal is still connecting. Wait before removing its worktree.");
+    }
     // Await EVERY pane's PTY close so all shells are dead (and the directory is
     // unlocked) before the caller removes the worktree.
+    const failures: unknown[] = [];
     await Promise.all(
       panes.map(async (p) => {
         const sid = get().paneSessions[p.id];
         if (sid !== undefined) {
           try {
-            await invoke("pty_close", { id: sid });
+            await invoke(p.runtime?.kind === "herdr" ? "herdr_terminate" : "pty_close", { id: sid });
           } catch (err) {
+            failures.push(err);
             console.error(`pty_close failed for pane ${p.id}`, err);
           }
         }
       }),
     );
+    if (requireStopped && failures.length) {
+      throw new Error("Could not stop all terminals. The worktree has not been removed; retry after stopping them.");
+    }
     set((s) => {
       const tabIds = new Set(tabs.map((t) => t.id));
       const terminals = s.terminals.filter((t) => !tabIds.has(t.id));
@@ -860,6 +929,7 @@ useStore.subscribe((s) => {
       // Ids, not a count: scrollback is keyed on them and must survive a
       // restart. `panes` is still read on restore for v0.6.x sessions.
       paneIds: t.panes.map((p) => p.id),
+      runtimeByPane: Object.fromEntries(t.panes.filter((p) => p.runtime).map((p) => [p.id, p.runtime])),
       color: t.color,
     })),
     activeIndex: s.terminals.findIndex((t) => t.id === s.activeTabId),

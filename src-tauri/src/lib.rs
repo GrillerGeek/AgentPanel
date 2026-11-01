@@ -3,6 +3,8 @@ mod diff;
 mod fonts;
 mod gh;
 mod git;
+mod herdr;
+mod herdr_commands;
 mod model;
 mod pty;
 mod scrollback;
@@ -200,6 +202,7 @@ pub fn run() {
     }
     builder
         .manage(pty::PtyManager::default())
+        .manage(herdr_commands::HerdrManager::default())
         .manage(AppStore::default())
         .manage(WatcherState::default())
         .setup(|app| {
@@ -215,6 +218,12 @@ pub fn run() {
             pty::pty_resize,
             pty::pty_close,
             pty::detect_login_path,
+            herdr_commands::herdr_open,
+            herdr_commands::herdr_write,
+            herdr_commands::herdr_resize,
+            herdr_commands::herdr_ack,
+            herdr_commands::herdr_detach,
+            herdr_commands::herdr_terminate,
             commands::add_repository,
             commands::list_repositories,
             commands::remove_repository,
@@ -222,6 +231,7 @@ pub fn run() {
             commands::list_worktrees,
             commands::list_branches,
             commands::create_worktree,
+            commands::check_worktree_removal,
             commands::delete_worktree,
             commands::worktree_status,
             commands::worktree_pr,

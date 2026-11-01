@@ -27,6 +27,28 @@ terminal. Built on Tauri (Rust) + React + xterm.js.
   shortcuts (`Ctrl+T/W/Tab/1–9`), session restore, and **12 themes** (Tokyo Night, Catppuccin,
   Dracula, Nord, Solarized, …).
 
+## Experimental persistent terminals
+
+The default remains the built-in local PTY. To try persistent terminals, install
+[herdr-core](https://herdr.dev/core/) separately, then select **Settings → Runtime for new
+terminals → Herdr core**. Set the executable name or full path and use a dedicated session
+(default: `agentpanel`). Save, then create a new terminal. Existing panes keep their runtime.
+
+Persistent panes reconnect to the same core and terminal when AgentPanel reopens. Closing the
+app detaches; closing a connected pane stops its program. If stopping fails, the pane stays
+visible. Forgetting an unconnected pane requires confirmation because its program may still be
+running. Removing a worktree requires connected terminals to stop successfully first.
+
+This prototype has native macOS acceptance against hc 0.1.16. Windows is explicitly disabled
+pending ConPTY input validation; Linux, real SSH, automatic reconnect, and multi-machine UI
+remain future work. Missing or changed core identities produce an error, with a Reconnect
+button; AgentPanel never silently replaces them with fresh shells or replays an agent launch.
+Herdr owns terminal history for these panes, so the local scrollback toggle applies to local
+PTYs only. Core history is independent of that toggle and may contain sensitive terminal output.
+
+The executable is not bundled or installed by AgentPanel. See the
+[adapter acceptance notes](docs/dev/2026-11-01-herdr-adapter-acceptance.md) for validation and limits.
+
 ## Runtime requirements
 
 - **Windows 10 1809+ / Windows 11**, **macOS 11+** (Apple Silicon or Intel), or **Linux**
