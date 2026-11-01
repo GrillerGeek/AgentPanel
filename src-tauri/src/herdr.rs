@@ -20,7 +20,11 @@ mod tests;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Binding { pub core_id: String, pub address: String }
+pub struct Binding {
+    pub core_id: String, pub address: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub machine_id: Option<String>,
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -32,7 +36,12 @@ pub struct Options {
     pub shell: String,
     pub env: HashMap<String, String>,
     pub binding: Option<Binding>,
+    #[serde(default)]
+    pub attach_only: bool,
 }
+
+#[derive(Deserialize)]
+pub struct Endpoint { pub executable: String, pub session: String }
 
 #[derive(Clone, Serialize, Debug)]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -91,10 +100,11 @@ pub enum Control {
     Terminate(oneshot::Sender<Result<(), String>>),
 }
 
-pub struct Connection { pub sender: mpsc::Sender<Control>, finished: Arc<AtomicBool> }
+pub struct Connection { pub sender: mpsc::Sender<Control>, finished: Arc<AtomicBool>, attach_only: bool }
 
 impl Connection {
     pub async fn terminate(&self) -> Result<(), String> {
+        if self.attach_only { return Err("Imported terminals may only be detached from AgentPanel".into()); }
         if self.finished.load(Ordering::Acquire) { return Ok(()); }
         let (sender, reply) = oneshot::channel();
         self.send(Control::Terminate(sender))?;
@@ -110,35 +120,41 @@ impl Connection {
 pub struct Opened { pub connection: Connection, pub binding: Binding, pub created: bool }
 
 fn validate(options: &Options) -> Result<(), String> {
-    if options.executable.trim().is_empty() { return Err("Set the herdr-core executable in Settings".into()); }
-    if options.session.is_empty() || options.session.len() > 32 ||
-        !options.session.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') {
-        return Err("Herdr session must contain 1–32 letters, numbers, hyphens, or underscores".into());
-    }
+    validate_endpoint(&options.executable, &options.session)?;
+    if options.attach_only && options.binding.is_none() { return Err("Attaching requires an existing terminal binding".into()); }
     if options.key.len() != 32 || !options.key.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err("Invalid persistent pane identity".into());
     }
-    if !std::path::Path::new(&options.cwd).is_absolute() { return Err("Herdr requires an absolute worktree path".into()); }
+    // Imported paths belong to the destination OS, not necessarily this OS.
+    if options.cwd.is_empty() || (!options.attach_only && !std::path::Path::new(&options.cwd).is_absolute()) {
+        return Err("Herdr requires an absolute worktree path".into());
+    }
     Ok(())
 }
 
-/// Serialized by the Tauri manager to avoid simultaneous creation of the same
-/// pane. The unique core name also prevents duplicates across app processes.
-pub async fn open(options: Options, rows: u16, cols: u16,
-                  emit: impl Fn(Event) -> bool + Send + Sync + 'static) -> Result<Opened, String> {
-    validate(&options)?;
+fn validate_endpoint(executable: &str, session: &str) -> Result<(), String> {
+    if executable.trim().is_empty() { return Err("Set the herdr-core executable in Settings".into()); }
+    if session.is_empty() || session.len() > 32 ||
+        !session.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') {
+        return Err("Herdr session must contain 1–32 letters, numbers, hyphens, or underscores".into());
+    }
+    Ok(())
+}
+
+async fn connect(executable: &str, session: &str) -> Result<(Child, ChildStdin, BufReader<ChildStdout>, Value), String> {
+    validate_endpoint(executable, session)?;
     if cfg!(windows) { return Err("Herdr prototype is not enabled on Windows yet (ConPTY input acceptance pending)".into()); }
-    let mut command = Command::new(&options.executable);
+    let mut command = Command::new(executable);
     command.arg("connect").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).kill_on_drop(true);
     // Never attach to an inherited agent session or endpoint accidentally.
     for (key, _) in std::env::vars() {
         if key.starts_with("HC_") || key.starts_with("HERDR_") { command.env_remove(key); }
     }
-    command.env("HC_SESSION", &options.session);
+    command.env("HC_SESSION", session);
     let mut child = command.spawn().map_err(|e| format!("Could not start herdr-core connect: {e}"))?;
     let mut writer = child.stdin.take().unwrap();
     let mut reader = BufReader::new(child.stdout.take().unwrap());
-    let (binding, created, channel, events, early) = tokio::time::timeout(DEADLINE * 3, async {
+    let hello = tokio::time::timeout(DEADLINE, async {
         writer.write_all(b"{\"jsonrpc\":\"2.0\",\"id\":0,\"method\":\"hello\",\"params\":{\"framed\":true,\"generation\":1}}\n").await.map_err(|e| e.to_string())?;
         writer.flush().await.map_err(|e| e.to_string())?;
         let mut line = Vec::new();
@@ -149,8 +165,55 @@ pub async fn open(options: Options, rows: u16, cols: u16,
             if line.len() > 65536 { return Err("Herdr handshake too large".to_string()); }
         }
         let hello: Value = serde_json::from_slice(&line).map_err(|e| e.to_string())?;
-        let hello = &hello["result"];
+        let hello = hello["result"].clone();
         if hello["generation"] != 1 || hello["framed"] != true { return Err("Incompatible Herdr protocol".into()); }
+        Ok::<Value, String>(hello)
+    }).await.map_err(|_| "Herdr handshake timed out".to_string())??;
+    Ok((child, writer, reader, hello))
+}
+
+/// An explicit refresh of the selected core; never reads screen contents or
+/// creates terminals, installs runtimes, changes labels, or edits SSH profiles.
+pub async fn inventory(endpoint: Endpoint) -> Result<Value, String> {
+    let (mut child, mut writer, mut reader, hello) = connect(&endpoint.executable, &endpoint.session).await?;
+    let mut early = Vec::new();
+    let result = async {
+        let machines = request(&mut writer, &mut reader, "machine.list", json!({}), &mut early).await?;
+        let terminals = request(&mut writer, &mut reader, "terminal.list", json!({}), &mut early).await?;
+        let machines = machines["machines"].as_array().ok_or("Invalid machine inventory")?.iter().map(|m| json!({
+            "name":m["name"],"coreId":m["id"],"host":m["host"],"session":m["session"],
+            "state":m["state"],"why":m["why"]
+        })).collect::<Vec<_>>();
+        let terminals = terminals["terminals"].as_array().ok_or("Invalid terminal inventory")?.iter().map(|t| json!({
+            "address":t["address"],"cwd":t["cwd"],"title":t["title"],"state":t["state"],
+            "status":t["status"]["state"]
+        })).collect::<Vec<_>>();
+        Ok(json!({"coreId":hello["core"]["id"],"coreName":hello["core"]["name"],"machines":machines,"terminals":terminals}))
+    }.await;
+    let _ = child.kill().await; // Only the disposable `hc connect` viewer.
+    result
+}
+
+fn validate_machine(binding: &Binding, machines: &Value) -> Result<(), String> {
+    if let Some((name, _)) = binding.address.split_once('/') {
+        let machine = machines["machines"].as_array().and_then(|items| items.iter().find(|m| m["name"] == name))
+            .ok_or("Saved machine is no longer configured")?;
+        let expected = binding.machine_id.as_deref().filter(|s| !s.is_empty()).ok_or("Saved remote terminal is missing machine identity")?;
+        if machine["id"].as_str() != Some(expected) {
+            return Err("Saved terminal belongs to another machine. No replacement was started.".into());
+        }
+        if machine["state"] != "connected" { return Err("Machine is offline or needs login. Refresh Machines after signing in with Herdr/OpenSSH.".into()); }
+    }
+    Ok(())
+}
+
+/// Serialized by the Tauri manager to avoid simultaneous creation of the same
+/// pane. The unique core name also prevents duplicates across app processes.
+pub async fn open(options: Options, rows: u16, cols: u16,
+                  emit: impl Fn(Event) -> bool + Send + Sync + 'static) -> Result<Opened, String> {
+    validate(&options)?;
+    let (child, mut writer, mut reader, hello) = connect(&options.executable, &options.session).await?;
+    let (binding, created, channel, events, early) = tokio::time::timeout(DEADLINE * 3, async {
         for needed in ["terminal.list", "terminal.get", "terminal.run", "terminal.attach", "terminal.kill", "events.subscribe"] {
             if !hello["methods"].as_array().is_some_and(|a| a.iter().any(|m| m == needed)) {
                 return Err(format!("Herdr does not support {needed}"));
@@ -160,6 +223,10 @@ pub async fn open(options: Options, rows: u16, cols: u16,
         let mut early = Vec::new();
         let (terminal, created) = if let Some(binding) = &options.binding {
             if binding.core_id != core_id { return Err("Saved terminal belongs to another core. No replacement was started.".into()); }
+            if options.attach_only {
+                let machines = request(&mut writer, &mut reader, "machine.list", json!({}), &mut early).await?;
+                validate_machine(binding, &machines)?;
+            }
             (request(&mut writer, &mut reader, "terminal.get", json!({"terminal":binding.address}), &mut early).await?, false)
         } else {
             let list = request(&mut writer, &mut reader, "terminal.list", json!({}), &mut early).await?;
@@ -183,10 +250,13 @@ pub async fn open(options: Options, rows: u16, cols: u16,
             }
         };
         if terminal["state"] != "live" { return Err("Saved Herdr terminal has ended. Close this pane to create a new terminal.".into()); }
-        if terminal["labels"]["agentpanel.pane"] != options.key || terminal["cwd"] != options.cwd {
+        if (!options.attach_only && terminal["labels"]["agentpanel.pane"] != options.key) || terminal["cwd"] != options.cwd {
             return Err("Saved Herdr terminal does not match this pane and worktree".into());
         }
         let address = terminal["address"].as_str().ok_or("Herdr omitted terminal address")?.to_string();
+        if options.attach_only && options.binding.as_ref().is_none_or(|b| b.address != address) {
+            return Err("Saved terminal address changed. Refresh Machines to attach explicitly.".into());
+        }
         let attached = request(&mut writer, &mut reader, "terminal.attach", json!({"terminal":address,
             "rows":rows,"cols":cols,"history":200,"resumed":!created}), &mut early).await?;
         let channel = stream_channel(&attached)?;
@@ -195,13 +265,13 @@ pub async fn open(options: Options, rows: u16, cols: u16,
         // Subscribe returns the authoritative snapshot at the start of the
         // event stream. The earlier get/run result can already be stale.
         emit(Event::Status { state: subscription_state(&subscribed, &address) });
-        Ok((Binding { core_id, address }, created, channel, events, early))
+        Ok((Binding { core_id, address, machine_id: options.binding.as_ref().and_then(|b| b.machine_id.clone()) }, created, channel, events, early))
     }).await.map_err(|_| "Herdr connection timed out. Reconnect to inspect uncertain delivery.".to_string())??;
     let (sender, receiver) = mpsc::channel(32);
     let address = binding.address.clone();
     let finished = Arc::new(AtomicBool::new(false));
     tokio::spawn(drive(child, writer, reader, channel, events, address, early, receiver, finished.clone(), emit));
-    Ok(Opened { connection: Connection { sender, finished }, binding, created })
+    Ok(Opened { connection: Connection { sender, finished, attach_only: options.attach_only }, binding, created })
 }
 
 fn stream_channel(value: &Value) -> Result<u32, String> {

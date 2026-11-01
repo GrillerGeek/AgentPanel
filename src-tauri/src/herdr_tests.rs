@@ -34,7 +34,7 @@ fn options(binding: Option<Binding>) -> Options {
         executable: std::env::var("AGENTPANEL_HC_TEST_BINARY").unwrap_or("herdr-core".into()),
         session: "agentpanel-adapter-test".into(), key: "0123456789abcdef0123456789abcdef".into(),
         cwd: std::env::var("AGENTPANEL_HC_TEST_CWD").unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().into()),
-        shell: "/bin/sh".into(), env: HashMap::new(), binding,
+        shell: "/bin/sh".into(), env: HashMap::new(), binding, attach_only: false,
     }
 }
 
@@ -57,6 +57,30 @@ fn initial_status_comes_from_the_subscription_boundary() {
     assert_eq!(subscription_state(&snapshot, "t1").as_deref(), Some("blocked"));
     assert_eq!(subscription_state(&snapshot, "missing"), None);
     assert_eq!(subscription_state(&json!({"terminals":[]}), "t1"), None);
+}
+
+#[test]
+fn imported_remote_bindings_require_the_same_connected_machine() {
+    let mut binding = Binding { core_id: "local".into(), address: "box/t1".into(), machine_id: Some("remote".into()) };
+    let machines = json!({"machines":[{"name":"box","id":"remote","state":"connected"}]});
+    assert!(validate_machine(&binding, &machines).is_ok());
+    binding.machine_id = Some("replacement".into());
+    assert!(validate_machine(&binding, &machines).unwrap_err().contains("another machine"));
+    binding.machine_id = None;
+    assert!(validate_machine(&binding, &machines).is_err());
+    binding.machine_id = Some("remote".into());
+    assert!(validate_machine(&binding, &json!({"machines":[{"name":"box","id":"remote","state":"needs_login"}]})).is_err());
+    assert!(validate_machine(&binding, &json!({"machines":[]})).is_err());
+}
+
+#[test]
+fn imported_paths_use_destination_semantics_but_never_create_a_program() {
+    let mut opts = options(None);
+    opts.attach_only = true;
+    assert!(validate(&opts).unwrap_err().contains("existing terminal"));
+    opts.binding = Some(Binding { core_id: "c".into(), address: "win/t1".into(), machine_id: Some("w".into()) });
+    opts.cwd = "C:\\project".into();
+    assert!(validate(&opts).is_ok());
 }
 
 async fn marker(rx: &mut mpsc::UnboundedReceiver<Event>, connection: &Connection, marker: &[u8]) -> Vec<u8> {
@@ -84,6 +108,15 @@ async fn live_adapter_reconnects_without_replaying_or_replacing_the_program() {
     let opened = open(options(None), 24, 80, move |e| events.send(e).is_ok()).await.unwrap();
     assert!(opened.created);
     let saved = opened.binding.clone();
+    let mut imported = options(Some(saved.clone()));
+    imported.attach_only = true;
+    imported.key = "b".repeat(32); // Existing program need not carry our pane label.
+    let imported = open(imported, 24, 80, |_| true).await.unwrap();
+    assert!(!imported.created);
+    assert!(imported.connection.terminate().await.unwrap_err().contains("detached"));
+    imported.connection.send(Control::Detach).unwrap();
+    let snapshot = inventory(Endpoint { executable: options(None).executable, session: options(None).session }).await.unwrap();
+    assert!(snapshot["terminals"].as_array().unwrap().iter().any(|t| t["address"] == saved.address));
     opened.connection.send(Control::Input("printf '\\nPID:%s\\n' \"$$\"\r".into())).unwrap();
     let output = marker(&mut rx, &opened.connection, b"\r\nPID:").await;
     // The marker prefix can span chunks; ask for a complete delimited value.
@@ -128,18 +161,35 @@ async fn live_adapter_reconnects_without_replaying_or_replacing_the_program() {
 #[tokio::test]
 #[ignore = "run through scripts/spikes/run_herdr_ssh_test.py with a disposable SSH guest"]
 async fn live_adapter_attaches_to_ssh_terminal() {
+    let snapshot = inventory(Endpoint { executable: options(None).executable, session: options(None).session }).await.unwrap();
+    let addresses: Vec<_> = snapshot["terminals"].as_array().unwrap().iter().map(|t| t["address"].as_str().unwrap()).collect();
+    assert!(addresses.contains(&std::env::var("AGENTPANEL_HC_REMOTE_ADDRESS").unwrap().as_str()));
+    assert!(addresses.contains(&std::env::var("AGENTPANEL_HC_OTHER_ADDRESS").unwrap().as_str()));
     let binding = Binding { core_id: std::env::var("AGENTPANEL_HC_REMOTE_CORE").unwrap(),
-        address: std::env::var("AGENTPANEL_HC_REMOTE_ADDRESS").unwrap() };
+        address: std::env::var("AGENTPANEL_HC_REMOTE_ADDRESS").unwrap(),
+        machine_id: Some(std::env::var("AGENTPANEL_HC_REMOTE_MACHINE").unwrap()) };
     let mut opts = options(Some(binding.clone()));
     opts.key = "a".repeat(32);
+    opts.attach_only = true;
     let (events, mut rx) = mpsc::unbounded_channel();
     let opened = open(opts, 24, 80, move |e| events.send(e).is_ok()).await.unwrap();
     assert!(!opened.created);
     assert_eq!(opened.binding, binding);
+    assert!(opened.connection.terminate().await.is_err());
+    let other_binding = Binding { core_id: binding.core_id.clone(),
+        address: std::env::var("AGENTPANEL_HC_OTHER_ADDRESS").unwrap(),
+        machine_id: Some(std::env::var("AGENTPANEL_HC_OTHER_MACHINE").unwrap()) };
+    let mut other_opts = options(Some(other_binding));
+    other_opts.attach_only = true;
+    let (other_events, mut other_rx) = mpsc::unbounded_channel();
+    let other = open(other_opts, 24, 80, move |e| other_events.send(e).is_ok()).await.unwrap();
+    other.connection.send(Control::Input("printf '\\nOTHER-%s-END\\n' \"$(uname -s)\"\r".into())).unwrap();
+    marker(&mut other_rx, &other.connection, b"\r\nOTHER-Linux-END\r\n").await;
     opened.connection.send(Control::Input("printf '\\nSSH-%s-END\\n' \"$(uname -s)\"\r".into())).unwrap();
     marker(&mut rx, &opened.connection, b"\r\nSSH-Linux-END\r\n").await;
     opened.connection.send(Control::Resize(33, 99)).unwrap();
     opened.connection.send(Control::Input("stty size\r".into())).unwrap();
     marker(&mut rx, &opened.connection, b"33 99").await;
     opened.connection.send(Control::Detach).unwrap();
+    other.connection.send(Control::Detach).unwrap();
 }

@@ -5,6 +5,9 @@ import type {
   ConfirmRequest,
   DiffComment,
   HerdrRuntime,
+  HerdrEndpoint,
+  HerdrInventory,
+  HerdrTerminal,
   Pane,
   PrInfo,
   Repository,
@@ -189,6 +192,7 @@ interface AppState {
 
   /** open (or focus the existing) terminal for a worktree */
   openWorktreeTerminal: (wt: Worktree) => void;
+  attachHerdrTerminal: (endpoint: HerdrEndpoint, inventory: HerdrInventory, terminal: HerdrTerminal) => void;
   /** open an additional terminal (separate tab) for the active tab's worktree */
   duplicateActiveTerminal: () => void;
   /** open a new terminal in the active worktree that auto-runs `command` */
@@ -453,15 +457,22 @@ export const useStore = create<AppState>((set, get) => ({
               panes?: number;
               paneIds?: string[];
               runtimeByPane?: Record<string, HerdrRuntime>;
+              attachment?: TerminalTab["attachment"];
               color?: string;
             }>;
             activeIndex: number;
           })
         : null;
       if (saved?.tabs?.length) {
-        // Only restore tabs whose worktree still exists.
+        // Local tabs require a current worktree. Imported terminal bindings
+        // survive independently, including while their machine is offline.
         const existing = new Set(Object.values(get().worktrees).flat().map((w) => w.id));
-        const valid = saved.tabs.filter((t) => existing.has(t.worktreeId));
+        const valid = saved.tabs.filter((t) => t.attachment
+          ? t.paneIds?.length === 1 && t.paneIds.every((id) => {
+              const r = t.runtimeByPane?.[id];
+              return r?.attachOnly && r.binding?.coreId && r.binding.address && t.cwd;
+            })
+          : existing.has(t.worktreeId) && !Object.values(t.runtimeByPane ?? {}).some((r) => r.attachOnly));
         if (valid.length) {
           // Pre-pass: adopt every restored id BEFORE minting any, from ALL
           // saved tabs (not just `valid`). Ids belonging to a dropped tab
@@ -484,6 +495,7 @@ export const useStore = create<AppState>((set, get) => ({
               cwd: t.cwd,
               title: t.title,
               panes,
+              attachment: t.attachment,
               color: t.color,
             };
           });
@@ -553,16 +565,40 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => ({ terminals: [...s.terminals, tab], activeTabId: tab.id }));
   },
 
+  attachHerdrTerminal: (endpoint, inventory, terminal) => {
+    const remote = terminal.address.includes("/");
+    const machineName = remote ? terminal.address.split("/")[0] : "This computer";
+    const machine = remote ? inventory.machines.find((m) => m.name === machineName) : undefined;
+    if (terminal.state !== "live" || !terminal.cwd || !inventory.coreId ||
+        (remote && (!machine?.coreId || machine.state !== "connected"))) {
+      get().pushToast("Terminal is unavailable. Refresh Machines before attaching.");
+      return;
+    }
+    const binding = { coreId: inventory.coreId, address: terminal.address,
+      ...(machine ? { machineId: machine.coreId } : {}) };
+    // Include endpoint and remote core identity: equal paths and short terminal
+    // IDs on different machines/sessions must never collide with local worktrees.
+    const worktreeId = `herdr:${JSON.stringify([endpoint.executable, endpoint.session, binding])}`;
+    const existing = get().terminals.find((t) => t.worktreeId === worktreeId);
+    if (existing) { set({ activeTabId: existing.id }); return; }
+    const pane: Pane = { id: nextPaneId(), runtime: { kind: "herdr", ...endpoint,
+      key: crypto.randomUUID().replaceAll("-", ""), binding, attachOnly: true } };
+    const tab: TerminalTab = { id: nextTabId(), worktreeId, cwd: terminal.cwd,
+      title: terminal.title || terminal.address, panes: [pane],
+      attachment: { machine: machineName, session: machine?.session ?? (machine ? "default" : endpoint.session) } };
+    set((s) => ({ terminals: [...s.terminals, tab], activeTabId: tab.id, diffOpen: false }));
+  },
+
   duplicateActiveTerminal: () => {
     const active = get().terminals.find((t) => t.id === get().activeTabId);
-    if (!active) return;
+    if (!active || active.attachment) return;
     const tab = newTab(active.worktreeId, active.cwd, active.title);
     set((s) => ({ terminals: [...s.terminals, tab], activeTabId: tab.id }));
   },
 
   runAgentInActive: (command) => {
     const active = get().terminals.find((t) => t.id === get().activeTabId);
-    if (!active) return;
+    if (!active || active.attachment) return;
     const tab = newTab(active.worktreeId, active.cwd, `${active.title} · ${command}`, command, true);
     set((s) => ({ terminals: [...s.terminals, tab], activeTabId: tab.id }));
   },
@@ -570,7 +606,7 @@ export const useStore = create<AppState>((set, get) => ({
   splitActiveTab: () =>
     set((s) => {
       const tab = s.terminals.find((t) => t.id === s.activeTabId);
-      if (!tab || tab.panes.length >= 2) return s;
+      if (!tab || tab.attachment || tab.panes.length >= 2) return s;
       const panes = [...tab.panes, newPane()];
       return { terminals: s.terminals.map((t) => (t.id === tab.id ? { ...t, panes } : t)) };
     }),
@@ -598,7 +634,7 @@ export const useStore = create<AppState>((set, get) => ({
         paneSessions,
       };
     });
-    if (pane?.runtime) {
+    if (pane?.runtime && !pane.runtime.attachOnly) {
       const id = get().paneSessions[paneId];
       if (id === undefined) {
         void get().requestConfirm({ message: "Forget this unconnected pane?",
@@ -611,7 +647,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   closeTab: (id) => {
-    const persistent = get().terminals.find((t) => t.id === id)?.panes.filter((p) => p.runtime) ?? [];
+    const persistent = get().terminals.find((t) => t.id === id)?.panes.filter((p) => p.runtime && !p.runtime.attachOnly) ?? [];
     const complete = () => set((s) => {
       const tab = s.terminals.find((t) => t.id === id);
       const terminals = s.terminals.filter((t) => t.id !== id);
@@ -692,7 +728,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Only one side panel at a time, so the terminal never loses two panels'
   // width (spec D8).
-  toggleDiff: () => set((s) => ({ diffOpen: !s.diffOpen, notesOpen: false })),
+  toggleDiff: () => set((s) => s.terminals.find((t) => t.id === s.activeTabId)?.attachment ? s : ({ diffOpen: !s.diffOpen, notesOpen: false })),
 
   setSelectedDiffFile: (file) => set({ selectedDiffFile: file }),
 
@@ -801,6 +837,9 @@ export const useStore = create<AppState>((set, get) => ({
   closeWorktreeTerminals: async (worktreeId, requireStopped = false) => {
     const tabs = get().terminals.filter((t) => t.worktreeId === worktreeId);
     const panes = tabs.flatMap((t) => t.panes);
+    if (requireStopped && panes.some((p) => p.runtime?.attachOnly)) {
+      throw new Error("Imported terminals cannot authorize worktree removal.");
+    }
     if (requireStopped && panes.some((p) => p.runtime && get().paneSessions[p.id] === undefined)) {
       throw new Error("A persistent terminal is still connecting. Wait before removing its worktree.");
     }
@@ -812,7 +851,7 @@ export const useStore = create<AppState>((set, get) => ({
         const sid = get().paneSessions[p.id];
         if (sid !== undefined) {
           try {
-            await invoke(p.runtime?.kind === "herdr" ? "herdr_terminate" : "pty_close", { id: sid });
+            await invoke(p.runtime?.attachOnly ? "herdr_detach" : p.runtime?.kind === "herdr" ? "herdr_terminate" : "pty_close", { id: sid });
           } catch (err) {
             failures.push(err);
             console.error(`pty_close failed for pane ${p.id}`, err);
@@ -930,6 +969,7 @@ useStore.subscribe((s) => {
       // restart. `panes` is still read on restore for v0.6.x sessions.
       paneIds: t.panes.map((p) => p.id),
       runtimeByPane: Object.fromEntries(t.panes.filter((p) => p.runtime).map((p) => [p.id, p.runtime])),
+      attachment: t.attachment,
       color: t.color,
     })),
     activeIndex: s.terminals.findIndex((t) => t.id === s.activeTabId),

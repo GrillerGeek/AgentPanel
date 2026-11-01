@@ -4,7 +4,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl openssh-server procps && \
     useradd --create-home --shell /bin/sh --password '*' agentpanel && \
     mkdir -p /run/sshd /home/agentpanel/project && \
-    chown agentpanel:agentpanel /home/agentpanel/project
+    chown agentpanel:agentpanel /home/agentpanel/project && \
+    rm -f /etc/ssh/ssh_host_*key*
 
 # Public official release, checksum pinned independently of the container base.
 RUN set -eu; \
