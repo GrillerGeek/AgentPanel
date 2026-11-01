@@ -47,3 +47,15 @@ Repository identity currently uses a local path (`src-tauri/src/commands.rs::add
 Acceptance for that next slice: attach terminals on two configured machines concurrently; distinguish identical paths; restore each binding after app restart without launch replay; disconnect one machine without disrupting the other; preserve unknown status when reports are missing; keep offline terminals visible; refuse destructive remote actions until their own safety rules are implemented. Remote worktree creation/deletion should be a subsequent slice with the same dirty/untracked/ignored-file and confirmed-stop protections as local worktrees.
 
 Assumption to review: prioritize reliable attachment and honest machine identity before remote project mutation, automatic reconnection policy, or broader task orchestration. This is a proposed next slice, not a claim that machine navigation has shipped in this PR.
+
+## Machine browser follow-up
+
+Jason authorized the next feature. Implemented the browser slice on `feature/herdr-machine-browser`, stacked on the runtime work in `Herdrcompare` / PR #56. The prior recommendation above is the planning record; the browser and attachment behavior now exist in this follow-up branch.
+
+- Added a sidebar machine/session browser with explicit refresh, machine/login status, existing-terminal attachment, stale-inventory handling, and a remembered browser endpoint that does not alter defaults for new local worktree terminals.
+- Imported tabs pin aggregate and remote core identity, persist independently of local repositories, and detach on close. They cannot start a replacement program, terminate their imported program, relabel it, or authorize local worktree removal. Local launch/split/editor/files/diff routes remain unavailable for imported paths.
+- Removed global open serialization for binding-based attachments, so an unavailable host does not hold unrelated viewers behind its deadline. New-program creation retains serialization.
+- Local frontend suite: **258 passed**. Local ordinary Rust suite: **70 passed, 2 explicitly ignored live tests**. Live persistence/inventory/import checks passed. Native two-guest UI acceptance verified identical-path separation, restart, one-host SSH outage with the other still interactive, reconnect to original PIDs 70/75, and detach preserving both programs and their empty labels. See the acceptance document for details.
+- Extended the Docker SSH fixture to two distinct guest cores/host keys, strict host checking, an interruption of only the first SSH listener/session, and bounded optional native UI staging. The core, guests, and scratch credentials were cleaned up after native testing.
+
+This slice deliberately leaves machine provisioning/login, remote repository/worktree mutation, and new remote program creation for subsequent work. Windows, authenticated Claude, physical-host/WAN/sleep/MFA, crash recovery, and large-session acceptance gates remain as recorded above.

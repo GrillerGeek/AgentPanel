@@ -114,9 +114,11 @@ export function TerminalPane({
   autoFocus,
   active = true,
   runtime,
+  locationLabel,
 }: {
   cwd?: string;
   runtime?: HerdrRuntime;
+  locationLabel?: string;
   paneId?: string;
   initialCommand?: string;
   autoFocus?: boolean;
@@ -278,7 +280,7 @@ export function TerminalPane({
       if (paneId && !runtime) registerPane(paneId, () => serialize.serialize());
       if (paneId) registerPaneWriter(paneId, (text) => term.paste(text));
 
-      const env = await resolveSpawnEnv(shell, terminalEnv, syncLoginPath);
+      const env = runtime?.attachOnly ? null : await resolveSpawnEnv(shell, terminalEnv, syncLoginPath);
       const opened = await openTerminal({
         runtime, cwd: cwd ?? "", rows: term.rows, cols: term.cols, shell, env, output,
         status: (state) => { if (!disposed && paneId) noteRuntimeState(paneId, reportedState(state)); },
@@ -446,6 +448,7 @@ export function TerminalPane({
     <div className="terminal-pane-wrap">
       {runtime && <div className="runtime-status" role="status">
         Herdr core · {runtime.session}
+        {runtime.attachOnly && <> · {locationLabel} · attached — closing detaches</>}
         {connectionError && <> — {connectionError} <button onClick={() => setReconnect((n) => n + 1)}>Reconnect</button></>}
       </div>}
       {searchOpen && (

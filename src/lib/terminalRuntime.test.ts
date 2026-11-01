@@ -16,6 +16,13 @@ const options = () => ({ runtime, cwd: "/repo", shell: "", env: null, rows: 24, 
 beforeEach(() => { channels.length = 0; vi.mocked(invoke).mockReset(); });
 
 describe("persistent terminal transport", () => {
+  it("detaches imported terminals even when generic teardown requests termination", async () => {
+    vi.mocked(invoke).mockResolvedValue({ id: 8, created: false, binding });
+    const session = await openTerminal({ ...options(), runtime: { ...runtime, attachOnly: true } });
+    await session.dispose(true);
+    expect(invoke).toHaveBeenCalledWith("herdr_detach", { id: 8 });
+    expect(invoke).not.toHaveBeenCalledWith("herdr_terminate", expect.anything());
+  });
   it("uses saved identity and returns output credit only after the renderer consumes it", async () => {
     vi.mocked(invoke).mockResolvedValue({ id: 7, created: false, binding });
     const opts = options();

@@ -219,6 +219,7 @@ pub fn run() {
             pty::pty_close,
             pty::detect_login_path,
             herdr_commands::herdr_open,
+            herdr_commands::herdr_inventory,
             herdr_commands::herdr_write,
             herdr_commands::herdr_resize,
             herdr_commands::herdr_ack,

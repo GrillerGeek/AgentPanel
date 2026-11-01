@@ -58,6 +58,7 @@ export function ActiveSessions() {
       <div className="session-list">
         {sortedOrder.map((worktreeId) => {
           const label = labels[worktreeId];
+          const imported = terminals.find((t) => t.worktreeId === worktreeId && t.attachment);
           const active = worktreeId === activeWorktreeId;
           return (
             <div key={worktreeId} className={`session-row ${active ? "active" : ""}`}>
@@ -65,7 +66,7 @@ export function ActiveSessions() {
                 className="session"
                 onClick={() => setActiveWorktree(worktreeId)}
                 title={
-                  (label ? `${label.repo} / ${label.branch}` : worktreeId) +
+                  (imported ? `${imported.attachment!.machine} / ${imported.attachment!.session} / ${imported.cwd}` : label ? `${label.repo} / ${label.branch}` : worktreeId) +
                   (stateByWorktree[worktreeId] ? ` — ${agentStateLabel(stateByWorktree[worktreeId])}` : "")
                 }
               >
@@ -75,16 +76,17 @@ export function ActiveSessions() {
                     aria-label={agentStateLabel(stateByWorktree[worktreeId])}
                   />
                 )}
-                <span className="session-branch">{label?.branch ?? "terminal"}</span>
-                {label?.repo && <span className="session-repo">{label.repo}</span>}
+                <span className="session-branch">{imported?.title ?? label?.branch ?? "terminal"}</span>
+                {(imported || label?.repo) && <span className="session-repo">{imported?.attachment?.machine ?? label?.repo}</span>}
                 <span className="session-count" title={`${counts.get(worktreeId)} terminal(s)`}>
                   {counts.get(worktreeId)}
                 </span>
               </button>
               <button
                 className="icon-btn"
-                title="Close all terminals in this worktree"
+                title={imported ? "Detach terminal (leave program running)" : "Close all terminals in this worktree"}
                 onClick={async () => {
+                  if (imported) { void closeWorktreeTerminals(worktreeId); return; }
                   const running =
                     stateByWorktree[worktreeId] === "running" ||
                     stateByWorktree[worktreeId] === "awaiting";

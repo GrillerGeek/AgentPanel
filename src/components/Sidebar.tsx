@@ -341,7 +341,7 @@ function useRepoDrag(): RepoDragHandlers {
   };
 }
 
-export function Sidebar() {
+export function Sidebar({ onBrowseMachines }: { onBrowseMachines?: () => void } = {}) {
   const repositories = useStore((s) => s.repositories);
   const addRepository = useStore((s) => s.addRepository);
   const setAllExpanded = useStore((s) => s.setAllExpanded);
@@ -355,6 +355,10 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
+      <button className="browse-machines" onClick={(e) => {
+        e.currentTarget.focus();
+        onBrowseMachines?.();
+      }}>Machines &amp; terminals</button>
       <ActiveSessions />
       <div className="sidebar-header">
         <span>Repositories</span>

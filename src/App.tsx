@@ -37,6 +37,7 @@ const CommandPalette = lazy(() =>
 const SettingsModal = lazy(() =>
   import("./components/SettingsModal").then((m) => ({ default: m.SettingsModal })),
 );
+const MachineBrowser = lazy(() => import("./components/MachineBrowser").then((m) => ({ default: m.MachineBrowser })));
 const PrDashboard = lazy(() =>
   import("./components/PrDashboard").then((m) => ({ default: m.PrDashboard })),
 );
@@ -138,6 +139,7 @@ function App() {
   const toggleDiff = useStore((s) => s.toggleDiff);
   const [paletteMode, setPaletteMode] = useState<"files" | "commands" | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [machinesOpen, setMachinesOpen] = useState(false);
   const [prDashOpen, setPrDashOpen] = useState(false);
 
   // Apply the selected theme to the app chrome (CSS variables on :root).
@@ -380,6 +382,7 @@ function App() {
       <UpdateBanner />
       <TelemetryBanner />
       <ConfirmDialog />
+      {machinesOpen && <Suspense fallback={null}><MachineBrowser onClose={() => setMachinesOpen(false)} /></Suspense>}
       {paletteMode && (
         <Suspense fallback={null}>
           <CommandPalette
@@ -407,7 +410,7 @@ function App() {
         </Suspense>
       )}
       <div className="body" style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}>
-        <Sidebar />
+        <Sidebar onBrowseMachines={() => setMachinesOpen(true)} />
         <SidebarDivider onCommit={(px) => updateSettings({ sidebarWidth: px })} />
         <main className="content">
           {terminals.length === 0 ? (
@@ -470,6 +473,7 @@ function App() {
                                   cwd={t.cwd}
                                   paneId={pane.id}
                                   runtime={pane.runtime}
+                                  locationLabel={t.attachment ? `${t.attachment.machine} · session ${t.attachment.session} · ${t.cwd}` : undefined}
                                   initialCommand={pane.initialCommand}
                                   active={t.id === activeTabId}
                                   autoFocus={t.id === activeTabId && paneIndex === 0}

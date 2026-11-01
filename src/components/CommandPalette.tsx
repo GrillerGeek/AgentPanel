@@ -26,6 +26,7 @@ export function CommandPalette({
   const worktrees = useStore((s) => s.worktrees);
   const terminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
+  const attached = useStore((s) => !!s.terminals.find((t) => t.id === s.activeTabId)?.attachment);
   const activeWorktreeId = useStore(selectActiveWorktreeId);
   const agentCommands = useStore((s) => s.settings.agentCommands);
   const addRepository = useStore((s) => s.addRepository);
@@ -54,19 +55,21 @@ export function CommandPalette({
       { id: "pr-dash", title: "Pull requests across all repos…", run: onOpenPrDashboard },
       { id: "settings", title: "Open settings…", run: onOpenSettings },
       { id: "toggle-notes", title: "Toggle notes panel", run: () => useStore.getState().toggleNotes() },
-      { id: "toggle-diff", title: "Toggle diff review panel", run: () => useStore.getState().toggleDiff() },
+      ...(!attached ? [{ id: "toggle-diff", title: "Toggle diff review panel", run: () => useStore.getState().toggleDiff() }] : []),
     ];
     if (activeTabId) {
+      if (!attached) {
       cmds.push({ id: "new-term", title: "New terminal (current worktree)", run: duplicateActiveTerminal });
       cmds.push({ id: "split", title: "Split: second terminal beside this one", run: splitActiveTab });
       for (const cmd of agentCommands) {
         cmds.push({ id: `agent:${cmd}`, title: `Run ▶ ${cmd} in a new terminal`, run: () => runAgentInActive(cmd) });
       }
-      cmds.push({ id: "close-term", title: "Close active terminal", run: () => closeTab(activeTabId) });
+      }
+      cmds.push({ id: "close-term", title: attached ? "Detach active terminal (leave program running)" : "Close active terminal", run: () => closeTab(activeTabId) });
       if (activeWorktreeId) {
         cmds.push({
           id: "close-session",
-          title: "Close current session (all its terminals)",
+          title: attached ? "Detach current terminal session" : "Close current session (all its terminals)",
           run: () => void closeWorktreeTerminals(activeWorktreeId),
         });
       }
@@ -75,10 +78,11 @@ export function CommandPalette({
     const labels = worktreeLabels(repositories, worktrees);
     for (const wtId of [...new Set(terminals.map((t) => t.worktreeId))]) {
       const l = labels[wtId];
+      const attachment = terminals.find((t) => t.worktreeId === wtId && t.attachment);
       cmds.push({
         id: `session:${wtId}`,
-        title: `Go to ${l?.branch ?? "session"}`,
-        subtitle: l?.repo ? `session · ${l.repo}` : "session",
+        title: `Go to ${attachment?.title ?? l?.branch ?? "session"}`,
+        subtitle: attachment ? `${attachment.attachment!.machine} · ${attachment.cwd}` : l?.repo ? `session · ${l.repo}` : "session",
         run: () => setActiveWorktree(wtId),
       });
     }
@@ -98,6 +102,7 @@ export function CommandPalette({
     worktrees,
     terminals,
     activeTabId,
+    attached,
     activeWorktreeId,
     agentCommands,
     addRepository,
