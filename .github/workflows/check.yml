@@ -89,6 +89,10 @@ jobs:
       - name: Live Linux adapter acceptance in scratch sessions
         run: python3 scripts/spikes/run_herdr_adapter_test.py "$RUNNER_TEMP/herdr-core-test/herdr-core"
 
+      - name: SSH attachment and recovery against disposable Linux guest
+        timeout-minutes: 10
+        run: python3 scripts/spikes/run_herdr_ssh_test.py "$RUNNER_TEMP/herdr-core-test/herdr-core"
+
   desktop:
     name: ${{ matrix.os }} build and tests
     strategy:

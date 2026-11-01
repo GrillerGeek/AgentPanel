@@ -124,3 +124,22 @@ async fn live_adapter_reconnects_without_replaying_or_replacing_the_program() {
     resumed.connection.terminate().await.unwrap(); // confirmed stop is idempotent
     assert!(matches!(open(options(Some(saved)), 24, 80, |_| true).await, Err(e) if e.contains("ended")));
 }
+
+#[tokio::test]
+#[ignore = "run through scripts/spikes/run_herdr_ssh_test.py with a disposable SSH guest"]
+async fn live_adapter_attaches_to_ssh_terminal() {
+    let binding = Binding { core_id: std::env::var("AGENTPANEL_HC_REMOTE_CORE").unwrap(),
+        address: std::env::var("AGENTPANEL_HC_REMOTE_ADDRESS").unwrap() };
+    let mut opts = options(Some(binding.clone()));
+    opts.key = "a".repeat(32);
+    let (events, mut rx) = mpsc::unbounded_channel();
+    let opened = open(opts, 24, 80, move |e| events.send(e).is_ok()).await.unwrap();
+    assert!(!opened.created);
+    assert_eq!(opened.binding, binding);
+    opened.connection.send(Control::Input("printf '\\nSSH-%s-END\\n' \"$(uname -s)\"\r".into())).unwrap();
+    marker(&mut rx, &opened.connection, b"\r\nSSH-Linux-END\r\n").await;
+    opened.connection.send(Control::Resize(33, 99)).unwrap();
+    opened.connection.send(Control::Input("stty size\r".into())).unwrap();
+    marker(&mut rx, &opened.connection, b"33 99").await;
+    opened.connection.send(Control::Detach).unwrap();
+}
