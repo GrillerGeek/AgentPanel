@@ -28,6 +28,9 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const pushToast = useStore((s) => s.pushToast);
 
   const [shell, setShell] = useState(settings.shell);
+  const [terminalRuntime, setTerminalRuntime] = useState(settings.terminalRuntime);
+  const [herdrExecutable, setHerdrExecutable] = useState(settings.herdrExecutable);
+  const [herdrSession, setHerdrSession] = useState(settings.herdrSession);
   const [terminalEnv, setTerminalEnv] = useState(settings.terminalEnv);
   const [syncLoginPath, setSyncLoginPath] = useState(settings.syncLoginPath);
   const [shells, setShells] = useState<ShellInfo[]>([]);
@@ -118,7 +121,12 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
       : (shells.find((s) => shellMatches(s.path, shell))?.path ?? CUSTOM);
 
   const save = () => {
+    if (terminalRuntime === "herdr" && (!herdrExecutable.trim() || !/^[a-zA-Z0-9_-]{1,32}$/.test(herdrSession))) {
+      pushToast("Set a herdr-core executable and a session of 1–32 letters, numbers, hyphens, or underscores.");
+      return;
+    }
     updateSettings({
+      terminalRuntime, herdrExecutable: herdrExecutable.trim(), herdrSession,
       // "" (system default) is a valid value — the backend resolves it per
       // platform. Also reached by leaving the custom path blank.
       shell: shell.trim(),
@@ -197,6 +205,31 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </div>
           <small>Checks automatically on launch; use this to check now.</small>
         </div>
+
+        <label className="settings-field">
+          <span>Runtime for new terminals</span>
+          <select className="settings-input" value={terminalRuntime}
+            onChange={(e) => setTerminalRuntime(e.currentTarget.value as "local" | "herdr")}>
+            <option value="local">Local PTY (default)</option>
+            <option value="herdr">Herdr core (experimental)</option>
+          </select>
+          <small>Existing panes keep their runtime. Herdr terminals survive closing AgentPanel;
+            closing their pane or removing a worktree stops them. macOS validated; Windows support pending.</small>
+        </label>
+        {terminalRuntime === "herdr" && <>
+          <label className="settings-field">
+            <span>Herdr core executable</span>
+            <input className="settings-input" value={herdrExecutable}
+              onChange={(e) => setHerdrExecutable(e.currentTarget.value)} />
+            <small>Install herdr-core separately. Enter its executable name or full path, without arguments.</small>
+          </label>
+          <label className="settings-field">
+            <span>Herdr core session</span>
+            <input className="settings-input" value={herdrSession}
+              onChange={(e) => setHerdrSession(e.currentTarget.value)} />
+            <small>Use a dedicated session for AgentPanel. Saved panes remember this value.</small>
+          </label>
+        </>}
 
         <label className="settings-field">
           <span>Shell</span>

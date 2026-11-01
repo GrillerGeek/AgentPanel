@@ -4,7 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { SerializeAddon } from "@xterm/addon-serialize";
-import { invoke, Channel } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
 import {
@@ -14,9 +14,11 @@ import {
   type ClipboardDeps,
 } from "./lib/terminalClipboard";
 import { useStore } from "./state/store";
-import { noteOutput, noteExit, forgetPane } from "./state/agentRuntime";
+import { noteOutput, noteExit, forgetPane, noteRuntimeState, reportedState } from "./state/agentRuntime";
 import { registerPane, unregisterPane } from "./lib/scrollbackRegistry";
 import { registerPaneWriter, unregisterPaneWriter } from "./lib/paneWriters";
+import type { HerdrRuntime } from "./types";
+import { openTerminal, startInitialCommand, type TerminalConnection } from "./lib/terminalRuntime";
 import { schemeBySlug, xtermThemeFor } from "./themes/apply";
 import "@xterm/xterm/css/xterm.css";
 
@@ -111,8 +113,10 @@ export function TerminalPane({
   initialCommand,
   autoFocus,
   active = true,
+  runtime,
 }: {
   cwd?: string;
+  runtime?: HerdrRuntime;
   paneId?: string;
   initialCommand?: string;
   autoFocus?: boolean;
@@ -125,7 +129,9 @@ export function TerminalPane({
   const webglRef = useRef<WebglAddon | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const searchRef = useRef<SearchAddon | null>(null);
-  const sessionRef = useRef<number | null>(null);
+  const sessionRef = useRef<TerminalConnection | null>(null);
+  const [connectionError, setConnectionError] = useState("");
+  const [reconnect, setReconnect] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const setPaneSession = useStore((s) => s.setPaneSession);
@@ -210,22 +216,38 @@ export function TerminalPane({
 
     fit.fit();
 
-    let sessionId: number | null = null;
+    let connection: TerminalConnection | null = null;
+    let ready = false;
+    let lost = false;
+    setConnectionError("");
+    if (runtime && paneId) noteRuntimeState(paneId, "unknown");
     let disposed = false;
 
     // Stream PTY output -> xterm, and feed the activity tracker (drives the
     // agent running/idle/awaiting status dots).
-    const onOutput = new Channel<string>();
-    onOutput.onmessage = (chunk) => {
+    const output = (chunk: string, consumed: () => void) => {
+      if (disposed) return;
       const bytes = decodeBase64(chunk);
-      term.write(bytes);
+      term.write(bytes, consumed);
       if (paneId) noteOutput(paneId, tailDecoder.decode(bytes));
     };
+    const disconnected = (message: string) => {
+      if (disposed) return;
+      ready = false;
+      lost = true;
+      setConnectionError(message);
+      if (paneId) noteRuntimeState(paneId, "disconnected");
+    };
+    const failedInput = (error: unknown) => {
+      if (runtime) disconnected(String(error));
+      else pushToast(`Terminal input failed: ${error}`);
+    };
+    const terminateOnUnmount = () => !paneId || !useStore.getState().terminals.some((t) => t.panes.some((p) => p.id === paneId));
 
     // The child exiting on its own (not via pty_close) -> mark the agent done.
     let unlistenExit: (() => void) | undefined;
     void listen<{ sessionId: number; code: number | null }>("pty-exit", (e) => {
-      if (paneId && e.payload.sessionId === sessionRef.current) {
+      if (paneId && !runtime && e.payload.sessionId === sessionRef.current?.id) {
         noteExit(paneId, e.payload.code ?? undefined);
       }
     }).then((u) => {
@@ -240,7 +262,7 @@ export function TerminalPane({
     // dependency on purpose: adding it to this effect's dep array would remount
     // every terminal — killing its PTY — whenever the toggle changes.
     const restoreThenSpawn = async () => {
-      if (paneId && useStore.getState().settings.persistScrollback) {
+      if (!runtime && paneId && useStore.getState().settings.persistScrollback) {
         try {
           const saved = await invoke<string>("scrollback_load", { paneId });
           if (!disposed && saved) {
@@ -253,33 +275,35 @@ export function TerminalPane({
         }
       }
       if (disposed) return;
-      if (paneId) registerPane(paneId, () => serialize.serialize());
+      if (paneId && !runtime) registerPane(paneId, () => serialize.serialize());
       if (paneId) registerPaneWriter(paneId, (text) => term.paste(text));
 
       const env = await resolveSpawnEnv(shell, terminalEnv, syncLoginPath);
-      const id = await invoke<number>("pty_spawn", {
-        cwd: cwd ?? null,
-        rows: term.rows,
-        cols: term.cols,
-        shell: shell || null,
-        env,
-        onOutput,
+      const opened = await openTerminal({
+        runtime, cwd: cwd ?? "", rows: term.rows, cols: term.cols, shell, env, output,
+        status: (state) => { if (!disposed && paneId) noteRuntimeState(paneId, reportedState(state)); },
+        closed: (code) => { ready = false; lost = true; if (!disposed && paneId) noteExit(paneId, code ?? undefined); },
+        disconnected,
+        binding: (binding) => { if (paneId) useStore.getState().setPaneBinding(paneId, binding); },
       });
       if (disposed) {
-        void invoke("pty_close", { id });
+        await opened.dispose(terminateOnUnmount());
         return;
       }
-      sessionId = id;
-      sessionRef.current = id;
-      if (paneId) setPaneSession(paneId, id);
-      // Agent quick-launch: run the command once the shell is up.
-      if (initialCommand) void invoke("pty_write", { id, data: initialCommand + "\r" });
+      connection = opened;
+      ready = !lost;
+      sessionRef.current = opened;
+      if (paneId) setPaneSession(paneId, opened.id);
+      // Only a newly created terminal receives quick launch; reconnect never
+      // replays a command into an existing shell/agent/approval dialog.
+      if (ready) await startInitialCommand(opened, initialCommand);
     };
-    void restoreThenSpawn().catch((err) => term.writeln(`\r\n[pty_spawn error] ${err}`));
+    void restoreThenSpawn().catch((err) => {
+      if (!disposed) { term.writeln(`\r\n[terminal connection error] ${err}`); if (runtime) disconnected(String(err)); }
+    });
 
-    // Forward keystrokes -> PTY.
     const dataSub = term.onData((data) => {
-      if (sessionId !== null) void invoke("pty_write", { id: sessionId, data });
+      if (connection && ready && !useStore.getState().confirmState) void connection.write(data).catch(failedInput);
     });
 
     // Agent CLIs (claude, codex) report session context via OSC title sequences;
@@ -302,10 +326,10 @@ export function TerminalPane({
         rafId = 0;
         if (container.clientWidth === 0 || container.clientHeight === 0) return;
         fit.fit();
-        if (sessionId !== null && (term.rows !== lastRows || term.cols !== lastCols)) {
+        if (connection && (term.rows !== lastRows || term.cols !== lastCols)) {
           lastRows = term.rows;
           lastCols = term.cols;
-          void invoke("pty_resize", { id: sessionId, rows: term.rows, cols: term.cols });
+          void connection.resize(term.rows, term.cols).catch(failedInput);
         }
       });
     };
@@ -323,9 +347,9 @@ export function TerminalPane({
       titleSub.dispose();
       unlistenExit?.();
       if (paneId) forgetPane(paneId);
-      if (sessionId !== null) void invoke("pty_close", { id: sessionId });
+      if (connection) void connection.dispose(terminateOnUnmount()).catch((err) => pushToast(`Could not close terminal: ${err}`));
       if (paneId) {
-        if (useStore.getState().settings.persistScrollback) {
+        if (!runtime && useStore.getState().settings.persistScrollback) {
           try {
             // An empty buffer means we never got a real capture (e.g. unmounted
             // before the restore load resolved) — writing it would overwrite this
@@ -346,7 +370,7 @@ export function TerminalPane({
       searchRef.current = null;
       sessionRef.current = null;
     };
-  }, [cwd]);
+  }, [cwd, reconnect]);
 
   // Live-apply font changes (no remount, so scrollback survives). Font metrics
   // change the cell grid even though the container size doesn't, so the
@@ -361,7 +385,7 @@ export function TerminalPane({
       if (!c || c.clientWidth === 0 || c.clientHeight === 0) return;
       fitRef.current?.fit();
       if (sessionRef.current !== null) {
-        void invoke("pty_resize", { id: sessionRef.current, rows: term.rows, cols: term.cols });
+        void sessionRef.current.resize(term.rows, term.cols).catch((err) => pushToast(`Terminal resize failed: ${err}`));
       }
     });
     return () => cancelAnimationFrame(id);
@@ -420,6 +444,10 @@ export function TerminalPane({
 
   return (
     <div className="terminal-pane-wrap">
+      {runtime && <div className="runtime-status" role="status">
+        Herdr core · {runtime.session}
+        {connectionError && <> — {connectionError} <button onClick={() => setReconnect((n) => n + 1)}>Reconnect</button></>}
+      </div>}
       {searchOpen && (
         <div className="term-search" onPointerDown={(e) => e.stopPropagation()}>
           <input

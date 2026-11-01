@@ -469,6 +469,7 @@ function App() {
                                 <TerminalPane
                                   cwd={t.cwd}
                                   paneId={pane.id}
+                                  runtime={pane.runtime}
                                   initialCommand={pane.initialCommand}
                                   active={t.id === activeTabId}
                                   autoFocus={t.id === activeTabId && paneIndex === 0}

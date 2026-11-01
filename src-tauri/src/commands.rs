@@ -283,16 +283,30 @@ pub async fn worktree_pr(path: String) -> Option<PrInfo> {
         .unwrap_or(None)
 }
 
+/// Read-only preflight before asking permission to stop a checkout's terminals.
+#[tauri::command]
+pub async fn check_worktree_removal(
+    store: State<'_, AppStore>,
+    repo_id: String,
+    worktree_path: String,
+) -> Result<(), String> {
+    let (repo_path, _, _) = repo_handle(&store, &repo_id)?;
+    tauri::async_runtime::spawn_blocking(move || git::check_worktree_removal(&repo_path, &worktree_path))
+        .await.map_err(|e| e.to_string())?
+}
+
 /// Remove a worktree (does not delete its branch). Returns the refreshed list.
 #[tauri::command]
-pub fn delete_worktree(
+pub async fn delete_worktree(
     store: State<'_, AppStore>,
     repo_id: String,
     worktree_path: String,
 ) -> Result<Vec<Worktree>, String> {
     let (repo_path, id, _) = repo_handle(&store, &repo_id)?;
-    git::remove_worktree(&repo_path, &worktree_path)?;
-    git::list_worktrees(&repo_path, &id)
+    tauri::async_runtime::spawn_blocking(move || {
+        git::remove_worktree(&repo_path, &worktree_path)?;
+        git::list_worktrees(&repo_path, &id)
+    }).await.map_err(|e| e.to_string())?
 }
 
 /// Every file changed in a worktree relative to the review base.
