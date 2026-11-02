@@ -239,10 +239,13 @@ async fn check_target(target: &RemoteTarget, hello: &Value, writer: &mut ChildSt
         machine_id: Some(target.machine_id.clone()) }, &machines)
 }
 
+pub(crate) static REMOTE_OPERATIONS: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 static REMOTE_QUERIES: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
 
-/// Internal, bounded read-only Git transport. No caller-controlled command API
-/// is exposed through Tauri. Each operation verifies both core identities.
+/// Internal, bounded remote transport. Read queries and explicit checkout
+/// mutations share identity validation; no generic command API is exposed
+/// through Tauri. Mutations never retry or attempt recursive cleanup.
 pub(crate) struct RemoteGit {
     _child: Child, writer: ChildStdin, reader: BufReader<ChildStdout>, early: Vec<Frame>,
     target: RemoteTarget, _permit: tokio::sync::SemaphorePermit<'static>,
@@ -277,6 +280,27 @@ impl RemoteGit {
         Ok((result["code"].as_i64().ok_or("Remote Git ended without an exit code")?, decode("stdout")?, decode("stderr")?))
     }
 
+    pub(crate) async fn terminals(&mut self) -> Result<Value, String> {
+        request(&mut self.writer, &mut self.reader, "terminal.list", json!({"all":true}), &mut self.early).await
+    }
+
+    pub(crate) async fn command(&mut self, argv: &[&str]) -> Result<(), String> {
+        let result = request(&mut self.writer, &mut self.reader, "machine.exec", json!({
+            "on":self.target.machine,"argv":argv,"timeout":5
+        }), &mut self.early).await?;
+        if result["code"] != 0 || result["timed_out"] == true || result["truncated"] == true {
+            return Err("Remote directory preparation failed; refresh and inspect the destination before retrying".into());
+        }
+        Ok(())
+    }
+
+    pub(crate) async fn mutate(&mut self, path: &str, args: &[&str]) -> Result<(), String> {
+        let mut safe = vec!["-c", "core.hooksPath=/dev/null", "-c", "submodule.recurse=false"];
+        safe.extend_from_slice(args);
+        self.git(path, &safe).await.map(|_| ()).map_err(|error|
+            format!("{error}. Remote operation may have partially completed; refresh and inspect before retrying. No automatic retry or cleanup was attempted."))
+    }
+
     pub(crate) async fn git(&mut self, path: &str, args: &[&str]) -> Result<String, String> {
         let (code, out, error) = self.output(path, args).await?;
         if code != 0 { return Err(format!("Remote Git failed: {}", error.trim())); }
@@ -289,6 +313,9 @@ impl RemoteGit {
 pub async fn open(options: Options, rows: u16, cols: u16,
                   emit: impl Fn(Event) -> bool + Send + Sync + 'static) -> Result<Opened, String> {
     validate(&options)?;
+    let _remote_guard = if options.target.is_some() && options.binding.is_none() {
+        Some(REMOTE_OPERATIONS.lock().await)
+    } else { None };
     let (child, mut writer, mut reader, hello) = connect(&options.executable, &options.session).await?;
     let (binding, created, channel, events, early) = tokio::time::timeout(DEADLINE * 3, async {
         for needed in ["terminal.list", "terminal.get", "terminal.run", "terminal.attach", "terminal.kill", "events.subscribe"] {

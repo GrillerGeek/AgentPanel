@@ -20,12 +20,14 @@ from herdr_core_probe import Client
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("binary")
 parser.add_argument("output", nargs="?")
+parser.add_argument("--worktrees", action="store_true", help="Also verify remote checkout creation/removal in disposable guests")
 parser.add_argument("--projects", action="store_true", help="Also verify remote repositories, Git views, and new remote programs")
 parser.add_argument("--ui-timeout", type=int, default=600, help="Native UI fixture window in seconds (1-1800)")
 parser.add_argument("--ui-info", type=Path, help="Keep isolated guests available up to 10 minutes; write a stop file at the reported path when finished")
 args = parser.parse_args()
 if not 1 <= args.ui_timeout <= 1800:
     parser.error("--ui-timeout must be between 1 and 1800 seconds")
+args.projects = args.projects or args.worktrees
 binary = str(Path(args.binary).resolve())
 repo = Path(__file__).resolve().parents[2]
 subprocess.run(["docker", "build", "-q", "-t", "agentpanel-ssh-fixture:hc-0.1.16",
@@ -165,6 +167,15 @@ git -C /home/agentpanel/unborn add staged.txt
         subprocess.run(adapter_test, env=test_env, check=True, timeout=60)
         current = client.rpc("terminal.get", {"terminal": remote_address})
         assert current["pid"] == pid and current["state"] == "live"
+        if args.worktrees:
+            # Stop only fixture-owned programs after their persistence checks.
+            # Product removal never stops remote programs.
+            for item in client.rpc("terminal.list", {"all": True})["terminals"]:
+                if item["address"].startswith("linux/") and item["state"] == "live":
+                    client.rpc("terminal.kill", {"terminal": item["address"]})
+            checkout_test = adapter_test.copy()
+            checkout_test[5] = "live_remote_worktree_creation_and_safe_removal"
+            subprocess.run(checkout_test, env=test_env, check=True, timeout=120)
         if args.ui_info:
             wrapper = root / "hc-ui"
             wrapper.write_text("#!/bin/sh\n" + "\n".join(
@@ -181,13 +192,15 @@ git -C /home/agentpanel/unborn add staged.txt
                 if time.monotonic() > deadline:
                     raise TimeoutError("UI fixture acceptance window expired")
                 time.sleep(0.25)
-        client.rpc("terminal.kill", {"terminal": remote_address})
+        if not args.worktrees:
+            client.rpc("terminal.kill", {"terminal": remote_address})
         client.rpc("terminal.kill", {"terminal": other_terminal["address"]})
         result = {"result": "pass", "transport": "OpenSSH over localhost TCP to two Linux Docker guests",
                   "remote_address": remote_address, "same_remote_pid_after_interruption": pid,
                   "rust_adapter_remote_attach": True, "strict_host_key_checking": True,
                   "second_guest_usable_during_first_ssh_outage": True,
                   "remote_projects_test": args.projects,
+                  "remote_worktrees_test": args.worktrees,
                   "limits": ["not two physical computers", "no WAN/sleep/MFA acceptance", "UI acceptance is manual and documented separately"]}
     finally:
         try:

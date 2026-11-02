@@ -553,11 +553,12 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   createWorktree: async (repoId, branch, base) => {
-    const list = await invoke<Worktree[]>("create_worktree", { repoId, branch, base });
+    const remote = !!get().repositories.find((r) => r.id === repoId)?.remote;
+    const list = await invoke<Worktree[]>(remote ? "remote_create_worktree" : "create_worktree", { repoId, branch, base });
     set((s) => ({
       worktrees: { ...s.worktrees, [repoId]: list },
       expanded: { ...s.expanded, [repoId]: true },
-      repositories: base
+      repositories: base && !remote
         ? s.repositories.map((r) => (r.id === repoId ? { ...r, defaultBranch: base } : r))
         : s.repositories,
     }));
@@ -565,24 +566,28 @@ export const useStore = create<AppState>((set, get) => ({
     if (wt) get().openWorktreeTerminal(wt);
   },
 
-  listBranches: (repoId) => invoke<string[]>("list_branches", { repoId }),
+  listBranches: (repoId) => invoke<string[]>(get().repositories.find((r) => r.id === repoId)?.remote ? "remote_list_branches" : "list_branches", { repoId }),
 
   deleteWorktree: async (repoId, worktreePath) => {
     const prev = get().worktrees[repoId] ?? [];
     try {
       const wt = prev.find((w) => w.path === worktreePath);
       if (!wt || wt.isPrimary) throw new Error("Select a linked worktree to remove.");
-      await invoke("check_worktree_removal", { repoId, worktreePath });
+      const remote = !!get().repositories.find((r) => r.id === repoId)?.remote;
+      await invoke(remote ? "remote_check_worktree_removal" : "check_worktree_removal", { repoId, worktreePath });
       if (!await get().requestConfirm({
-        message: `Remove worktree "${wt.name}"?`,
-        detail: "Stops all terminals in this worktree and deletes its directory. The branch is kept. Removal is blocked if modified, untracked, or ignored files are present.",
-        confirmLabel: "Stop terminals and remove",
+        message: `Remove worktree "${wt.name}"${remote ? ` on ${wt.remote?.machine}` : ""}?`,
+        detail: remote
+          ? `Deletes the remote directory ${worktreePath}. The branch is kept. All programs in this machine's selected Herdr session must have exited; closing tabs only detaches. Modified, untracked, ignored files, locked and detached worktrees block removal. Stop other tools using this checkout before continuing.`
+          : "Stops all terminals in this worktree and deletes its directory. The branch is kept. Removal is blocked if modified, untracked, or ignored files are present.",
+        confirmLabel: remote ? "Remove remote worktree" : "Stop terminals and remove",
         danger: true,
       })) return;
       // Release Windows cwd locks only after preflight and explicit consent.
       // The backend repeats the check to protect edits made since preflight.
-      await get().closeWorktreeTerminals(wt.id, true);
-      const list = await invoke<Worktree[]>("delete_worktree", { repoId, worktreePath });
+      if (!remote) await get().closeWorktreeTerminals(wt.id, true);
+      const list = await invoke<Worktree[]>(remote ? "remote_delete_worktree" : "delete_worktree", { repoId, worktreePath });
+      if (remote) await get().closeWorktreeTerminals(wt.id);
       set((s) => {
         const stillThere = new Set(list.map((w) => w.id));
         const removedIds = prev.filter((w) => !stillThere.has(w.id)).map((w) => w.id);

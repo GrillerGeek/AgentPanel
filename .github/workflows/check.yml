@@ -91,7 +91,7 @@ jobs:
 
       - name: SSH attachment and recovery against disposable Linux guest
         timeout-minutes: 10
-        run: python3 scripts/spikes/run_herdr_ssh_test.py "$RUNNER_TEMP/herdr-core-test/herdr-core" --projects
+        run: python3 scripts/spikes/run_herdr_ssh_test.py "$RUNNER_TEMP/herdr-core-test/herdr-core" --worktrees
 
   desktop:
     name: ${{ matrix.os }} build and tests

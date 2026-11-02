@@ -55,7 +55,8 @@ export function NewWorktreeForm({ repo }: { repo: Repository }) {
 
   const safeBranch = branch.trim().replace(/[/\\:]/g, "-");
   // Mirrors the Rust placement: a sibling "<repo>-worktrees/<branch>" directory.
-  const pathPreview = `${repo.name}-worktrees\\${safeBranch || "<branch>"}`;
+  const pathPreview = repo.remote ? `${repo.path}-worktrees/${safeBranch || "<branch>"} · ${repo.remote.machine}`
+    : `${repo.name}-worktrees\\${safeBranch || "<branch>"}`;
 
   const submit = async () => {
     const name = branch.trim();
@@ -83,6 +84,7 @@ export function NewWorktreeForm({ repo }: { repo: Repository }) {
       <input
         autoFocus
         className="wt-input"
+        aria-label="New branch name"
         placeholder="new branch name"
         value={branch}
         disabled={busy}
@@ -92,7 +94,7 @@ export function NewWorktreeForm({ repo }: { repo: Repository }) {
           if (e.key === "Escape") setOpen(false);
         }}
       />
-      <label className="wt-base" title="The new branch starts from this branch. Your pick is remembered for this repo.">
+      <label className="wt-base" title="The new branch starts from this branch. Choose a local branch to start from.">
         <span>based on</span>
         <select
           aria-label="Base branch"
@@ -112,6 +114,7 @@ export function NewWorktreeForm({ repo }: { repo: Repository }) {
       <div className="wt-path-preview" title="Where this worktree will be created on disk">
         ↳ {pathPreview}
       </div>
+      {repo.remote && <p className="wt-explainer">Creates a new branch on {repo.remote.machine}. Existing branches and destination directories are refused. Remote Git checkout filters may run; use repositories you trust. Removal requires exiting all programs in this machine's selected Herdr session.</p>}
       <div className="new-worktree-actions">
         <button className="add-btn" disabled={busy} onClick={() => void submit()}>
           {busy ? "…" : "Create"}
@@ -269,7 +272,7 @@ function RepoRow({
                   #{prs[wt.id]!.number}
                 </span>
               )}
-              {!wt.isPrimary && !repo.remote && (
+              {!wt.isPrimary && (
                 <button
                   className="icon-btn"
                   title="Remove worktree"
@@ -280,7 +283,7 @@ function RepoRow({
               )}
             </div>
           ))}
-          {repo.isGit && !repo.remote && !filtering && <NewWorktreeForm repo={repo} />}
+          {repo.isGit && !filtering && <NewWorktreeForm repo={repo} />}
         </div>
       )}
     </div>
