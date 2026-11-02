@@ -7,6 +7,7 @@ export interface Repository {
   isGit: boolean;
   /** Local branch new worktrees start from; null = the primary checkout's HEAD. */
   defaultBranch: string | null;
+  remote?: RemoteTarget;
 }
 
 export interface Worktree {
@@ -16,6 +17,7 @@ export interface Worktree {
   name: string;
   branch: string | null;
   isPrimary: boolean;
+  remote?: RemoteTarget;
 }
 
 /** One terminal pane = one Rust PTY session. A tab holds 1–2 panes. */
@@ -34,9 +36,14 @@ export interface HerdrRuntime {
   binding?: { coreId: string; address: string; machineId?: string };
   /** Imported programs are never started or terminated by this viewer. */
   attachOnly?: boolean;
+  target?: RemoteTarget;
+  existingOnly?: boolean;
 }
 
 export interface HerdrEndpoint { executable: string; session: string }
+export interface RemoteTarget {
+  endpoint: HerdrEndpoint; coreId: string; machine: string; machineId: string; session: string | null;
+}
 export interface HerdrMachine {
   name: string; coreId: string; host: string; session: string | null;
   state: string; why: string | null;
@@ -52,11 +59,13 @@ export interface HerdrInventory {
 export interface TerminalTab {
   id: string;
   worktreeId: string;
+  repoId?: string;
   cwd: string;
   title: string;
   panes: Pane[];
   /** Terminal-only attachment; never a local repository/worktree handle. */
   attachment?: { machine: string; session: string };
+  remote?: RemoteTarget;
   /** for a 2-pane split: fraction of width given to the first pane (0.15–0.85) */
   splitRatio?: number;
   /** optional user-assigned tab color (hex), shown as a left accent stripe */

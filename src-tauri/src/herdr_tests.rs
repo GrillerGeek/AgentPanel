@@ -34,7 +34,7 @@ fn options(binding: Option<Binding>) -> Options {
         executable: std::env::var("AGENTPANEL_HC_TEST_BINARY").unwrap_or("herdr-core".into()),
         session: "agentpanel-adapter-test".into(), key: "0123456789abcdef0123456789abcdef".into(),
         cwd: std::env::var("AGENTPANEL_HC_TEST_CWD").unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().into()),
-        shell: "/bin/sh".into(), env: HashMap::new(), binding, attach_only: false,
+        shell: "/bin/sh".into(), env: HashMap::new(), binding, attach_only: false, target: None, existing_only: false,
     }
 }
 

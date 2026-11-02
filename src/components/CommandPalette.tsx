@@ -27,6 +27,7 @@ export function CommandPalette({
   const terminals = useStore((s) => s.terminals);
   const activeTabId = useStore((s) => s.activeTabId);
   const attached = useStore((s) => !!s.terminals.find((t) => t.id === s.activeTabId)?.attachment);
+  const remoteActive = useStore((s) => !!s.terminals.find((t) => t.id === s.activeTabId)?.remote);
   const activeWorktreeId = useStore(selectActiveWorktreeId);
   const agentCommands = useStore((s) => s.settings.agentCommands);
   const addRepository = useStore((s) => s.addRepository);
@@ -122,7 +123,8 @@ export function CommandPalette({
   // deliberate, infrequent action, and caching would need invalidating against
   // the file-watcher event that fires constantly while an agent writes.
   useEffect(() => {
-    if (mode !== "files" || !activeWorktree) return;
+    setFiles([]);
+    if (mode !== "files" || !activeWorktree || activeWorktree.remote || remoteActive) return;
     let cancelled = false;
     void invoke<string[]>("worktree_files", { path: activeWorktree.path })
       .then((f) => {
@@ -134,7 +136,7 @@ export function CommandPalette({
     return () => {
       cancelled = true;
     };
-  }, [mode, activeWorktree]);
+  }, [mode, activeWorktree, remoteActive]);
 
   const filtered = useMemo(() => {
     const scored = commands
@@ -168,7 +170,7 @@ export function CommandPalette({
   const runSelected = () => {
     if (mode === "files") {
       const file = shownFiles[selected];
-      if (file && activeWorktree) {
+      if (file && activeWorktree && !activeWorktree.remote && !remoteActive) {
         // Reuses the shipped open_in_editor command and editorCommand setting.
         void invoke("open_in_editor", {
           command: editorCommand,
@@ -214,7 +216,8 @@ export function CommandPalette({
         <div className="palette-list" ref={listRef}>
           {mode === "files" ? (
             <>
-              {shownFiles.length === 0 && <div className="palette-empty">No matches</div>}
+              {shownFiles.length === 0 && <div className="palette-empty">{activeWorktree?.remote || remoteActive
+                ? "Remote file opening is unavailable. Use Diff review or the remote terminal." : "No matches"}</div>}
               {shownFiles.map((file, i) => (
                 <div
                   key={file}

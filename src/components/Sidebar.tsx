@@ -139,6 +139,10 @@ function RepoRow({
   const expanded = useStore((s) => s.expanded[repo.id] ?? false);
   const worktrees = useStore((s) => s.worktrees[repo.id]);
   const statuses = useStore((s) => s.statuses);
+  const repositoryError = useStore((s) => s.repositoryErrors[repo.id]);
+  const worktreeErrors = useStore((s) => s.worktreeErrors);
+  const loadWorktrees = useStore((s) => s.loadWorktrees);
+  const refreshStatuses = useStore((s) => s.refreshStatuses);
   const prs = useStore((s) => s.prs);
   const terminals = useStore((s) => s.terminals);
   const agentStatus = useStore((s) => s.agentStatus);
@@ -190,9 +194,9 @@ function RepoRow({
         onPointerCancel={drag.onPointerUp}
         onClickCapture={drag.onClickCapture}
       >
-        <button className="disclosure" onClick={() => toggleExpand(repo.id)} title={repo.path}>
+        <button className="disclosure" onClick={() => toggleExpand(repo.id)} title={repo.remote ? `${repo.remote.machine} · ${repo.path}` : repo.path}>
           <span className={`chevron ${expanded ? "open" : ""}`}>▶</span>
-          <span className="repo-name">{repo.name}</span>
+          <span className="repo-name">{repo.name}{repo.remote ? ` · ${repo.remote.machine}` : ""}</span>
           {!repo.isGit && <span className="badge">folder</span>}
         </button>
         <button
@@ -218,7 +222,9 @@ function RepoRow({
 
       {showWorktrees && (
         <div className="worktrees">
-          {sorted === undefined && <div className="muted">loading…</div>}
+          {repo.remote && <button className="remote-refresh" onClick={() => void loadWorktrees(repo.id).then(refreshStatuses)}>Refresh remote project</button>}
+          {repositoryError && <div className="muted" role="status">Worktrees unavailable: {repositoryError}. Existing entries may be stale.</div>}
+          {sorted === undefined && !repositoryError && <div className="muted">loading…</div>}
           {sorted?.length === 0 && <div className="muted">no worktrees</div>}
           {rows.map((wt) => (
             <div
@@ -233,6 +239,7 @@ function RepoRow({
                 <span className="wt-name">{wt.name}</span>
                 {wt.isPrimary && <span className="badge subtle">main</span>}
                 <span className="wt-status">
+                  {worktreeErrors[wt.id] && <span title={worktreeErrors[wt.id]}>status unavailable</span>}
                   {(statuses[wt.id]?.ahead ?? 0) > 0 && (
                     <span className="ahead" title={`${statuses[wt.id].ahead} ahead of upstream`}>
                       ↑{statuses[wt.id].ahead}
@@ -262,7 +269,7 @@ function RepoRow({
                   #{prs[wt.id]!.number}
                 </span>
               )}
-              {!wt.isPrimary && (
+              {!wt.isPrimary && !repo.remote && (
                 <button
                   className="icon-btn"
                   title="Remove worktree"
@@ -273,7 +280,7 @@ function RepoRow({
               )}
             </div>
           ))}
-          {repo.isGit && !filtering && <NewWorktreeForm repo={repo} />}
+          {repo.isGit && !repo.remote && !filtering && <NewWorktreeForm repo={repo} />}
         </div>
       )}
     </div>

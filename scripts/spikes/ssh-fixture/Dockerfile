@@ -1,7 +1,7 @@
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl openssh-server procps && \
+    ca-certificates curl openssh-server procps git && \
     useradd --create-home --shell /bin/sh --password '*' agentpanel && \
     mkdir -p /run/sshd /home/agentpanel/project && \
     chown agentpanel:agentpanel /home/agentpanel/project && \

@@ -5,6 +5,7 @@ mod gh;
 mod git;
 mod herdr;
 mod herdr_commands;
+mod remote_projects;
 mod model;
 mod pty;
 mod scrollback;
@@ -220,6 +221,10 @@ pub fn run() {
             pty::detect_login_path,
             herdr_commands::herdr_open,
             herdr_commands::herdr_inventory,
+            remote_projects::add_remote_repository,
+            remote_projects::remote_worktree_status,
+            remote_projects::remote_worktree_diff,
+            remote_projects::remote_worktree_file_patch,
             herdr_commands::herdr_write,
             herdr_commands::herdr_resize,
             herdr_commands::herdr_ack,

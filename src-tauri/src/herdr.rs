@@ -38,10 +38,24 @@ pub struct Options {
     pub binding: Option<Binding>,
     #[serde(default)]
     pub attach_only: bool,
+    #[serde(default)]
+    pub target: Option<RemoteTarget>,
+    #[serde(default)]
+    pub existing_only: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Endpoint { pub executable: String, pub session: String }
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteTarget {
+    pub endpoint: Endpoint,
+    pub core_id: String,
+    pub machine: String,
+    pub machine_id: String,
+    pub session: Option<String>,
+}
 
 #[derive(Clone, Serialize, Debug)]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -104,7 +118,7 @@ pub struct Connection { pub sender: mpsc::Sender<Control>, finished: Arc<AtomicB
 
 impl Connection {
     pub async fn terminate(&self) -> Result<(), String> {
-        if self.attach_only { return Err("Imported terminals may only be detached from AgentPanel".into()); }
+        if self.attach_only { return Err("This terminal may only be detached from AgentPanel".into()); }
         if self.finished.load(Ordering::Acquire) { return Ok(()); }
         let (sender, reply) = oneshot::channel();
         self.send(Control::Terminate(sender))?;
@@ -126,8 +140,13 @@ fn validate(options: &Options) -> Result<(), String> {
         return Err("Invalid persistent pane identity".into());
     }
     // Imported paths belong to the destination OS, not necessarily this OS.
-    if options.cwd.is_empty() || (!options.attach_only && !std::path::Path::new(&options.cwd).is_absolute()) {
+    if options.cwd.is_empty() || (!options.attach_only && options.target.is_none() && !std::path::Path::new(&options.cwd).is_absolute()) {
         return Err("Herdr requires an absolute worktree path".into());
+    }
+    if let Some(target) = &options.target {
+        if options.executable != target.endpoint.executable || options.session != target.endpoint.session {
+            return Err("Remote terminal endpoint changed".into());
+        }
     }
     Ok(())
 }
@@ -207,6 +226,64 @@ fn validate_machine(binding: &Binding, machines: &Value) -> Result<(), String> {
     Ok(())
 }
 
+async fn check_target(target: &RemoteTarget, hello: &Value, writer: &mut ChildStdin,
+                      reader: &mut BufReader<ChildStdout>, early: &mut Vec<Frame>) -> Result<(), String> {
+    if target.core_id.is_empty() || hello["core"]["id"] != target.core_id {
+        return Err("Remote project belongs to another local core. No fallback was used.".into());
+    }
+    if target.machine.is_empty() || target.machine.contains('/') || target.machine_id.is_empty() {
+        return Err("Remote project is missing machine identity".into());
+    }
+    let machines = request(writer, reader, "machine.list", json!({}), early).await?;
+    validate_machine(&Binding { core_id: target.core_id.clone(), address: format!("{}/identity", target.machine),
+        machine_id: Some(target.machine_id.clone()) }, &machines)
+}
+
+static REMOTE_QUERIES: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
+
+/// Internal, bounded read-only Git transport. No caller-controlled command API
+/// is exposed through Tauri. Each operation verifies both core identities.
+pub(crate) struct RemoteGit {
+    _child: Child, writer: ChildStdin, reader: BufReader<ChildStdout>, early: Vec<Frame>,
+    target: RemoteTarget, _permit: tokio::sync::SemaphorePermit<'static>,
+}
+
+impl RemoteGit {
+    pub(crate) async fn connect(target: &RemoteTarget) -> Result<Self, String> {
+        let permit = tokio::time::timeout(Duration::from_secs(2), REMOTE_QUERIES.acquire()).await
+            .map_err(|_| "Remote Git queries are busy; refresh to retry".to_string())?.map_err(|e| e.to_string())?;
+        let (child, mut writer, mut reader, hello) = connect(&target.endpoint.executable, &target.endpoint.session).await?;
+        let mut early = Vec::new();
+        check_target(target, &hello, &mut writer, &mut reader, &mut early).await?;
+        Ok(Self { _child: child, writer, reader, early, target: target.clone(), _permit: permit })
+    }
+
+    pub(crate) async fn output(&mut self, path: &str, args: &[&str]) -> Result<(i64, String, String), String> {
+        let mut argv = vec!["git", "--no-pager", "--literal-pathspecs", "-c", "core.fsmonitor=false",
+            "-c", "core.untrackedCache=false", "-c", "core.quotepath=false", "-C", path];
+        argv.extend_from_slice(args);
+        let result = request(&mut self.writer, &mut self.reader, "machine.exec", json!({
+            "on":self.target.machine,"argv":argv,"timeout":5,
+            "env":{"GIT_OPTIONAL_LOCKS":"0","LC_ALL":"C"}
+        }), &mut self.early).await?;
+        if result["timed_out"] == true || result["truncated"] == true {
+            return Err("Remote Git output exceeded its time or size limit; results are unavailable".into());
+        }
+        let decode = |key: &str| -> Result<String, String> {
+            let data = base64::engine::general_purpose::STANDARD.decode(result[key].as_str().ok_or("Invalid remote Git response")?)
+                .map_err(|e| e.to_string())?;
+            String::from_utf8(data).map_err(|_| "Remote Git returned non-UTF-8 data".into())
+        };
+        Ok((result["code"].as_i64().ok_or("Remote Git ended without an exit code")?, decode("stdout")?, decode("stderr")?))
+    }
+
+    pub(crate) async fn git(&mut self, path: &str, args: &[&str]) -> Result<String, String> {
+        let (code, out, error) = self.output(path, args).await?;
+        if code != 0 { return Err(format!("Remote Git failed: {}", error.trim())); }
+        Ok(out)
+    }
+}
+
 /// Serialized by the Tauri manager to avoid simultaneous creation of the same
 /// pane. The unique core name also prevents duplicates across app processes.
 pub async fn open(options: Options, rows: u16, cols: u16,
@@ -221,6 +298,13 @@ pub async fn open(options: Options, rows: u16, cols: u16,
         }
         let core_id = hello["core"]["id"].as_str().ok_or("Herdr omitted core identity")?.to_string();
         let mut early = Vec::new();
+        if let Some(target) = &options.target {
+            check_target(target, &hello, &mut writer, &mut reader, &mut early).await?;
+            if options.binding.as_ref().is_some_and(|b| b.machine_id.as_ref() != Some(&target.machine_id) ||
+                !b.address.starts_with(&format!("{}/", target.machine))) {
+                return Err("Saved terminal belongs to another machine".into());
+            }
+        }
         let (terminal, created) = if let Some(binding) = &options.binding {
             if binding.core_id != core_id { return Err("Saved terminal belongs to another core. No replacement was started.".into()); }
             if options.attach_only {
@@ -229,19 +313,21 @@ pub async fn open(options: Options, rows: u16, cols: u16,
             }
             (request(&mut writer, &mut reader, "terminal.get", json!({"terminal":binding.address}), &mut early).await?, false)
         } else {
-            let list = request(&mut writer, &mut reader, "terminal.list", json!({}), &mut early).await?;
+            let list = request(&mut writer, &mut reader, "terminal.list", json!({"all":true}), &mut early).await?;
             let matches: Vec<_> = list["terminals"].as_array().ok_or("Invalid Herdr inventory")?.iter()
                 .filter(|t| t["labels"]["agentpanel.pane"] == options.key).collect();
             match matches.as_slice() {
                 [terminal] => ((*terminal).clone(), false),
                 [] => {
-                    let argv = if options.shell.is_empty() { Vec::<String>::new() } else { vec![options.shell.clone()] };
-                    let mut env = options.env.clone();
+                    if options.existing_only { return Err("Saved remote terminal was not found. No replacement was started.".into()); }
+                    let argv = if options.target.is_some() || options.shell.is_empty() { Vec::<String>::new() } else { vec![options.shell.clone()] };
+                    let mut env = if options.target.is_some() { HashMap::new() } else { options.env.clone() };
                     env.retain(|key, _| !key.starts_with("HC_") && !key.starts_with("HERDR_"));
                     env.entry("TERM".into()).or_insert("xterm-256color".into());
                     env.entry("COLORTERM".into()).or_insert("truecolor".into());
                     let terminal = request(&mut writer, &mut reader, "terminal.run", json!({
                         "argv":argv,"cwd":options.cwd,"env":env,"name":options.key,
+                        "on":options.target.as_ref().map(|t| &t.machine),
                         "labels":{"agentpanel.pane":options.key},"no_parent":true
                     }), &mut early).await?;
                     (terminal, true)
@@ -254,6 +340,9 @@ pub async fn open(options: Options, rows: u16, cols: u16,
             return Err("Saved Herdr terminal does not match this pane and worktree".into());
         }
         let address = terminal["address"].as_str().ok_or("Herdr omitted terminal address")?.to_string();
+        if options.target.as_ref().is_some_and(|t| !address.starts_with(&format!("{}/", t.machine))) {
+            return Err("Terminal does not belong to the selected machine".into());
+        }
         if options.attach_only && options.binding.as_ref().is_none_or(|b| b.address != address) {
             return Err("Saved terminal address changed. Refresh Machines to attach explicitly.".into());
         }
@@ -265,13 +354,15 @@ pub async fn open(options: Options, rows: u16, cols: u16,
         // Subscribe returns the authoritative snapshot at the start of the
         // event stream. The earlier get/run result can already be stale.
         emit(Event::Status { state: subscription_state(&subscribed, &address) });
-        Ok((Binding { core_id, address, machine_id: options.binding.as_ref().and_then(|b| b.machine_id.clone()) }, created, channel, events, early))
+        Ok((Binding { core_id, address, machine_id: options.target.as_ref().map(|t| t.machine_id.clone())
+            .or_else(|| options.binding.as_ref().and_then(|b| b.machine_id.clone())) }, created, channel, events, early))
     }).await.map_err(|_| "Herdr connection timed out. Reconnect to inspect uncertain delivery.".to_string())??;
     let (sender, receiver) = mpsc::channel(32);
     let address = binding.address.clone();
     let finished = Arc::new(AtomicBool::new(false));
     tokio::spawn(drive(child, writer, reader, channel, events, address, early, receiver, finished.clone(), emit));
-    Ok(Opened { connection: Connection { sender, finished, attach_only: options.attach_only }, binding, created })
+    let detach_only = options.attach_only || options.target.is_some() || binding.address.contains('/');
+    Ok(Opened { connection: Connection { sender, finished, attach_only: detach_only }, binding, created })
 }
 
 fn stream_channel(value: &Value) -> Result<u32, String> {

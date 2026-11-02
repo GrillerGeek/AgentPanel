@@ -473,7 +473,8 @@ function App() {
                                   cwd={t.cwd}
                                   paneId={pane.id}
                                   runtime={pane.runtime}
-                                  locationLabel={t.attachment ? `${t.attachment.machine} · session ${t.attachment.session} · ${t.cwd}` : undefined}
+                                  locationLabel={t.attachment ? `${t.attachment.machine} · session ${t.attachment.session} · ${t.cwd}`
+                                    : t.remote ? `${t.remote.machine} · session ${t.remote.session ?? "default"} · ${t.cwd}` : undefined}
                                   initialCommand={pane.initialCommand}
                                   active={t.id === activeTabId}
                                   autoFocus={t.id === activeTabId && paneIndex === 0}

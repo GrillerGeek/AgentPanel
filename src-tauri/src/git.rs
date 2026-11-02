@@ -57,6 +57,7 @@ fn make_worktree(repo_id: &str, path: String, branch: Option<String>, is_primary
         name,
         branch,
         is_primary,
+        remote: None,
     }
 }
 

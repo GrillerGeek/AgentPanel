@@ -160,6 +160,9 @@ export function TabBar({
 
   return (
     <div className="tabbar">
+      {!context && activeTab?.remote && <span className="tabbar-context" title={activeTab.cwd}>
+        {activeTab.remote.machine} · {activeTab.remote.session ?? "default"}
+      </span>}
       {activeTab?.attachment && <span className="tabbar-context" title={activeTab.cwd}>
         {activeTab.attachment.machine} · {activeTab.attachment.session}
       </span>}
@@ -170,7 +173,7 @@ export function TabBar({
           <span className="ctx-branch">{context.branch}</span>
         </span>
       )}
-      {activeWorktree && (
+      {activeWorktree && !activeWorktree.remote && !activeTab?.remote && (
         <button
           className="icon-btn editor-btn"
           title={`Open in "${editorCommand}"`}
@@ -206,11 +209,11 @@ export function TabBar({
           <span className="tab-title">{label}</span>
           <button
             className="tab-close"
-            title={t.attachment ? "Detach terminal (leave program running)" : "Close terminal"}
+            title={t.attachment || t.remote ? "Detach terminal (leave program running)" : "Close terminal"}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={async (e) => {
               e.stopPropagation();
-              if (!t.attachment && (tabState === "running" || tabState === "awaiting")) {
+              if (!t.attachment && !t.remote && (tabState === "running" || tabState === "awaiting")) {
                 if (
                   !(await requestConfirm({
                     message: `Close "${label}"?`,

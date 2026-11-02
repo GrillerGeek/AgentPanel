@@ -15,6 +15,11 @@ export function MachineBrowser({ onClose }: { onClose: () => void }) {
   const generation = useRef(0);
   const dialog = useRef<HTMLDivElement>(null);
   const attach = useStore((s) => s.attachHerdrTerminal);
+  const addRemoteRepository = useStore((s) => s.addRemoteRepository);
+  const [projectMachine, setProjectMachine] = useState<string | null>(null);
+  const [projectPath, setProjectPath] = useState("");
+  const [projectError, setProjectError] = useState("");
+  const [adding, setAdding] = useState(false);
   useEscapeToClose(onClose);
 
   useEffect(() => {
@@ -67,7 +72,7 @@ export function MachineBrowser({ onClose }: { onClose: () => void }) {
           onChange={(e) => setEndpoint({ ...endpoint, executable: e.target.value })} /></label>
         <label>Local core session<input className="settings-input" value={endpoint.session}
           onChange={(e) => setEndpoint({ ...endpoint, session: e.target.value })} /></label>
-        <button className="add-btn" type="submit" disabled={busy}>{busy ? "Loading…" : "Refresh terminals"}</button>
+        <button className="add-btn" type="submit" disabled={busy || adding}>{busy ? "Loading…" : "Refresh terminals"}</button>
       </form>
       <p className="machine-help">Configure machines and sign in through Herdr/OpenSSH, then refresh here. Remote files, worktrees, and editor actions are unavailable for attachments.</p>
       {error && <p role="alert">Could not refresh: {error}. Any inventory below is stale.</p>}
@@ -82,6 +87,25 @@ export function MachineBrowser({ onClose }: { onClose: () => void }) {
             <h3>{machine.name} <span>{machine.state === "needs_login" ? "needs login" : machine.state}</span></h3>
             <p>{machine.host || "Host not reported"} · session {machine.session ?? "default"}</p>
             {machine.why && <p role="status">{machine.why}</p>}
+            {machine.prefix && <button disabled={busy || stale || adding || machine.state !== "connected" || !machine.coreId}
+              onClick={() => { setProjectMachine(machine.name); setProjectPath(""); setProjectError(""); }}>Add repository on {machine.name}</button>}
+            {projectMachine === machine.name && <form className="machine-endpoint" onSubmit={(e) => {
+              e.preventDefault();
+              if (busy || stale || adding || machine.state !== "connected") return;
+              const current = generation.current;
+              setAdding(true); setProjectError("");
+              void addRemoteRepository({ endpoint: snapshot!.endpoint, coreId: inventory!.coreId,
+                machine: machine.name, machineId: machine.coreId, session: machine.session }, projectPath)
+                .then(() => { if (current === generation.current) onClose(); })
+                .catch((e) => { if (current === generation.current) setProjectError(String(e)); })
+                .finally(() => { if (current === generation.current) setAdding(false); });
+            }}>
+              <label>Remote Git repository path<input className="settings-input" value={projectPath} placeholder="/home/dev/project"
+                onChange={(e) => setProjectPath(e.target.value)} /></label>
+              <button disabled={adding || busy || stale || machine.state !== "connected" || !projectPath} type="submit">{adding ? "Adding…" : "Add remote repository"}</button>
+              <button type="button" onClick={() => setProjectMachine(null)}>Cancel</button>
+              {projectError && <p role="alert">{projectError}</p>}
+            </form>}
             {terminals.length === 0 && <p>{machine.state === "connected" ? "No running terminals." : "Terminal inventory unavailable while disconnected."}</p>}
             {terminals.map((terminal) => <div className="machine-terminal" key={terminal.address}>
               <div><strong>{terminal.title || terminal.address}</strong> {terminal.title && terminal.title !== terminal.address && <code>{terminal.address}</code>}

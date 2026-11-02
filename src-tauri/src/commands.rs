@@ -101,6 +101,7 @@ pub fn add_repository(
         name,
         is_git: git::is_git_repository(p),
         default_branch: None,
+        remote: None,
     };
 
     let mut repos = store.repos.lock().map_err(|e| e.to_string())?;
@@ -161,6 +162,8 @@ pub async fn list_worktrees(
     store: State<'_, AppStore>,
     repo_id: String,
 ) -> Result<Vec<Worktree>, String> {
+    let repo = crate::remote_projects::repository(&store, &repo_id)?;
+    if repo.remote.is_some() { return crate::remote_projects::worktrees(&repo).await; }
     let (path, id, is_git) = repo_handle(&store, &repo_id)?;
     if is_git {
         // git subprocess — keep it off the main/UI thread (see worktree_status).
@@ -176,6 +179,7 @@ pub async fn list_worktrees(
             name: "main".to_string(),
             branch: None,
             is_primary: true,
+            remote: None,
         }])
     }
 }
@@ -185,7 +189,13 @@ pub async fn list_worktrees(
 fn repo_handle(store: &State<'_, AppStore>, repo_id: &str) -> Result<(String, String, bool), String> {
     let repos = store.repos.lock().map_err(|e| e.to_string())?;
     let repo = repos.iter().find(|r| r.id == repo_id).ok_or("repository not found")?;
+    require_local(repo)?;
     Ok((repo.path.clone(), repo.id.clone(), repo.is_git))
+}
+
+pub(crate) fn require_local(repo: &Repository) -> Result<(), String> {
+    if repo.remote.is_some() || repo.id.starts_with("remote:") { return Err("This operation is not enabled for remote repositories".into()); }
+    Ok(())
 }
 
 /// Which local branch a new worktree starts from: the explicitly requested
@@ -394,6 +404,7 @@ mod reorder_tests {
             name: id.into(),
             is_git: true,
             default_branch: None,
+            remote: None,
         }
     }
 

@@ -20,8 +20,12 @@ from herdr_core_probe import Client
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("binary")
 parser.add_argument("output", nargs="?")
+parser.add_argument("--projects", action="store_true", help="Also verify remote repositories, Git views, and new remote programs")
+parser.add_argument("--ui-timeout", type=int, default=600, help="Native UI fixture window in seconds (1-1800)")
 parser.add_argument("--ui-info", type=Path, help="Keep isolated guests available up to 10 minutes; write a stop file at the reported path when finished")
 args = parser.parse_args()
+if not 1 <= args.ui_timeout <= 1800:
+    parser.error("--ui-timeout must be between 1 and 1800 seconds")
 binary = str(Path(args.binary).resolve())
 repo = Path(__file__).resolve().parents[2]
 subprocess.run(["docker", "build", "-q", "-t", "agentpanel-ssh-fixture:hc-0.1.16",
@@ -84,6 +88,37 @@ with tempfile.TemporaryDirectory(prefix="ap-ssh-", dir="/private/tmp" if sys.pla
             "cwd": "/home/agentpanel/project", "no_parent": True})
         machines = {m["name"]: m["id"] for m in client.rpc("machine.list")["machines"]}
         assert machines["linux"] != machines["other"]
+        if args.projects:
+            for machine in ("linux", "other"):
+                # Only these new, disposable guest files/repositories are changed.
+                setup = """set -eu
+git init -b main /home/agentpanel/project >/dev/null
+cd /home/agentpanel/project
+printf 'initial\\n' > tracked.txt
+printf '*.txt diff=fixture\\n' > .gitattributes
+git add tracked.txt .gitattributes
+git -c user.name=Fixture -c user.email=fixture@example.invalid commit -m initial >/dev/null
+git worktree add -b feature '/home/agentpanel/linked checkout' >/dev/null
+cd '/home/agentpanel/linked checkout'
+printf 'committed feature\\n' > feature.txt
+git add feature.txt
+git -c user.name=Fixture -c user.email=fixture@example.invalid commit -m feature >/dev/null
+cd /home/agentpanel/project
+printf '%s-change\\n' "$1" > tracked.txt
+printf 'untracked\\n' > 'untracked name.txt'
+printf '\\000\\001' > binary.bin
+printf 'outside-secret\\n' > /home/agentpanel/outside.txt
+ln -s ../outside.txt link.txt
+printf '#!/bin/sh\\n: > /home/agentpanel/unexpected-helper\\n' > /home/agentpanel/git-helper
+chmod 755 /home/agentpanel/git-helper
+git config core.fsmonitor /home/agentpanel/git-helper
+git config diff.fixture.textconv /home/agentpanel/git-helper
+git init -b main /home/agentpanel/unborn >/dev/null
+printf 'staged\\n' > /home/agentpanel/unborn/staged.txt
+git -C /home/agentpanel/unborn add staged.txt
+"""
+                result = client.rpc("machine.exec", {"on": machine, "argv": ["sh", "-c", setup, "fixture", machine], "timeout": 10})
+                assert result.get("code") == 0, base64.b64decode(result["stderr"]).decode()
         remote_address, pid = terminal["address"], terminal["pid"]
         test_env = dict(env, AGENTPANEL_HC_TEST_BINARY=binary,
             AGENTPANEL_HC_TEST_CWD="/home/agentpanel/project",
@@ -95,6 +130,13 @@ with tempfile.TemporaryDirectory(prefix="ap-ssh-", dir="/private/tmp" if sys.pla
         adapter_test = ["cargo", "test", "--manifest-path", str(repo / "src-tauri/Cargo.toml"), "--offline",
                         "live_adapter_attaches_to_ssh_terminal", "--", "--ignored", "--nocapture"]
         subprocess.run(adapter_test, env=test_env, check=True, timeout=300)
+        if args.projects:
+            project_test = adapter_test.copy()
+            project_test[5] = "live_remote_projects"  # Replace the test filter, retaining the isolated environment.
+            subprocess.run(project_test, env=test_env, check=True, timeout=120)
+            for machine in ("linux", "other"):
+                untouched = client.rpc("machine.exec", {"on": machine, "argv": ["sh", "-c", "test ! -e /home/agentpanel/unexpected-helper"], "timeout": 5})
+                assert untouched.get("code") == 0, "A repository-configured Git helper unexpectedly ran"
         # Kill SSH session processes, never the runtime/holder, to force a real
         # transport interruption. The remote shell must survive reconnection.
         # Pause the first listener and end its user SSH session while leaving
@@ -134,7 +176,7 @@ with tempfile.TemporaryDirectory(prefix="ap-ssh-", dir="/private/tmp" if sys.pla
             args.ui_info.write_text(json.dumps({"executable": str(wrapper), "session": env["HC_SESSION"],
                 "stop_file": str(stop), "addresses": [remote_address, other_terminal["address"]]}))
             print("Disposable UI fixture ready: " + str(args.ui_info), flush=True)
-            deadline = time.monotonic() + 600
+            deadline = time.monotonic() + args.ui_timeout
             while not stop.exists():
                 if time.monotonic() > deadline:
                     raise TimeoutError("UI fixture acceptance window expired")
@@ -145,6 +187,7 @@ with tempfile.TemporaryDirectory(prefix="ap-ssh-", dir="/private/tmp" if sys.pla
                   "remote_address": remote_address, "same_remote_pid_after_interruption": pid,
                   "rust_adapter_remote_attach": True, "strict_host_key_checking": True,
                   "second_guest_usable_during_first_ssh_outage": True,
+                  "remote_projects_test": args.projects,
                   "limits": ["not two physical computers", "no WAN/sleep/MFA acceptance", "UI acceptance is manual and documented separately"]}
     finally:
         try:

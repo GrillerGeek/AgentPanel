@@ -57,8 +57,10 @@ export function ActiveSessions() {
       </div>
       <div className="session-list">
         {sortedOrder.map((worktreeId) => {
-          const label = labels[worktreeId];
+          const remoteTab = terminals.find((t) => t.worktreeId === worktreeId && t.remote);
+          const label = labels[worktreeId] ?? (remoteTab ? { repo: `${repositories.find((r) => r.id === remoteTab.repoId)?.name ?? "remote project"} · ${remoteTab.remote!.machine}`, branch: remoteTab.title } : undefined);
           const imported = terminals.find((t) => t.worktreeId === worktreeId && t.attachment);
+          const remote = !!remoteTab;
           const active = worktreeId === activeWorktreeId;
           return (
             <div key={worktreeId} className={`session-row ${active ? "active" : ""}`}>
@@ -84,9 +86,9 @@ export function ActiveSessions() {
               </button>
               <button
                 className="icon-btn"
-                title={imported ? "Detach terminal (leave program running)" : "Close all terminals in this worktree"}
+                title={imported || remote ? "Detach terminals (leave programs running)" : "Close all terminals in this worktree"}
                 onClick={async () => {
-                  if (imported) { void closeWorktreeTerminals(worktreeId); return; }
+                  if (imported || remote) { void closeWorktreeTerminals(worktreeId); return; }
                   const running =
                     stateByWorktree[worktreeId] === "running" ||
                     stateByWorktree[worktreeId] === "awaiting";

@@ -25,6 +25,7 @@ export function PrDashboard({ onClose }: { onClose: () => void }) {
     <div className="palette-backdrop" onClick={onClose}>
       <div className="pr-dashboard" onClick={(e) => e.stopPropagation()}>
         <h2>Pull requests across all repos</h2>
+        {repositories.some((r) => r.remote) && <p className="muted">Remote repository PR status is unavailable; this dashboard queries local repositories only.</p>}
         {rows.length === 0 && (
           <div className="palette-empty">No open PRs detected (needs the GitHub CLI `gh`).</div>
         )}
