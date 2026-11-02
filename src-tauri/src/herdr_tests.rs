@@ -139,7 +139,10 @@ async fn live_adapter_reconnects_without_replaying_or_replacing_the_program() {
     resumed.connection.send(Control::Input("dd if=/dev/zero bs=1024 count=300 2>/dev/null | tr '\\000' x; printf '\\nFLOOD-END\\n'\r".into())).unwrap();
     let output = marker(&mut rx, &resumed.connection, b"\r\nFLOOD-END\r\n").await;
     assert!(output.len() >= 300 * 1024);
-    resumed.connection.send(Control::Input("printf '\\033]7501;state=blocked:app=adapter-test\\033\\\\'\r".into())).unwrap();
+    // The flood's output credits can still fill the bounded control queue.
+    // Wait for capacity; queue scheduling is not a transport failure.
+    tokio::time::timeout(DEADLINE, resumed.connection.sender.send(Control::Input(
+        "printf '\\033]7501;state=blocked:app=adapter-test\\033\\\\'\r".into()))).await.unwrap().unwrap();
     tokio::time::timeout(DEADLINE, async {
         loop {
             match rx.recv().await.unwrap() {
