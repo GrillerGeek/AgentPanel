@@ -23,6 +23,15 @@ export interface Pane {
   id: string;
   /** command auto-run once this pane's shell spawns (agent quick-launch) */
   initialCommand?: string;
+  runtime?: HerdrRuntime;
+}
+
+export interface HerdrRuntime {
+  kind: "herdr";
+  executable: string;
+  session: string;
+  key: string;
+  binding?: { coreId: string; address: string };
 }
 
 /** An open terminal tab. All its panes share the worktree (cwd). */
@@ -44,6 +53,9 @@ export interface TerminalTab {
 
 /** User settings (persisted in localStorage). */
 export interface Settings {
+  terminalRuntime: "local" | "herdr";
+  herdrExecutable: string;
+  herdrSession: string;
   shell: string;
   /** newline-separated KEY=VALUE pairs injected into each new terminal */
   terminalEnv: string;

@@ -109,7 +109,11 @@ describe("diff review comments", () => {
         wt2: [{ id: "c2", file: "b.ts", line: 1, code: "b", body: "stays" }],
       },
     });
-    await useStore.getState().deleteWorktree("r1", "/wt1");
+    const removal = useStore.getState().deleteWorktree("r1", "/wt1");
+    await Promise.resolve(); // preflight completes before asking to stop terminals
+    expect(useStore.getState().confirmState).not.toBeNull();
+    useStore.getState().resolveConfirm(true);
+    await removal;
     expect(useStore.getState().diffComments["/wt1"]).toBeUndefined();
     expect(useStore.getState().diffComments.wt2).toHaveLength(1);
   });

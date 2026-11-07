@@ -1,0 +1,143 @@
+{
+  "summary": "pass",
+  "checks": [
+    {
+      "check": "handshake",
+      "result": "pass",
+      "detail": {
+        "binary": "hc 0.1.16",
+        "hello": {
+          "core": {
+            "id": "8c5ee178f966e03f809551633c8d98f8",
+            "name": "mac"
+          },
+          "features": [
+            "framed",
+            "attach",
+            "events",
+            "status",
+            "shell"
+          ],
+          "framed": true,
+          "generation": 1,
+          "methods": [
+            "hello",
+            "server.status",
+            "server.stop",
+            "server.restart",
+            "terminal.run",
+            "templates.list",
+            "terminal.list",
+            "terminal.get",
+            "terminal.kill",
+            "terminal.rm",
+            "terminal.keep",
+            "terminal.label",
+            "terminal.read",
+            "terminal.attach",
+            "terminal.send",
+            "terminal.wait",
+            "terminal.keys",
+            "terminal.interrupt",
+            "terminal.put",
+            "machine.exec",
+            "file.read",
+            "file.write",
+            "file.edit",
+            "doc.get",
+            "doc.set",
+            "events.subscribe",
+            "machine.add",
+            "machine.list",
+            "machine.connect",
+            "machine.rename",
+            "machine.rm",
+            "rpc.discover"
+          ],
+          "version": "0.1.16"
+        }
+      }
+    },
+    {
+      "check": "raw_input_color_utf8",
+      "result": "pass",
+      "detail": {
+        "terminal": "t1",
+        "pid": 26128,
+        "bytes": 323
+      }
+    },
+    {
+      "check": "resize",
+      "result": "pass",
+      "detail": {
+        "observed": "37 rows, 101 columns"
+      }
+    },
+    {
+      "check": "two_clients",
+      "result": "pass",
+      "detail": {
+        "same_pid": 26128
+      }
+    },
+    {
+      "check": "zero_clients_reattach",
+      "result": "pass",
+      "detail": {
+        "same_pid": 26128,
+        "repaint_contains_detached_output": true
+      }
+    },
+    {
+      "check": "stream_credit",
+      "result": "pass",
+      "detail": {
+        "consumed_bytes": 307320,
+        "initial_credit": 262144
+      }
+    },
+    {
+      "check": "program_reported_status",
+      "result": "pass",
+      "detail": {
+        "app": "spike",
+        "state": "blocked"
+      }
+    },
+    {
+      "check": "planned_core_restart",
+      "result": "pass",
+      "detail": {
+        "same_program_pid": 26128,
+        "old_core_pid": 26118,
+        "new_core_pid": 26289
+      }
+    },
+    {
+      "check": "machine_routing_and_disconnect",
+      "result": "pass",
+      "detail": {
+        "address": "peer/t1",
+        "peer_process_survived_remove": true,
+        "transport": "local stdio bridge, not SSH"
+      }
+    },
+    {
+      "check": "explicit_stop",
+      "result": "pass",
+      "detail": {
+        "state": "finished",
+        "reason": "killed"
+      }
+    }
+  ],
+  "binary": "hc 0.1.16",
+  "platform": "darwin",
+  "cleanup": "both scratch sessions stopped",
+  "limits": [
+    "local stdio routing only; no SSH network tested",
+    "no Windows or Linux run",
+    "no xterm renderer or production app integration tested"
+  ]
+}

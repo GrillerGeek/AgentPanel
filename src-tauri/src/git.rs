@@ -127,24 +127,31 @@ pub fn list_branches(repo_path: &str) -> Result<Vec<String>, String> {
     Ok(out.lines().map(str::trim).filter(|l| !l.is_empty()).map(String::from).collect())
 }
 
-/// Remove a worktree (does not delete the branch). Uses `--force` to handle
-/// dirty/untracked files an agent may have left. If git fails (e.g. the
-/// directory is briefly still locked on Windows), fall back to pruning the
-/// registration and removing the leftover directory so we never orphan state.
-pub fn remove_worktree(repo_path: &str, worktree_path: &str) -> Result<(), String> {
-    match run_git(repo_path, &["worktree", "remove", "--force", worktree_path]) {
-        Ok(_) => Ok(()),
-        Err(e) => {
-            let _ = run_git(repo_path, &["worktree", "prune"]);
-            let _ = std::fs::remove_dir_all(worktree_path);
-            if std::path::Path::new(worktree_path).exists() {
-                Err(e) // genuinely could not remove it
-            } else {
-                let _ = run_git(repo_path, &["worktree", "prune"]);
-                Ok(())
-            }
-        }
+/// Preflight before stopping terminals. Never trust a frontend-supplied path
+/// without verifying that it is a linked checkout of this repository.
+pub fn check_worktree_removal(repo_path: &str, worktree_path: &str) -> Result<(), String> {
+    let target = std::fs::canonicalize(worktree_path).map_err(|e| e.to_string())?;
+    let worktrees = list_worktrees(repo_path, repo_path)?;
+    let wt = worktrees.iter().find(|wt| {
+        std::fs::canonicalize(&wt.path).ok().as_ref() == Some(&target)
+    }).ok_or("This directory is not a registered worktree of this repository.")?;
+    if wt.is_primary {
+        return Err("The primary checkout cannot be removed.".into());
     }
+    // Include ignored files: ordinary Git removal can delete those even without
+    // --force (for example a local .env or generated artifact worth keeping).
+    let changes = run_git(worktree_path, &["status", "--porcelain", "--untracked-files=all", "--ignored"])?;
+    if !changes.is_empty() {
+        return Err("Worktree contains modified, untracked, or ignored files. Commit, stash (include ignored files if needed), or move them before removing it.".into());
+    }
+    Ok(())
+}
+
+/// Recheck at execution, then let Git enforce safe removal. A Git failure must
+/// never become permission to recursively delete the checkout or prune it.
+pub fn remove_worktree(repo_path: &str, worktree_path: &str) -> Result<(), String> {
+    check_worktree_removal(repo_path, worktree_path)?;
+    run_git(repo_path, &["worktree", "remove", "--", worktree_path]).map(|_| ())
 }
 
 /// Commits ahead/behind the branch's upstream. (0, 0) when there is no upstream.
@@ -317,6 +324,56 @@ mod tests {
     }
 
     #[test]
+    fn removal_preserves_dirty_untracked_and_ignored_files() {
+        for kind in ["modified", "staged", "untracked", "ignored"] {
+            let base = std::env::temp_dir().join(format!("agentpanel_remove_{kind}_{}", std::process::id()));
+            let repo = base.join("repo");
+            init_repo(&repo);
+            let wt = base.join("wt");
+            add_worktree(&repo.to_string_lossy(), &wt.to_string_lossy(), "feature", None).unwrap();
+            let file = if kind == "modified" || kind == "staged" { "README.md" } else { "precious.txt" };
+            if kind == "ignored" {
+                fs::write(repo.join(".git/info/exclude"), "precious.txt\n").unwrap();
+            }
+            fs::write(wt.join(file), "preserve this work").unwrap();
+            if kind == "staged" { run_raw(&wt, &["add", file]); }
+            assert!(remove_worktree(&repo.to_string_lossy(), &wt.to_string_lossy()).is_err(), "{kind} must block removal");
+            assert_eq!(fs::read_to_string(wt.join(file)).unwrap(), "preserve this work");
+            assert_eq!(list_worktrees(&repo.to_string_lossy(), "repo").unwrap().len(), 2);
+            let _ = fs::remove_dir_all(base);
+        }
+    }
+
+    #[test]
+    fn removal_failure_never_recursively_deletes_a_directory() {
+        let base = std::env::temp_dir().join(format!("agentpanel_remove_unknown_{}", std::process::id()));
+        let repo = base.join("repo");
+        init_repo(&repo);
+        let unrelated = base.join("unrelated");
+        fs::create_dir_all(&unrelated).unwrap();
+        fs::write(unrelated.join("precious.txt"), "keep").unwrap();
+        assert!(remove_worktree(&repo.to_string_lossy(), &unrelated.to_string_lossy()).is_err());
+        assert_eq!(fs::read_to_string(unrelated.join("precious.txt")).unwrap(), "keep");
+        assert!(remove_worktree(&repo.to_string_lossy(), &repo.to_string_lossy()).is_err());
+        assert!(repo.join("README.md").exists());
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn locked_worktree_is_preserved_on_git_failure() {
+        let base = std::env::temp_dir().join(format!("agentpanel_remove_locked_{}", std::process::id()));
+        let repo = base.join("repo");
+        init_repo(&repo);
+        let wt = base.join("wt");
+        add_worktree(&repo.to_string_lossy(), &wt.to_string_lossy(), "feature", None).unwrap();
+        run_raw(&repo, &["worktree", "lock", &wt.to_string_lossy()]);
+        assert!(remove_worktree(&repo.to_string_lossy(), &wt.to_string_lossy()).is_err());
+        assert!(wt.join("README.md").exists());
+        assert_eq!(list_worktrees(&repo.to_string_lossy(), "repo").unwrap().len(), 2);
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
     fn worktree_lifecycle() {
         let base = std::env::temp_dir().join(format!("agentpanel_wt_{}", std::process::id()));
         let repo = base.join("repo");
@@ -338,6 +395,7 @@ mod tests {
         remove_worktree(&repo_str, &wt_str).unwrap();
         let wts = list_worktrees(&repo_str, &repo_str).unwrap();
         assert_eq!(wts.len(), 1, "removed worktree should be gone");
+        run_raw(&repo, &["show-ref", "--verify", "refs/heads/feature"]);
 
         let _ = fs::remove_dir_all(&base);
     }
