@@ -65,6 +65,9 @@ jobs:
       - name: Build frontend (typecheck + dist)
         run: npm run build
 
+      - name: Build isolated Ghostty spike
+        run: npm run build:ghostty-spike
+
       - name: Frontend tests
         run: npm test
 
@@ -112,6 +115,7 @@ jobs:
           key: desktop-check-${{ matrix.os }}
       - run: npm ci
       - run: npm run build
+      - run: npm run build:ghostty-spike
       - run: npm test
       - run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
       - run: cargo test --manifest-path src-tauri/Cargo.toml
