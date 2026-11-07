@@ -207,7 +207,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <label className="settings-field">
-          <span>Runtime for new terminals</span>
+          <span>Runtime for new local terminals</span>
           <select className="settings-input" value={terminalRuntime}
             onChange={(e) => setTerminalRuntime(e.currentTarget.value as "local" | "herdr")}>
             <option value="local">Local PTY (default)</option>

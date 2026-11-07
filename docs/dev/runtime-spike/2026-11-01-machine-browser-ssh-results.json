@@ -1,0 +1,14 @@
+{
+  "result": "pass",
+  "transport": "OpenSSH over localhost TCP to two Linux Docker guests",
+  "remote_address": "linux/t1",
+  "same_remote_pid_after_interruption": 70,
+  "rust_adapter_remote_attach": true,
+  "strict_host_key_checking": true,
+  "second_guest_usable_during_first_ssh_outage": true,
+  "limits": [
+    "not two physical computers",
+    "no WAN/sleep/MFA acceptance",
+    "UI acceptance is manual and documented separately"
+  ]
+}

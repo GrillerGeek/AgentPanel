@@ -29,6 +29,7 @@ export function DiffView({
   path,
   file,
   refreshNonce,
+  remoteRepoId,
 }: {
   worktreeId: string;
   path: string;
@@ -36,8 +37,11 @@ export function DiffView({
   /** Bumped by DiffPanel on every worktrees-changed event, so an open diff
    *  re-fetches instead of going stale while the file list beneath it updates. */
   refreshNonce: number;
+  remoteRepoId?: string;
 }) {
   const [hunks, setHunks] = useState<DiffHunk[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [binary, setBinary] = useState(false);
   // `openLine` uses the sentinel "file" (rather than reusing `null`, which is
   // also a valid anchor) so a line-comment editor and the file-comment editor
   // can never both read as "open" at once.
@@ -49,17 +53,19 @@ export function DiffView({
 
   useEffect(() => {
     let cancelled = false;
-    void invoke<string>("worktree_file_patch", { path, file })
+    setHunks(null); setError(null); setBinary(false);
+    void invoke<string>(remoteRepoId ? "remote_worktree_file_patch" : "worktree_file_patch",
+      remoteRepoId ? { repoId: remoteRepoId, path, file } : { path, file })
       .then((patch) => {
-        if (!cancelled) setHunks(parseUnifiedDiff(patch));
+        if (!cancelled) { setHunks(parseUnifiedDiff(patch)); setBinary(patch.split("\n").some((line) => line.startsWith("Binary files "))); }
       })
-      .catch(() => {
-        if (!cancelled) setHunks([]);
+      .catch((err) => {
+        if (!cancelled) { setHunks([]); setError(remoteRepoId ? String(err) : null); }
       });
     return () => {
       cancelled = true;
     };
-  }, [path, file, refreshNonce]);
+  }, [path, file, refreshNonce, remoteRepoId]);
 
   const fileComments = comments.filter((c) => c.file === file);
   const wholeFileComments = fileComments.filter((c) => c.line === null);
@@ -72,6 +78,8 @@ export function DiffView({
     setOpenLine(null);
   };
 
+  if (error) return <p role="alert">Remote patch unavailable: {error}</p>;
+  if (binary) return <p className="diff-empty">Binary file — no text diff.</p>;
   if (hunks === null) return <p className="diff-loading">Loading diff…</p>;
   if (hunks.length === 0) return <p className="diff-empty">Nothing to show for this file.</p>;
 

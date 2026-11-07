@@ -35,9 +35,13 @@ export function DiffPanel() {
   // out, matching every other caller (store.ts's status/PR refreshers).
   const worktreePath = useStore((s) =>
     activeWorktreeId
-      ? (Object.values(s.worktrees).flat().find((w) => w.id === activeWorktreeId)?.path ?? null)
+      ? (Object.values(s.worktrees).flat().find((w) => w.id === activeWorktreeId)?.path ??
+          s.terminals.find((t) => t.worktreeId === activeWorktreeId && t.remote)?.cwd ?? null)
       : null,
   );
+  const remoteRepoId = useStore((s) => Object.values(s.worktrees).flat().find((w) => w.id === activeWorktreeId && w.remote)?.repoId ??
+    s.terminals.find((t) => t.worktreeId === activeWorktreeId && t.remote)?.repoId);
+  const remoteActive = useStore((s) => !!s.terminals.find((t) => t.id === s.activeTabId)?.remote) || !!remoteRepoId;
   const selectedDiffFile = useStore((s) => s.selectedDiffFile);
   const setSelectedDiffFile = useStore((s) => s.setSelectedDiffFile);
   const commentCount = useStore(
@@ -46,6 +50,7 @@ export function DiffPanel() {
   const sendReviewToAgent = useStore((s) => s.sendReviewToAgent);
   const clearDiffComments = useStore((s) => s.clearDiffComments);
   const [files, setFiles] = useState<DiffFile[]>([]);
+  const [error, setError] = useState<string | null>(null);
   // Bumped alongside every refresh triggered by a worktrees-changed event, and
   // handed down to DiffView so its open patch re-fetches too (I5) — otherwise
   // the file list below updates while the hunks stay pinned to a stale patch.
@@ -53,19 +58,23 @@ export function DiffPanel() {
   const reqRef = useRef(0);
 
   const refresh = useCallback(async () => {
-    if (!worktreePath) return;
+    if (!worktreePath || (remoteActive && !remoteRepoId)) {
+      if (remoteActive) setError("Remote project identity is unavailable; add the repository again.");
+      return;
+    }
     // Overlapping refreshes are normal here: the panel re-fetches on every
     // worktrees-changed event AND on worktree switch. Ignore any response that
     // is no longer the newest request, or a slow older call can land last and
     // show the wrong worktree's files.
     const seq = ++reqRef.current;
     try {
-      const next = await invoke<DiffFile[]>("worktree_diff", { path: worktreePath });
-      if (seq === reqRef.current) setFiles(next);
-    } catch {
-      if (seq === reqRef.current) setFiles([]); // spec R8 — never toast
+      const next = await invoke<DiffFile[]>(remoteRepoId ? "remote_worktree_diff" : "worktree_diff",
+        remoteRepoId ? { repoId: remoteRepoId, path: worktreePath } : { path: worktreePath });
+      if (seq === reqRef.current) { setFiles(next); setError(null); }
+    } catch (err) {
+      if (seq === reqRef.current) { setFiles([]); setError(remoteRepoId ? String(err) : null); }
     }
-  }, [worktreePath]);
+  }, [worktreePath, remoteRepoId, remoteActive]);
 
   // Clear the previous worktree's files (and any file it had selected) the
   // instant the active worktree changes — BEFORE the new fetch resolves.
@@ -73,6 +82,7 @@ export function DiffPanel() {
   // worktree's file list on screen for however long the request takes (I4).
   useEffect(() => {
     setFiles([]);
+    setError(null);
     setSelectedDiffFile(null);
   }, [activeWorktreeId, setSelectedDiffFile]);
 
@@ -111,6 +121,7 @@ export function DiffPanel() {
       <header className="diff-panel-head">
         <span className="diff-panel-title">Review</span>
         <div className="diff-panel-actions">
+          {remoteRepoId && <button className="icon-btn" onClick={() => { setRefreshNonce((n) => n + 1); void refresh(); }}>Refresh remote diff</button>}
           <button
             className="diff-send"
             disabled={commentCount === 0}
@@ -130,7 +141,7 @@ export function DiffPanel() {
         </div>
       </header>
 
-      {files.length === 0 ? (
+      {error ? <p role="alert">Remote diff unavailable: {error}</p> : files.length === 0 ? (
         <p className="diff-empty">No changes in this worktree.</p>
       ) : (
         <ul className="diff-file-list">
@@ -145,7 +156,7 @@ export function DiffPanel() {
                   {STATUS_MARK[f.status] ?? "M"}
                 </span>
                 <span className="diff-file-path">{f.path}</span>
-                {f.binary ? (
+                {remoteRepoId && f.status === "untracked" ? <span className="diff-binary">untracked · open to inspect</span> : f.binary ? (
                   <span className="diff-binary">bin</span>
                 ) : (
                   <>
@@ -158,6 +169,7 @@ export function DiffPanel() {
                 <DiffView
                   worktreeId={activeWorktreeId}
                   path={worktreePath}
+                  remoteRepoId={remoteRepoId}
                   file={f.path}
                   refreshNonce={refreshNonce}
                 />

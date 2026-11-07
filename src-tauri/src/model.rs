@@ -18,6 +18,10 @@ pub struct Repository {
     /// current HEAD (the pre-0.8 behaviour). Absent in older saved files.
     #[serde(default)]
     pub default_branch: Option<String>,
+    /// Missing in legacy records means local; remote paths never identify a
+    /// repository without their pinned machine/core identities.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote: Option<crate::herdr::RemoteTarget>,
 }
 
 /// An isolated work unit. For git repos this is a real git worktree; for plain
@@ -31,6 +35,8 @@ pub struct Worktree {
     pub name: String,
     pub branch: Option<String>,
     pub is_primary: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote: Option<crate::herdr::RemoteTarget>,
 }
 
 /// Pull-request info for a worktree's branch, from the `gh` CLI.
@@ -90,6 +96,7 @@ mod default_branch_tests {
             name: "x".into(),
             is_git: true,
             default_branch: Some("main".into()),
+            remote: None,
         };
         let json = serde_json::to_string(&repo).unwrap();
         assert!(json.contains(r#""defaultBranch":"main""#), "{json}");

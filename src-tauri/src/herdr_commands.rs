@@ -33,7 +33,9 @@ pub struct OpenResult { id: u32, binding: Binding, created: bool }
 #[tauri::command]
 pub async fn herdr_open(state: State<'_, HerdrManager>, options: Options, rows: u16, cols: u16,
                         on_event: Channel<Event>) -> Result<OpenResult, String> {
-    let _guard = state.opens.lock().await;
+    // Binding-based attachment cannot create duplicates. A slow/offline host
+    // must not serialize unrelated viewers behind its connection deadline.
+    let _guard = if options.binding.is_none() { Some(state.opens.lock().await) } else { None };
     let opened = herdr::open(options, rows.max(1), cols.max(1), move |event| on_event.send(event).is_ok()).await?;
     let id = state.next.fetch_add(1, Ordering::Relaxed) + 1;
     state.viewers.lock().map_err(|e| e.to_string())?.insert(id, Arc::new(opened.connection));
@@ -68,6 +70,11 @@ pub fn herdr_detach(state: State<'_, HerdrManager>, id: u32) -> Result<(), Strin
 #[tauri::command]
 pub async fn herdr_terminate(state: State<'_, HerdrManager>, id: u32) -> Result<(), String> {
     state.terminate(id).await
+}
+
+#[tauri::command]
+pub async fn herdr_inventory(endpoint: herdr::Endpoint) -> Result<serde_json::Value, String> {
+    herdr::inventory(endpoint).await
 }
 
 #[cfg(test)]

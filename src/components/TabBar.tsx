@@ -153,13 +153,19 @@ export function TabBar({
   };
 
   const activeTab = terminals.find((t) => t.id === activeTabId);
-  const canSplit = !!activeTab && activeTab.panes.length < 2;
+  const canSplit = !!activeTab && !activeTab.attachment && activeTab.panes.length < 2;
   const activeWorktree = Object.values(worktrees)
     .flat()
     .find((w) => w.id === activeWorktreeId);
 
   return (
     <div className="tabbar">
+      {!context && activeTab?.remote && <span className="tabbar-context" title={activeTab.cwd}>
+        {activeTab.remote.machine} · {activeTab.remote.session ?? "default"}
+      </span>}
+      {activeTab?.attachment && <span className="tabbar-context" title={activeTab.cwd}>
+        {activeTab.attachment.machine} · {activeTab.attachment.session}
+      </span>}
       {context && (
         <span className="tabbar-context" title={`${context.repo} / ${context.branch}`}>
           <span className="ctx-repo">{context.repo}</span>
@@ -167,7 +173,7 @@ export function TabBar({
           <span className="ctx-branch">{context.branch}</span>
         </span>
       )}
-      {activeWorktree && (
+      {activeWorktree && !activeWorktree.remote && !activeTab?.remote && (
         <button
           className="icon-btn editor-btn"
           title={`Open in "${editorCommand}"`}
@@ -203,11 +209,11 @@ export function TabBar({
           <span className="tab-title">{label}</span>
           <button
             className="tab-close"
-            title="Close terminal"
+            title={t.attachment || t.remote ? "Detach terminal (leave program running)" : "Close terminal"}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={async (e) => {
               e.stopPropagation();
-              if (tabState === "running" || tabState === "awaiting") {
+              if (!t.attachment && !t.remote && (tabState === "running" || tabState === "awaiting")) {
                 if (
                   !(await requestConfirm({
                     message: `Close "${label}"?`,
@@ -227,7 +233,7 @@ export function TabBar({
         </div>
         );
       })}
-      {terminals.length > 0 && (
+      {terminals.length > 0 && !activeTab?.attachment && (
         <button className="tab-new" title="New terminal in this worktree" onClick={() => duplicateActiveTerminal()}>
           +
         </button>
@@ -237,7 +243,7 @@ export function TabBar({
           ◫
         </button>
       )}
-      {activeTabId && agentCommands.length > 0 && (
+      {activeTabId && !activeTab?.attachment && agentCommands.length > 0 && (
         <span className="agent-launchers">
           {agentCommands.map((cmd) => (
             <button
@@ -254,6 +260,7 @@ export function TabBar({
       <button
         className={`gear diff-toggle ${diffOpen ? "active" : ""}`}
         title="Diff review — comment on this agent's changes"
+        disabled={!!activeTab?.attachment}
         onClick={() => onToggleDiff?.()}
       >
         ⑂

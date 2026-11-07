@@ -55,7 +55,8 @@ export function NewWorktreeForm({ repo }: { repo: Repository }) {
 
   const safeBranch = branch.trim().replace(/[/\\:]/g, "-");
   // Mirrors the Rust placement: a sibling "<repo>-worktrees/<branch>" directory.
-  const pathPreview = `${repo.name}-worktrees\\${safeBranch || "<branch>"}`;
+  const pathPreview = repo.remote ? `${repo.path}-worktrees/${safeBranch || "<branch>"} · ${repo.remote.machine}`
+    : `${repo.name}-worktrees\\${safeBranch || "<branch>"}`;
 
   const submit = async () => {
     const name = branch.trim();
@@ -83,6 +84,7 @@ export function NewWorktreeForm({ repo }: { repo: Repository }) {
       <input
         autoFocus
         className="wt-input"
+        aria-label="New branch name"
         placeholder="new branch name"
         value={branch}
         disabled={busy}
@@ -92,7 +94,7 @@ export function NewWorktreeForm({ repo }: { repo: Repository }) {
           if (e.key === "Escape") setOpen(false);
         }}
       />
-      <label className="wt-base" title="The new branch starts from this branch. Your pick is remembered for this repo.">
+      <label className="wt-base" title="The new branch starts from this branch. Choose a local branch to start from.">
         <span>based on</span>
         <select
           aria-label="Base branch"
@@ -112,6 +114,7 @@ export function NewWorktreeForm({ repo }: { repo: Repository }) {
       <div className="wt-path-preview" title="Where this worktree will be created on disk">
         ↳ {pathPreview}
       </div>
+      {repo.remote && <p className="wt-explainer">Creates a new branch on {repo.remote.machine}. Existing branches and destination directories are refused. Remote Git checkout filters may run; use repositories you trust. Removal requires exiting all programs in this machine's selected Herdr session.</p>}
       <div className="new-worktree-actions">
         <button className="add-btn" disabled={busy} onClick={() => void submit()}>
           {busy ? "…" : "Create"}
@@ -139,6 +142,10 @@ function RepoRow({
   const expanded = useStore((s) => s.expanded[repo.id] ?? false);
   const worktrees = useStore((s) => s.worktrees[repo.id]);
   const statuses = useStore((s) => s.statuses);
+  const repositoryError = useStore((s) => s.repositoryErrors[repo.id]);
+  const worktreeErrors = useStore((s) => s.worktreeErrors);
+  const loadWorktrees = useStore((s) => s.loadWorktrees);
+  const refreshStatuses = useStore((s) => s.refreshStatuses);
   const prs = useStore((s) => s.prs);
   const terminals = useStore((s) => s.terminals);
   const agentStatus = useStore((s) => s.agentStatus);
@@ -190,9 +197,9 @@ function RepoRow({
         onPointerCancel={drag.onPointerUp}
         onClickCapture={drag.onClickCapture}
       >
-        <button className="disclosure" onClick={() => toggleExpand(repo.id)} title={repo.path}>
+        <button className="disclosure" onClick={() => toggleExpand(repo.id)} title={repo.remote ? `${repo.remote.machine} · ${repo.path}` : repo.path}>
           <span className={`chevron ${expanded ? "open" : ""}`}>▶</span>
-          <span className="repo-name">{repo.name}</span>
+          <span className="repo-name">{repo.name}{repo.remote ? ` · ${repo.remote.machine}` : ""}</span>
           {!repo.isGit && <span className="badge">folder</span>}
         </button>
         <button
@@ -218,7 +225,9 @@ function RepoRow({
 
       {showWorktrees && (
         <div className="worktrees">
-          {sorted === undefined && <div className="muted">loading…</div>}
+          {repo.remote && <button className="remote-refresh" onClick={() => void loadWorktrees(repo.id).then(refreshStatuses)}>Refresh remote project</button>}
+          {repositoryError && <div className="muted" role="status">Worktrees unavailable: {repositoryError}. Existing entries may be stale.</div>}
+          {sorted === undefined && !repositoryError && <div className="muted">loading…</div>}
           {sorted?.length === 0 && <div className="muted">no worktrees</div>}
           {rows.map((wt) => (
             <div
@@ -233,6 +242,7 @@ function RepoRow({
                 <span className="wt-name">{wt.name}</span>
                 {wt.isPrimary && <span className="badge subtle">main</span>}
                 <span className="wt-status">
+                  {worktreeErrors[wt.id] && <span title={worktreeErrors[wt.id]}>status unavailable</span>}
                   {(statuses[wt.id]?.ahead ?? 0) > 0 && (
                     <span className="ahead" title={`${statuses[wt.id].ahead} ahead of upstream`}>
                       ↑{statuses[wt.id].ahead}
@@ -341,7 +351,7 @@ function useRepoDrag(): RepoDragHandlers {
   };
 }
 
-export function Sidebar() {
+export function Sidebar({ onBrowseMachines }: { onBrowseMachines?: () => void } = {}) {
   const repositories = useStore((s) => s.repositories);
   const addRepository = useStore((s) => s.addRepository);
   const setAllExpanded = useStore((s) => s.setAllExpanded);
@@ -355,6 +365,10 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
+      <button className="browse-machines" onClick={(e) => {
+        e.currentTarget.focus();
+        onBrowseMachines?.();
+      }}>Machines &amp; terminals</button>
       <ActiveSessions />
       <div className="sidebar-header">
         <span>Repositories</span>

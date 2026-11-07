@@ -5,6 +5,10 @@ import type {
   ConfirmRequest,
   DiffComment,
   HerdrRuntime,
+  HerdrEndpoint,
+  HerdrInventory,
+  HerdrTerminal,
+  RemoteTarget,
   Pane,
   PrInfo,
   Repository,
@@ -21,6 +25,7 @@ import { pasteToPane } from "../lib/paneWriters";
 import { composeReviewPrompt } from "../lib/reviewPrompt";
 
 let toastSeq = 0;
+let refreshingStatuses = false;
 // Resolver for the in-flight confirmation Promise (kept off-store; not serializable).
 let confirmResolver: ((ok: boolean) => void) | null = null;
 
@@ -125,6 +130,8 @@ interface AppState {
   expanded: Record<string, boolean>;
   /** live status keyed by worktree id (polled) */
   statuses: Record<string, WorktreeStatus>;
+  repositoryErrors: Record<string, string>;
+  worktreeErrors: Record<string, string>;
   /** PR info keyed by worktree id (polled via gh; null = no PR) */
   prs: Record<string, PrInfo | null>;
 
@@ -164,6 +171,7 @@ interface AppState {
 
   loadRepositories: () => Promise<void>;
   addRepository: () => Promise<void>;
+  addRemoteRepository: (remote: RemoteTarget, path: string) => Promise<void>;
   removeRepository: (id: string) => Promise<void>;
   /** move repository `fromId` to the position of `toId` (sidebar drag; not saved) */
   moveRepository: (fromId: string, toId: string) => void;
@@ -189,6 +197,7 @@ interface AppState {
 
   /** open (or focus the existing) terminal for a worktree */
   openWorktreeTerminal: (wt: Worktree) => void;
+  attachHerdrTerminal: (endpoint: HerdrEndpoint, inventory: HerdrInventory, terminal: HerdrTerminal) => void;
   /** open an additional terminal (separate tab) for the active tab's worktree */
   duplicateActiveTerminal: () => void;
   /** open a new terminal in the active worktree that auto-runs `command` */
@@ -221,6 +230,7 @@ interface AppState {
   setAgentStatus: (status: Record<string, AgentState>) => void;
   setPaneSession: (paneId: string, sessionId: number) => void;
   setPaneBinding: (paneId: string, binding: NonNullable<HerdrRuntime["binding"]>) => void;
+  markRemoteAttempt: (paneId: string) => void;
   /** set the split ratio for a 2-pane tab (drag-resize) */
   setSplitRatio: (tabId: string, ratio: number) => void;
   /** rename a tab (right-click → rename); pins the title against auto-updates */
@@ -245,16 +255,18 @@ interface AppState {
 }
 
 /** Build a fresh single-pane tab for a worktree. */
-function newPane(initialCommand?: string): Pane {
+function newPane(initialCommand?: string, remote?: RemoteTarget): Pane {
   const settings = useStore.getState().settings;
+  if (remote) return { id: nextPaneId(), initialCommand, runtime: { kind: "herdr", ...remote.endpoint,
+    key: crypto.randomUUID().replaceAll("-", ""), target: remote } };
   return { id: nextPaneId(), initialCommand, ...(settings.terminalRuntime === "herdr" ? {
     runtime: { kind: "herdr" as const, executable: settings.herdrExecutable, session: settings.herdrSession,
       key: crypto.randomUUID().replaceAll("-", "") },
   } : {}) };
 }
 
-function newTab(worktreeId: string, cwd: string, title: string, initialCommand?: string, agent?: boolean): TerminalTab {
-  return { id: nextTabId(), worktreeId, cwd, title, panes: [newPane(initialCommand)], agent };
+function newTab(worktreeId: string, cwd: string, title: string, initialCommand?: string, agent?: boolean, remote?: RemoteTarget, repoId?: string): TerminalTab {
+  return { id: nextTabId(), worktreeId, cwd, title, panes: [newPane(initialCommand, remote)], agent, remote, ...(remote ? { repoId } : {}) };
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -262,6 +274,8 @@ export const useStore = create<AppState>((set, get) => ({
   worktrees: {},
   expanded: {},
   statuses: {},
+  repositoryErrors: {},
+  worktreeErrors: {},
   prs: {},
   terminals: [],
   activeTabId: null,
@@ -283,9 +297,13 @@ export const useStore = create<AppState>((set, get) => ({
   loadRepositories: async () => {
     const repositories = await invoke<Repository[]>("list_repositories");
     set({ repositories });
-    await Promise.all(repositories.map((r) => get().loadWorktrees(r.id)));
-    await get().refreshStatuses();
+    // Remote discovery must not hold restored viewers behind an unavailable
+    // host. Local tabs still need their worktree inventory before hydration.
+    const remoteLoads = Promise.all(repositories.filter((r) => r.remote).map((r) => get().loadWorktrees(r.id)));
+    await Promise.all(repositories.filter((r) => !r.remote).map((r) => get().loadWorktrees(r.id)));
     get().restoreSession();
+    await remoteLoads;
+    await get().refreshStatuses();
   },
 
   addRepository: async () => {
@@ -304,6 +322,14 @@ export const useStore = create<AppState>((set, get) => ({
         : { repositories: [...s.repositories, repo], expanded: { ...s.expanded, [repo.id]: true } },
     );
     await get().loadWorktrees(repo.id);
+  },
+
+  addRemoteRepository: async (remote, path) => {
+    const repo = await invoke<Repository>("add_remote_repository", { remote, path });
+    set((s) => ({ repositories: s.repositories.some((r) => r.id === repo.id) ? s.repositories : [...s.repositories, repo],
+      expanded: { ...s.expanded, [repo.id]: true } }));
+    await get().loadWorktrees(repo.id);
+    await get().refreshStatuses();
   },
 
   moveRepository: (fromId, toId) =>
@@ -344,6 +370,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
     set((s) => {
       const wtIds = new Set((s.worktrees[id] ?? []).map((w) => w.id));
+      for (const tab of s.terminals) if (tab.repoId === id) wtIds.add(tab.worktreeId);
       const worktrees = { ...s.worktrees };
       delete worktrees[id];
       // Drop terminals belonging to this repo's worktrees (their panes unmount
@@ -375,10 +402,14 @@ export const useStore = create<AppState>((set, get) => ({
   loadWorktrees: async (repoId) => {
     try {
       const list = await invoke<Worktree[]>("list_worktrees", { repoId });
-      set((s) => ({ worktrees: { ...s.worktrees, [repoId]: list } }));
+      set((s) => {
+        const repositoryErrors = { ...s.repositoryErrors }; delete repositoryErrors[repoId];
+        return { worktrees: { ...s.worktrees, [repoId]: list }, repositoryErrors };
+      });
     } catch (err) {
       console.error(`list_worktrees failed for ${repoId}`, err);
-      set((s) => ({ worktrees: { ...s.worktrees, [repoId]: [] } }));
+      set((s) => ({ worktrees: s.repositories.find((r) => r.id === repoId)?.remote ? s.worktrees : { ...s.worktrees, [repoId]: [] },
+        repositoryErrors: { ...s.repositoryErrors, [repoId]: String(err) } }));
     }
   },
 
@@ -398,32 +429,41 @@ export const useStore = create<AppState>((set, get) => ({
     }),
 
   refreshStatuses: async () => {
+    if (refreshingStatuses) return;
+    refreshingStatuses = true;
+    try {
     const gitRepoIds = new Set(get().repositories.filter((r) => r.isGit).map((r) => r.id));
     const all: Worktree[] = [];
     for (const [repoId, list] of Object.entries(get().worktrees)) {
       if (gitRepoIds.has(repoId)) all.push(...list);
     }
     const results = await Promise.all(
-      all.map(async (wt): Promise<[string, WorktreeStatus] | null> => {
+      all.map(async (wt): Promise<[string, WorktreeStatus | null, string | null]> => {
         try {
-          return [wt.id, await invoke<WorktreeStatus>("worktree_status", { path: wt.path })];
-        } catch {
-          return null;
+          return [wt.id, await invoke<WorktreeStatus>(wt.remote ? "remote_worktree_status" : "worktree_status",
+            wt.remote ? { repoId: wt.repoId, path: wt.path } : { path: wt.path }), null];
+        } catch (err) {
+          return [wt.id, null, wt.remote ? String(err) : null];
         }
       }),
     );
     set((s) => {
       const statuses = { ...s.statuses };
-      for (const r of results) if (r) statuses[r[0]] = r[1];
-      return { statuses };
+      const worktreeErrors = { ...s.worktreeErrors };
+      for (const [id, status, error] of results) {
+        if (status) { statuses[id] = status; delete worktreeErrors[id]; }
+        else if (error) { delete statuses[id]; worktreeErrors[id] = error; }
+      }
+      return { statuses, worktreeErrors };
     });
+    } finally { refreshingStatuses = false; }
   },
 
   refreshPrs: async () => {
     const gitRepoIds = new Set(get().repositories.filter((r) => r.isGit).map((r) => r.id));
     const all: Worktree[] = [];
     for (const [repoId, list] of Object.entries(get().worktrees)) {
-      if (gitRepoIds.has(repoId)) all.push(...list);
+      if (gitRepoIds.has(repoId)) all.push(...list.filter((wt) => !wt.remote));
     }
     const results = await Promise.all(
       all.map(async (wt): Promise<[string, PrInfo | null]> => {
@@ -448,20 +488,30 @@ export const useStore = create<AppState>((set, get) => ({
         ? (JSON.parse(raw) as {
             tabs: Array<{
               worktreeId: string;
+              repoId?: string;
               cwd: string;
               title: string;
               panes?: number;
               paneIds?: string[];
               runtimeByPane?: Record<string, HerdrRuntime>;
+              attachment?: TerminalTab["attachment"];
+              remote?: RemoteTarget;
               color?: string;
             }>;
             activeIndex: number;
           })
         : null;
       if (saved?.tabs?.length) {
-        // Only restore tabs whose worktree still exists.
+        // Local tabs require a current worktree. Imported terminal bindings
+        // survive independently, including while their machine is offline.
         const existing = new Set(Object.values(get().worktrees).flat().map((w) => w.id));
-        const valid = saved.tabs.filter((t) => existing.has(t.worktreeId));
+        const valid = saved.tabs.filter((t) => t.attachment
+          ? t.paneIds?.length === 1 && t.paneIds.every((id) => {
+              const r = t.runtimeByPane?.[id];
+              return r?.attachOnly && r.binding?.coreId && r.binding.address && t.cwd;
+            })
+          : t.remote ? !!t.paneIds?.length && t.paneIds.every((id) => !!t.runtimeByPane?.[id]?.target)
+          : existing.has(t.worktreeId) && !Object.values(t.runtimeByPane ?? {}).some((r) => r.attachOnly || r.target));
         if (valid.length) {
           // Pre-pass: adopt every restored id BEFORE minting any, from ALL
           // saved tabs (not just `valid`). Ids belonging to a dropped tab
@@ -476,14 +526,18 @@ export const useStore = create<AppState>((set, get) => ({
             // Sessions written by v0.6.x stored only a count; mint ids for those.
             const panes: Pane[] =
               saved.length > 0
-                ? saved.map((id) => ({ id, runtime: t.runtimeByPane?.[id] }))
+                ? saved.map((id) => ({ id, runtime: t.runtimeByPane?.[id] ? { ...t.runtimeByPane[id],
+                    ...(t.runtimeByPane[id].target ? { existingOnly: true } : {}) } : undefined }))
                 : Array.from({ length: count }, () => ({ id: nextPaneId() }));
             return {
               id: nextTabId(),
               worktreeId: t.worktreeId,
+              repoId: t.repoId,
               cwd: t.cwd,
               title: t.title,
               panes,
+              attachment: t.attachment,
+              remote: t.remote,
               color: t.color,
             };
           });
@@ -499,11 +553,12 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   createWorktree: async (repoId, branch, base) => {
-    const list = await invoke<Worktree[]>("create_worktree", { repoId, branch, base });
+    const remote = !!get().repositories.find((r) => r.id === repoId)?.remote;
+    const list = await invoke<Worktree[]>(remote ? "remote_create_worktree" : "create_worktree", { repoId, branch, base });
     set((s) => ({
       worktrees: { ...s.worktrees, [repoId]: list },
       expanded: { ...s.expanded, [repoId]: true },
-      repositories: base
+      repositories: base && !remote
         ? s.repositories.map((r) => (r.id === repoId ? { ...r, defaultBranch: base } : r))
         : s.repositories,
     }));
@@ -511,24 +566,28 @@ export const useStore = create<AppState>((set, get) => ({
     if (wt) get().openWorktreeTerminal(wt);
   },
 
-  listBranches: (repoId) => invoke<string[]>("list_branches", { repoId }),
+  listBranches: (repoId) => invoke<string[]>(get().repositories.find((r) => r.id === repoId)?.remote ? "remote_list_branches" : "list_branches", { repoId }),
 
   deleteWorktree: async (repoId, worktreePath) => {
     const prev = get().worktrees[repoId] ?? [];
     try {
       const wt = prev.find((w) => w.path === worktreePath);
       if (!wt || wt.isPrimary) throw new Error("Select a linked worktree to remove.");
-      await invoke("check_worktree_removal", { repoId, worktreePath });
+      const remote = !!get().repositories.find((r) => r.id === repoId)?.remote;
+      await invoke(remote ? "remote_check_worktree_removal" : "check_worktree_removal", { repoId, worktreePath });
       if (!await get().requestConfirm({
-        message: `Remove worktree "${wt.name}"?`,
-        detail: "Stops all terminals in this worktree and deletes its directory. The branch is kept. Removal is blocked if modified, untracked, or ignored files are present.",
-        confirmLabel: "Stop terminals and remove",
+        message: `Remove worktree "${wt.name}"${remote ? ` on ${wt.remote?.machine}` : ""}?`,
+        detail: remote
+          ? `Deletes the remote directory ${worktreePath}. The branch is kept. All programs in this machine's selected Herdr session must have exited; closing tabs only detaches. Modified, untracked, ignored files, locked and detached worktrees block removal. Stop other tools using this checkout before continuing.`
+          : "Stops all terminals in this worktree and deletes its directory. The branch is kept. Removal is blocked if modified, untracked, or ignored files are present.",
+        confirmLabel: remote ? "Remove remote worktree" : "Stop terminals and remove",
         danger: true,
       })) return;
       // Release Windows cwd locks only after preflight and explicit consent.
       // The backend repeats the check to protect edits made since preflight.
-      await get().closeWorktreeTerminals(wt.id, true);
-      const list = await invoke<Worktree[]>("delete_worktree", { repoId, worktreePath });
+      if (!remote) await get().closeWorktreeTerminals(wt.id, true);
+      const list = await invoke<Worktree[]>(remote ? "remote_delete_worktree" : "delete_worktree", { repoId, worktreePath });
+      if (remote) await get().closeWorktreeTerminals(wt.id);
       set((s) => {
         const stillThere = new Set(list.map((w) => w.id));
         const removedIds = prev.filter((w) => !stillThere.has(w.id)).map((w) => w.id);
@@ -549,29 +608,53 @@ export const useStore = create<AppState>((set, get) => ({
       set({ activeTabId: existing.id });
       return;
     }
-    const tab = newTab(wt.id, wt.path, wt.name);
+    const tab = newTab(wt.id, wt.path, wt.name, undefined, undefined, wt.remote, wt.repoId);
     set((s) => ({ terminals: [...s.terminals, tab], activeTabId: tab.id }));
+  },
+
+  attachHerdrTerminal: (endpoint, inventory, terminal) => {
+    const remote = terminal.address.includes("/");
+    const machineName = remote ? terminal.address.split("/")[0] : "This computer";
+    const machine = remote ? inventory.machines.find((m) => m.name === machineName) : undefined;
+    if (terminal.state !== "live" || !terminal.cwd || !inventory.coreId ||
+        (remote && (!machine?.coreId || machine.state !== "connected"))) {
+      get().pushToast("Terminal is unavailable. Refresh Machines before attaching.");
+      return;
+    }
+    const binding = { coreId: inventory.coreId, address: terminal.address,
+      ...(machine ? { machineId: machine.coreId } : {}) };
+    // Include endpoint and remote core identity: equal paths and short terminal
+    // IDs on different machines/sessions must never collide with local worktrees.
+    const worktreeId = `herdr:${JSON.stringify([endpoint.executable, endpoint.session, binding])}`;
+    const existing = get().terminals.find((t) => t.worktreeId === worktreeId);
+    if (existing) { set({ activeTabId: existing.id }); return; }
+    const pane: Pane = { id: nextPaneId(), runtime: { kind: "herdr", ...endpoint,
+      key: crypto.randomUUID().replaceAll("-", ""), binding, attachOnly: true } };
+    const tab: TerminalTab = { id: nextTabId(), worktreeId, cwd: terminal.cwd,
+      title: terminal.title || terminal.address, panes: [pane],
+      attachment: { machine: machineName, session: machine?.session ?? (machine ? "default" : endpoint.session) } };
+    set((s) => ({ terminals: [...s.terminals, tab], activeTabId: tab.id, diffOpen: false }));
   },
 
   duplicateActiveTerminal: () => {
     const active = get().terminals.find((t) => t.id === get().activeTabId);
-    if (!active) return;
-    const tab = newTab(active.worktreeId, active.cwd, active.title);
+    if (!active || active.attachment) return;
+    const tab = newTab(active.worktreeId, active.cwd, active.title, undefined, undefined, active.remote, active.repoId);
     set((s) => ({ terminals: [...s.terminals, tab], activeTabId: tab.id }));
   },
 
   runAgentInActive: (command) => {
     const active = get().terminals.find((t) => t.id === get().activeTabId);
-    if (!active) return;
-    const tab = newTab(active.worktreeId, active.cwd, `${active.title} · ${command}`, command, true);
+    if (!active || active.attachment) return;
+    const tab = newTab(active.worktreeId, active.cwd, `${active.title} · ${command}`, command, true, active.remote, active.repoId);
     set((s) => ({ terminals: [...s.terminals, tab], activeTabId: tab.id }));
   },
 
   splitActiveTab: () =>
     set((s) => {
       const tab = s.terminals.find((t) => t.id === s.activeTabId);
-      if (!tab || tab.panes.length >= 2) return s;
-      const panes = [...tab.panes, newPane()];
+      if (!tab || tab.attachment || tab.panes.length >= 2) return s;
+      const panes = [...tab.panes, newPane(undefined, tab.remote)];
       return { terminals: s.terminals.map((t) => (t.id === tab.id ? { ...t, panes } : t)) };
     }),
 
@@ -598,7 +681,7 @@ export const useStore = create<AppState>((set, get) => ({
         paneSessions,
       };
     });
-    if (pane?.runtime) {
+    if (pane?.runtime && !pane.runtime.attachOnly && !pane.runtime.target) {
       const id = get().paneSessions[paneId];
       if (id === undefined) {
         void get().requestConfirm({ message: "Forget this unconnected pane?",
@@ -611,7 +694,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   closeTab: (id) => {
-    const persistent = get().terminals.find((t) => t.id === id)?.panes.filter((p) => p.runtime) ?? [];
+    const persistent = get().terminals.find((t) => t.id === id)?.panes.filter((p) => p.runtime && !p.runtime.attachOnly && !p.runtime.target) ?? [];
     const complete = () => set((s) => {
       const tab = s.terminals.find((t) => t.id === id);
       const terminals = s.terminals.filter((t) => t.id !== id);
@@ -692,7 +775,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Only one side panel at a time, so the terminal never loses two panels'
   // width (spec D8).
-  toggleDiff: () => set((s) => ({ diffOpen: !s.diffOpen, notesOpen: false })),
+  toggleDiff: () => set((s) => s.terminals.find((t) => t.id === s.activeTabId)?.attachment ? s : ({ diffOpen: !s.diffOpen, notesOpen: false })),
 
   setSelectedDiffFile: (file) => set({ selectedDiffFile: file }),
 
@@ -738,6 +821,11 @@ export const useStore = create<AppState>((set, get) => ({
   setPaneBinding: (paneId, binding) => set((s) => ({
     terminals: s.terminals.map((tab) => ({ ...tab, panes: tab.panes.map((pane) =>
       pane.id === paneId && pane.runtime ? { ...pane, runtime: { ...pane.runtime, binding } } : pane) })),
+  })),
+
+  markRemoteAttempt: (paneId) => set((s) => ({
+    terminals: s.terminals.map((tab) => ({ ...tab, panes: tab.panes.map((pane) =>
+      pane.id === paneId && pane.runtime?.target ? { ...pane, runtime: { ...pane.runtime, existingOnly: true } } : pane) })),
   })),
 
   setSplitRatio: (tabId, ratio) =>
@@ -801,6 +889,9 @@ export const useStore = create<AppState>((set, get) => ({
   closeWorktreeTerminals: async (worktreeId, requireStopped = false) => {
     const tabs = get().terminals.filter((t) => t.worktreeId === worktreeId);
     const panes = tabs.flatMap((t) => t.panes);
+    if (requireStopped && panes.some((p) => p.runtime?.attachOnly || p.runtime?.target)) {
+      throw new Error("Imported terminals cannot authorize worktree removal.");
+    }
     if (requireStopped && panes.some((p) => p.runtime && get().paneSessions[p.id] === undefined)) {
       throw new Error("A persistent terminal is still connecting. Wait before removing its worktree.");
     }
@@ -812,7 +903,7 @@ export const useStore = create<AppState>((set, get) => ({
         const sid = get().paneSessions[p.id];
         if (sid !== undefined) {
           try {
-            await invoke(p.runtime?.kind === "herdr" ? "herdr_terminate" : "pty_close", { id: sid });
+            await invoke(p.runtime?.attachOnly || p.runtime?.target ? "herdr_detach" : p.runtime?.kind === "herdr" ? "herdr_terminate" : "pty_close", { id: sid });
           } catch (err) {
             failures.push(err);
             console.error(`pty_close failed for pane ${p.id}`, err);
@@ -888,7 +979,7 @@ export function worktreeLabels(
   worktrees: Record<string, Worktree[]>,
 ): Record<string, { repo: string; branch: string }> {
   const repoName: Record<string, string> = {};
-  for (const r of repositories) repoName[r.id] = r.name;
+  for (const r of repositories) repoName[r.id] = r.remote ? `${r.name} · ${r.remote.machine}` : r.name;
   const out: Record<string, { repo: string; branch: string }> = {};
   for (const [repoId, list] of Object.entries(worktrees)) {
     for (const w of list) {
@@ -924,12 +1015,15 @@ useStore.subscribe((s) => {
   const snapshot = JSON.stringify({
     tabs: s.terminals.map((t) => ({
       worktreeId: t.worktreeId,
+      repoId: t.repoId,
       cwd: t.cwd,
       title: t.title,
       // Ids, not a count: scrollback is keyed on them and must survive a
       // restart. `panes` is still read on restore for v0.6.x sessions.
       paneIds: t.panes.map((p) => p.id),
       runtimeByPane: Object.fromEntries(t.panes.filter((p) => p.runtime).map((p) => [p.id, p.runtime])),
+      attachment: t.attachment,
+      remote: t.remote,
       color: t.color,
     })),
     activeIndex: s.terminals.findIndex((t) => t.id === s.activeTabId),
@@ -959,7 +1053,7 @@ useStore.subscribe((s) => {
   const gitRepoIds = new Set(s.repositories.filter((r) => r.isGit).map((r) => r.id));
   const paths: string[] = [];
   for (const [repoId, list] of Object.entries(s.worktrees)) {
-    if (gitRepoIds.has(repoId)) for (const w of list) paths.push(w.path);
+    if (gitRepoIds.has(repoId)) for (const w of list) if (!w.remote) paths.push(w.path);
   }
   const snapshot = paths.slice().sort().join("|");
   if (snapshot !== lastWatchedSnapshot) {
