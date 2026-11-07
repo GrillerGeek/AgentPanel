@@ -38,6 +38,13 @@ cargo build --manifest-path src-tauri/Cargo.toml      # Rust compiles
 If your change touches UI behavior, please also verify it in a running build (`npm run tauri dev`)
 and describe what you checked in the PR — type-checks and unit tests don't catch render-time issues.
 
+## Terminal engine spike
+
+The isolated Ghostty feasibility harness is separate from the production terminal. See the
+[spike report and reproduction steps](docs/dev/2026-11-07-ghostty-feasibility-spike.md) before
+changing renderers. `npm run build:ghostty-spike` builds the experiment; `npm run build`
+continues to build AgentPanel with xterm.js.
+
 ## Pull request guidelines
 
 - Branch off `main`; keep PRs focused on one logical change.
