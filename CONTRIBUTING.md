@@ -5,7 +5,7 @@ desktop app. Contributions of all sizes are welcome — bug reports, fixes, feat
 
 ## Getting set up
 
-See the [README](README.md#build-from-source) for prerequisites (Rust stable, Node 18+, and the
+See the [README](README.md#build-from-source) for prerequisites (Rust stable, Node 20.19+ (20.x) or 22.12+, and the
 per-OS [Tauri prerequisites](https://tauri.app/start/prerequisites/)). Then:
 
 ```sh
@@ -20,6 +20,8 @@ npm run tauri dev      # run in development with hot reload
   `store.rs` (persistence).
 - **`src/`** — React + TypeScript: `state/` (Zustand store), `Terminal.tsx` (xterm.js + WebGL),
   `components/`, `themes/`.
+- **[`docs/user-guide.md`](docs/user-guide.md)** — user workflows and troubleshooting. Update it
+  and the README when changing terminal lifecycle, setup, or supported actions.
 - **`docs/dev/`** — internal design notes, UX research, and plans.
 
 ## Before you open a pull request
