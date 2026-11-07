@@ -213,8 +213,9 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             <option value="local">Local PTY (default)</option>
             <option value="herdr">Herdr core (experimental)</option>
           </select>
-          <small>Existing panes keep their runtime. Herdr terminals survive closing AgentPanel;
-            closing their pane or removing a worktree stops them. macOS validated; Windows support pending.</small>
+          <small>Existing panes keep their runtime. Local Herdr terminals survive closing AgentPanel;
+            closing a local pane created by AgentPanel stops its program. Remote and imported panes
+            detach on close. Herdr mode is unavailable on Windows.</small>
         </label>
         {terminalRuntime === "herdr" && <>
           <label className="settings-field">

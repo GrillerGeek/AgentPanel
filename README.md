@@ -10,44 +10,56 @@ terminal. Built on Tauri (Rust) + React + xterm.js.
 
 - **Repositories & worktrees** — add any folder/git repo; create, list, and remove git worktrees
   from the sidebar (an isolated branch per agent). Pick which branch a new worktree is *based
-  on*; the choice is remembered per repo.
+  on*; the choice is remembered for local repos. Experimental remote worktrees support new branches.
 - **Parallel terminal tabs** — a real PTY shell per pane (ConPTY on Windows), all running at
   once; tabs survive switching, and you can **split** a tab into two side-by-side terminals.
-- **Scrollback that survives a restart** — restored tabs come back with their text, not empty.
-  Capped at 256 KB per terminal, stored locally, and switchable off in Settings.
+- **Scrollback that survives a restart** — local tabs can restore their saved text into a new
+  shell (256 KB per terminal, switchable off in Settings). Experimental Herdr terminals can
+  reconnect to the same running program.
 - **Bring your own agent** — run any CLI (`claude`, `codex`, …); one-click quick-launch buttons.
 - **Live git status** — branch, dirty-file count, and ahead/behind vs upstream per worktree,
-  updated instantly via a file watcher.
+  updated via a file watcher for local worktrees and polling for remote worktrees.
 - **Diff review** — read every file an agent changed in a worktree (committed *and*
   uncommitted), drop comments on any line, and send them all back to the agent as one prompt.
-- **GitHub PR/CI** — per-worktree PR number + CI state via the `gh` CLI (click to open).
-- **Open in editor** — one-click tab bar button to open the active worktree in your editor;
+- **GitHub PR/CI** — PR number + CI state for local worktrees via the `gh` CLI (click to open).
+- **Open in editor** — one-click tab bar button to open the active local worktree in your editor;
   configurable command (`code`, `cursor`, `code-insiders`, …) via Settings.
-- **Quick open** (`Ctrl+P`, active worktree), **command palette** (`Ctrl+Shift+P`), keyboard
+- **Quick open** (`Ctrl+P`, active local worktree), **command palette** (`Ctrl+Shift+P`), keyboard
   shortcuts (`Ctrl+T/W/Tab/1–9`), session restore, and **12 themes** (Tokyo Night, Catppuccin,
   Dracula, Nord, Solarized, …).
 
-## Experimental persistent terminals
+## User guide
 
-The default remains the built-in local PTY. To try persistent terminals, install
-[herdr-core](https://herdr.dev/core/) separately, then select **Settings → Runtime for new
-terminals → Herdr core**. Set the executable name or full path and use a dedicated session
-(default: `agentpanel`). Save, then create a new terminal. Existing panes keep their runtime.
+Start with the [AgentPanel user guide](docs/user-guide.md) for local projects, persistent
+terminals, connecting remote machines, remote Git review, and creating/removing worktrees.
+It includes the close-versus-detach rules and troubleshooting.
 
-Persistent panes reconnect to the same core and terminal when AgentPanel reopens. Closing the
-app detaches; closing a connected pane stops its program. If stopping fails, the pane stays
-visible. Forgetting an unconnected pane requires confirmation because its program may still be
-running. Removing a worktree requires connected terminals to stop successfully first.
+## Experimental persistent terminals and remote projects
 
-This prototype has native macOS acceptance against hc 0.1.16. Windows is explicitly disabled
-pending ConPTY input validation; Linux, real SSH, automatic reconnect, and multi-machine UI
-remain future work. Missing or changed core identities produce an error, with a Reconnect
-button; AgentPanel never silently replaces them with fresh shells or replays an agent launch.
-Herdr owns terminal history for these panes, so the local scrollback toggle applies to local
-PTYs only. Core history is independent of that toggle and may contain sensitive terminal output.
+AgentPanel can use [herdr-core](https://herdr.dev/core/) to keep programs running when you
+close the app. Install core separately, then choose **Settings → Runtime for new local
+terminals → Herdr core (experimental)** and save the executable and a dedicated session.
+Existing panes keep their runtime; the built-in local PTY remains the default.
 
-The executable is not bundled or installed by AgentPanel. See the
-[adapter acceptance notes](docs/dev/2026-11-01-herdr-adapter-acceptance.md) for validation and limits.
+Use **Machines & terminals** to browse a core's configured machines, attach to existing
+programs, or add an existing remote Git repository. Remote projects support Git status and
+diffs, new terminals/splits/agent quick-launch, and new-branch worktree creation. Clean linked
+worktrees can be removed after every program in the selected remote session has exited.
+SSH setup and login use Herdr/OpenSSH outside AgentPanel.
+
+**Closing the app detaches Herdr viewers. Closing an AgentPanel-created local Herdr pane
+stops its program; closing a remote or imported pane only detaches.** Removing a repository
+from the sidebar forgets its app record without deleting its files. See the
+[behavior table](docs/user-guide.md#closing-terminals-and-the-app) before closing a session.
+
+Herdr mode is experimental on macOS/Linux and disabled on Windows. Validation includes native
+macOS walkthroughs and Linux runtime/SSH integration; physical-machine/WAN/sleep testing is
+still pending. Remote projects currently require absolute Unix paths. Remote editor/Quick
+Open, remote PR lookup, and in-app remote program termination are unavailable.
+
+Follow the [setup instructions](docs/user-guide.md#set-up-persistent-local-terminals) and
+[remote workflow](docs/user-guide.md#connect-a-remote-machine). Developer validation details
+are in the [adapter acceptance notes](docs/dev/2026-11-01-herdr-adapter-acceptance.md).
 
 ## Runtime requirements
 
@@ -96,7 +108,7 @@ the majority of Linux users do not need.
 
 ## Build from source
 
-Prerequisites: [Rust](https://rustup.rs) (stable), Node.js 18+, and the
+Prerequisites: [Rust](https://rustup.rs) (stable), Node.js 20.19+ (20.x) or 22.12+, and the
 [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS — on Windows: the MSVC
 toolchain, VS C++ Build Tools, and WebView2; on macOS: the Xcode Command Line Tools; on
 Linux: `libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
@@ -121,7 +133,9 @@ cargo test --manifest-path src-tauri/Cargo.toml       # Rust (git/gh layer)
 ## Architecture
 
 - **`src-tauri/`** — Rust core: `pty.rs` (ConPTY session manager), `git.rs` (worktree ops via
-  `git`), `gh.rs` (PR/CI), `watcher.rs` (file watching), `commands.rs`, `store.rs` (persistence).
+  `git`), `herdr.rs` / `herdr_commands.rs` (persistent runtime), `remote_projects.rs` /
+  `remote_worktrees.rs` (remote Git), `gh.rs` (PR/CI), `watcher.rs` (local file watching),
+  `commands.rs`, `store.rs` (persistence).
 - **`src/`** — React + TypeScript: `state/store.ts` (Zustand), `Terminal.tsx` (xterm.js + WebGL),
   `components/`, `themes/`.
 
