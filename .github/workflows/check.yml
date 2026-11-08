@@ -68,6 +68,9 @@ jobs:
       - name: Frontend tests
         run: npm test
 
+      - name: Test updater release verification
+        run: node --test scripts/test-updater-release.mjs
+
       - name: Rust check
         run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
 

@@ -126,9 +126,21 @@ Bundles are written under `src-tauri/target/release/bundle/` — `nsis/` on Wind
 ### Tests
 
 ```sh
-npm test                                              # frontend (Vitest)
-cargo test --manifest-path src-tauri/Cargo.toml       # Rust (git/gh layer)
+npm test                                             # frontend (Vitest)
+node --test scripts/test-updater-release.mjs          # updater release gate
+cargo test --locked --manifest-path src-tauri/Cargo.toml
 ```
+
+### Updater releases
+
+New builds require the Tauri updater signature to bind the advertised version.
+Use the locked project CLI and a version higher than the published v0.7.1 when
+preparing the first signed release. The release workflow verifies each draft
+updater artifact with the configured public key and checks that the authenticated
+version matches the release tag. Wait for that job before publishing the draft.
+The published v0.7.1 feed uses legacy signatures. Existing clients can receive
+the new version-bound signatures under the same key, and newer clients will
+reject the legacy signatures if a feed advertises them as a newer version.
 
 ## Architecture
 
