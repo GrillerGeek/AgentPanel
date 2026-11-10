@@ -1,0 +1,937 @@
+{
+  "execution": "pass",
+  "native": {
+    "runId": "7688ea2b0613415294444d30410afc33",
+    "package": "ghostty-web@0.4.0",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+    "mode": "automated native Tauri/WebKit acceptance; not manual UI/IME or real-agent approval acceptance",
+    "benchmark": {
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+      "devicePixelRatio": 2,
+      "hardwareConcurrency": 8,
+      "method": "80x24, 2000 scrollback; 16KiB raw byte chunks, 64KiB callback window; warmup; alternating 4 rounds; completion + two rAFs; explicit library-callback vs experimental parse-return consumption (parse-return may block longer); excludes shell/SSH; startup includes shared WASM warm state after first load",
+      "results": [
+        {
+          "kind": "xterm",
+          "consumption": "library-callback",
+          "renderer": "WebGL",
+          "round": 0,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 9,
+          "writeAndFramesMs": 80,
+          "maxTimerGapMs": 23,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "library-callback",
+          "renderer": "Canvas 2D",
+          "round": 0,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 17,
+          "writeAndFramesMs": 249,
+          "maxTimerGapMs": 10,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "parse-return",
+          "renderer": "Canvas 2D",
+          "round": 0,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 25,
+          "maxTimerGapMs": 11,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "parse-return",
+          "renderer": "Canvas 2D",
+          "round": 1,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 28,
+          "maxTimerGapMs": 11,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "library-callback",
+          "renderer": "Canvas 2D",
+          "round": 1,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 250,
+          "maxTimerGapMs": 10,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "xterm",
+          "consumption": "library-callback",
+          "renderer": "WebGL",
+          "round": 1,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 9,
+          "writeAndFramesMs": 75,
+          "maxTimerGapMs": 16,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "xterm",
+          "consumption": "library-callback",
+          "renderer": "WebGL",
+          "round": 2,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 9,
+          "writeAndFramesMs": 81,
+          "maxTimerGapMs": 13,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "library-callback",
+          "renderer": "Canvas 2D",
+          "round": 2,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 250,
+          "maxTimerGapMs": 11,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "parse-return",
+          "renderer": "Canvas 2D",
+          "round": 2,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 29,
+          "maxTimerGapMs": 11,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "parse-return",
+          "renderer": "Canvas 2D",
+          "round": 3,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 28,
+          "maxTimerGapMs": 10,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "library-callback",
+          "renderer": "Canvas 2D",
+          "round": 3,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 251,
+          "maxTimerGapMs": 12,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "xterm",
+          "consumption": "library-callback",
+          "renderer": "WebGL",
+          "round": 3,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 6,
+          "writeAndFramesMs": 70,
+          "maxTimerGapMs": 14,
+          "retainedLastLine": true
+        }
+      ]
+    },
+    "adapterBenchmark": {
+      "method": "Adapter-only synthetic emulator writes, 16KiB chunks/64KiB window, four alternating rounds, warmup and two final frames; no incompatible addons; not real-agent latency",
+      "results": [
+        {
+          "kind": "xterm",
+          "round": 0,
+          "bytes": 660890,
+          "writeAndFramesMs": 76,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        },
+        {
+          "kind": "ghostty",
+          "round": 0,
+          "bytes": 660890,
+          "writeAndFramesMs": 59,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        },
+        {
+          "kind": "ghostty",
+          "round": 1,
+          "bytes": 660890,
+          "writeAndFramesMs": 58,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        },
+        {
+          "kind": "xterm",
+          "round": 1,
+          "bytes": 660890,
+          "writeAndFramesMs": 65,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        },
+        {
+          "kind": "xterm",
+          "round": 2,
+          "bytes": 660890,
+          "writeAndFramesMs": 73,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        },
+        {
+          "kind": "ghostty",
+          "round": 2,
+          "bytes": 660890,
+          "writeAndFramesMs": 45,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        },
+        {
+          "kind": "ghostty",
+          "round": 3,
+          "bytes": 660890,
+          "writeAndFramesMs": 61,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        },
+        {
+          "kind": "xterm",
+          "round": 3,
+          "bytes": 660890,
+          "writeAndFramesMs": 66,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        }
+      ]
+    },
+    "xtermUnicodeBaseline": {
+      "expected": {
+        "screen": "caf\u00e9 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb \u4e2d\u6587 e\u0301",
+        "titles": [
+          "caf\u00e9 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+        ]
+      },
+      "raw": {
+        "screen": "caf\u00e9 \ud83d\udc69\ud83c\udffd\ud83d\udcbb \u4e2d\u6587 e\u0301",
+        "titles": [
+          "caf\u00e9 \ud83d\udc69\ud83c\udffd\ud83d\udcbb"
+        ]
+      },
+      "adapter": {
+        "screen": "caf\u00e9 \ud83d\udc69\ud83c\udffd\ud83d\udcbb \u4e2d\u6587 e\u0301",
+        "titles": [
+          "caf\u00e9 \ud83d\udc69\ud83c\udffd\ud83d\udcbb"
+        ]
+      },
+      "adapterMatchesRaw": true,
+      "meaning": "Untouched xterm vs xterm adapter, identical one-byte UTF-8 writes. Any missing grapheme codepoints remain strict compatibility failures; equality only characterizes the baseline."
+    },
+    "adapterTransport": [
+      {
+        "kind": "xterm",
+        "consumption": "adapter",
+        "result": "pass",
+        "runtime": "Local PTY",
+        "pid": 14609,
+        "bytes": 307515,
+        "consumedBytes": 307515,
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "xterm",
+        "consumption": "adapter",
+        "result": "pass",
+        "runtime": "Herdr local",
+        "pid": 14677,
+        "resumedPid": 14677,
+        "bytes": 332043,
+        "consumedBytes": 332043,
+        "binding": {
+          "coreId": "7c1f4cee54a3e503b77e1405837c8b62",
+          "address": "t4"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "xterm",
+        "consumption": "adapter",
+        "result": "pass",
+        "runtime": "Herdr SSH",
+        "pid": 124,
+        "resumedPid": 124,
+        "bytes": 331971,
+        "consumedBytes": 331971,
+        "binding": {
+          "coreId": "7c1f4cee54a3e503b77e1405837c8b62",
+          "address": "linux/t5",
+          "machineId": "9bb710e3cb592d357183f7545f2027be"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "adapter",
+        "result": "pass",
+        "runtime": "Local PTY",
+        "pid": 14689,
+        "bytes": 307515,
+        "consumedBytes": 307515,
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "adapter",
+        "result": "pass",
+        "runtime": "Herdr local",
+        "pid": 14694,
+        "resumedPid": 14694,
+        "bytes": 332043,
+        "consumedBytes": 332043,
+        "binding": {
+          "coreId": "7c1f4cee54a3e503b77e1405837c8b62",
+          "address": "t5"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "adapter",
+        "result": "pass",
+        "runtime": "Herdr SSH",
+        "pid": 131,
+        "resumedPid": 131,
+        "bytes": 331971,
+        "consumedBytes": 331971,
+        "binding": {
+          "coreId": "7c1f4cee54a3e503b77e1405837c8b62",
+          "address": "linux/t6",
+          "machineId": "9bb710e3cb592d357183f7545f2027be"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      }
+    ],
+    "adapterCompatibility": {
+      "xterm": [
+        {
+          "name": "raw split UTF-8/full screen graphemes",
+          "status": "fail",
+          "detail": "caf\u00e9 \ud83d\udc69\ud83c\udffd\ud83d\udcbb \u4e2d\u6587 e\u0301"
+        },
+        {
+          "name": "raw titles BEL/ST and split UTF-8, exactly once",
+          "status": "fail",
+          "detail": [
+            "caf\u00e9 \ud83d\udc69\ud83c\udffd\ud83d\udcbb",
+            "split"
+          ]
+        },
+        {
+          "name": "single bracketed paste path",
+          "status": "pass",
+          "detail": [
+            "\u001b[200~PASTE-ONCE\u001b[201~"
+          ]
+        },
+        {
+          "name": "alternate screen restores normal",
+          "status": "fail",
+          "detail": "caf\u00e9 \ud83d\udc69\ud83c\udffd\ud83d\udcbb \u4e2d\u6587 e\u0301"
+        },
+        {
+          "name": "full scrollback graphemes after resize",
+          "status": "pass",
+          "detail": {
+            "rows": 37,
+            "cols": 101
+          }
+        },
+        {
+          "name": "programmatic selection after resize",
+          "status": "pass",
+          "detail": {
+            "status": "supported",
+            "value": "caf\u00e9"
+          }
+        },
+        {
+          "name": "search navigation and visible highlight",
+          "status": "pass",
+          "detail": {
+            "status": "supported",
+            "found": true
+          }
+        },
+        {
+          "name": "replayable styled history",
+          "status": "pass",
+          "detail": {
+            "bytes": 2017
+          }
+        },
+        {
+          "name": "hidden ingestion and exact original acknowledgement",
+          "status": "pass",
+          "detail": {
+            "consumed": 1,
+            "bytes": 98304,
+            "renderSuspension": "limited"
+          }
+        },
+        {
+          "name": "no adapter errors",
+          "status": "pass",
+          "detail": []
+        }
+      ],
+      "ghostty": [
+        {
+          "name": "raw split UTF-8/full screen graphemes",
+          "status": "pass",
+          "detail": "caf\u00e9 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb \u4e2d\u6587 e\u0301xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        {
+          "name": "raw titles BEL/ST and split UTF-8, exactly once",
+          "status": "pass",
+          "detail": [
+            "caf\u00e9 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+            "split"
+          ]
+        },
+        {
+          "name": "single bracketed paste path",
+          "status": "pass",
+          "detail": [
+            "\u001b[200~PASTE-ONCE\u001b[201~"
+          ]
+        },
+        {
+          "name": "alternate screen restores normal",
+          "status": "pass",
+          "detail": "caf\u00e9 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb \u4e2d\u6587 e\u0301xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        {
+          "name": "full scrollback graphemes after resize",
+          "status": "pass",
+          "detail": {
+            "rows": 37,
+            "cols": 101
+          }
+        },
+        {
+          "name": "programmatic selection after resize",
+          "status": "unsupported",
+          "detail": "ghostty-web select() clamps to viewport and uses inconsistent absolute coordinates after scrolling/resize"
+        },
+        {
+          "name": "search navigation and visible highlight",
+          "status": "unsupported",
+          "detail": {
+            "status": "limited",
+            "match": {
+              "start": {
+                "y": 1,
+                "x": 0
+              },
+              "end": {
+                "y": 1,
+                "x": 12
+              },
+              "wrapped": false
+            },
+            "reason": "Literal text match only; public selection/navigation cannot reliably present and highlight scrollback matches"
+          }
+        },
+        {
+          "name": "replayable styled history",
+          "status": "unsupported",
+          "detail": "ghostty-web 0.4.0 cannot replay styled history: color provenance, scrollback wraps, inactive normal buffer, overline and hyperlink URIs are unavailable"
+        },
+        {
+          "name": "hidden ingestion and exact original acknowledgement",
+          "status": "pass",
+          "detail": {
+            "consumed": 1,
+            "bytes": 98304,
+            "renderSuspension": "unsupported"
+          }
+        },
+        {
+          "name": "no adapter errors",
+          "status": "pass",
+          "detail": []
+        }
+      ]
+    },
+    "transport": [
+      {
+        "kind": "xterm",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Local PTY",
+        "pid": 14304,
+        "bytes": 307515,
+        "consumedBytes": 307515,
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "xterm",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Herdr local",
+        "pid": 14315,
+        "resumedPid": 14315,
+        "bytes": 332043,
+        "consumedBytes": 332043,
+        "binding": {
+          "coreId": "7c1f4cee54a3e503b77e1405837c8b62",
+          "address": "t1"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "xterm",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Herdr SSH",
+        "pid": 103,
+        "resumedPid": 103,
+        "bytes": 331971,
+        "consumedBytes": 331971,
+        "binding": {
+          "coreId": "7c1f4cee54a3e503b77e1405837c8b62",
+          "address": "linux/t2",
+          "machineId": "9bb710e3cb592d357183f7545f2027be"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Local PTY",
+        "pid": 14331,
+        "bytes": 307515,
+        "consumedBytes": 307515,
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Herdr local",
+        "pid": 14378,
+        "resumedPid": 14378,
+        "bytes": 332043,
+        "consumedBytes": 332043,
+        "binding": {
+          "coreId": "7c1f4cee54a3e503b77e1405837c8b62",
+          "address": "t2"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Herdr SSH",
+        "pid": 110,
+        "resumedPid": 110,
+        "bytes": 331971,
+        "consumedBytes": 331971,
+        "binding": {
+          "coreId": "7c1f4cee54a3e503b77e1405837c8b62",
+          "address": "linux/t3",
+          "machineId": "9bb710e3cb592d357183f7545f2027be"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "parse-return",
+        "result": "pass",
+        "runtime": "Local PTY",
+        "pid": 14431,
+        "bytes": 307515,
+        "consumedBytes": 307515,
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "parse-return",
+        "result": "pass",
+        "runtime": "Herdr local",
+        "pid": 14437,
+        "resumedPid": 14437,
+        "bytes": 332043,
+        "consumedBytes": 332043,
+        "binding": {
+          "coreId": "7c1f4cee54a3e503b77e1405837c8b62",
+          "address": "t3"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "parse-return",
+        "result": "pass",
+        "runtime": "Herdr SSH",
+        "pid": 117,
+        "resumedPid": 117,
+        "bytes": 331971,
+        "consumedBytes": 331971,
+        "binding": {
+          "coreId": "7c1f4cee54a3e503b77e1405837c8b62",
+          "address": "linux/t4",
+          "machineId": "9bb710e3cb592d357183f7545f2027be"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      }
+    ],
+    "compatibility": {
+      "xterm": [
+        {
+          "name": "split UTF-8 bytes",
+          "pass": true,
+          "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587"
+        },
+        {
+          "name": "ANSI cell style",
+          "pass": true,
+          "detail": {
+            "foreground": 1,
+            "text": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587\nRED"
+          }
+        },
+        {
+          "name": "alternate approval screen",
+          "pass": true,
+          "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+        },
+        {
+          "name": "emoji grapheme buffer extraction",
+          "pass": true,
+          "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+        },
+        {
+          "name": "normal screen restored",
+          "pass": true,
+          "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587\nRED"
+        },
+        {
+          "name": "bracketed paste once",
+          "pass": true,
+          "detail": [
+            "\u001b[200~PASTE-ONCE\u001b[201~"
+          ]
+        },
+        {
+          "name": "terminal status reply",
+          "pass": true,
+          "detail": [
+            "\u001b[0n"
+          ]
+        },
+        {
+          "name": "title event from raw bytes",
+          "pass": true,
+          "detail": [
+            "raw-byte-title"
+          ]
+        },
+        {
+          "name": "title event from string",
+          "pass": true,
+          "detail": [
+            "string-title"
+          ]
+        },
+        {
+          "name": "title event across chunks",
+          "pass": true,
+          "detail": [
+            "split-title"
+          ]
+        },
+        {
+          "name": "resize dimensions",
+          "pass": true,
+          "detail": {
+            "cols": 101,
+            "rows": 37
+          }
+        },
+        {
+          "name": "selection extraction",
+          "pass": true,
+          "detail": "split"
+        },
+        {
+          "name": "existing SearchAddon",
+          "pass": true,
+          "detail": true
+        },
+        {
+          "name": "existing SerializeAddon",
+          "pass": true,
+          "detail": true
+        },
+        {
+          "name": "scrollback retention",
+          "pass": true,
+          "detail": {
+            "lines": 101
+          }
+        }
+      ],
+      "ghostty": [
+        {
+          "name": "split UTF-8 bytes",
+          "pass": true,
+          "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        {
+          "name": "ANSI cell style",
+          "pass": true,
+          "detail": {
+            "foreground": 13395558,
+            "text": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nREDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          }
+        },
+        {
+          "name": "alternate approval screen",
+          "pass": true,
+          "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69"
+        },
+        {
+          "name": "emoji grapheme buffer extraction",
+          "pass": false,
+          "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69"
+        },
+        {
+          "name": "normal screen restored",
+          "pass": true,
+          "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nREDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        {
+          "name": "bracketed paste once",
+          "pass": true,
+          "detail": [
+            "\u001b[200~PASTE-ONCE\u001b[201~"
+          ]
+        },
+        {
+          "name": "terminal status reply",
+          "pass": true,
+          "detail": [
+            "\u001b[0n"
+          ]
+        },
+        {
+          "name": "title event from raw bytes",
+          "pass": false,
+          "detail": []
+        },
+        {
+          "name": "title event from string",
+          "pass": true,
+          "detail": [
+            "string-title"
+          ]
+        },
+        {
+          "name": "title event across chunks",
+          "pass": false,
+          "detail": []
+        },
+        {
+          "name": "resize dimensions",
+          "pass": true,
+          "detail": {
+            "cols": 101,
+            "rows": 37
+          }
+        },
+        {
+          "name": "selection extraction",
+          "pass": false,
+          "detail": "xxxxx"
+        },
+        {
+          "name": "existing SearchAddon",
+          "pass": false,
+          "detail": "TypeError: this._terminal.onWriteParsed is not a function. (In 'this._terminal.onWriteParsed((()=>this._updateMatches()))', 'this._terminal.onWriteParsed' is undefined)"
+        },
+        {
+          "name": "existing SerializeAddon",
+          "pass": false,
+          "detail": "TypeError: o.isOverline is not a function. (In 'o.isOverline()', 'o.isOverline' is undefined)"
+        },
+        {
+          "name": "scrollback retention",
+          "pass": true,
+          "detail": {
+            "lines": 101
+          }
+        }
+      ]
+    }
+  },
+  "cleanup": [
+    {
+      "pid": 14304,
+      "localPtyGoneAfterDispose": true
+    },
+    {
+      "address": "t1",
+      "pid": 14315,
+      "liveAfterDetach": true
+    },
+    {
+      "address": "linux/t2",
+      "pid": 103,
+      "liveAfterDetach": true
+    },
+    {
+      "pid": 14331,
+      "localPtyGoneAfterDispose": true
+    },
+    {
+      "address": "t2",
+      "pid": 14378,
+      "liveAfterDetach": true
+    },
+    {
+      "address": "linux/t3",
+      "pid": 110,
+      "liveAfterDetach": true
+    },
+    {
+      "pid": 14431,
+      "localPtyGoneAfterDispose": true
+    },
+    {
+      "address": "t3",
+      "pid": 14437,
+      "liveAfterDetach": true
+    },
+    {
+      "address": "linux/t4",
+      "pid": 117,
+      "liveAfterDetach": true
+    },
+    {
+      "pid": 14609,
+      "localPtyGoneAfterDispose": true
+    },
+    {
+      "address": "t4",
+      "pid": 14677,
+      "liveAfterDetach": true
+    },
+    {
+      "address": "linux/t5",
+      "pid": 124,
+      "liveAfterDetach": true
+    },
+    {
+      "pid": 14689,
+      "localPtyGoneAfterDispose": true
+    },
+    {
+      "address": "t5",
+      "pid": 14694,
+      "liveAfterDetach": true
+    },
+    {
+      "address": "linux/t6",
+      "pid": 131,
+      "liveAfterDetach": true
+    }
+  ],
+  "sshFixture": {
+    "result": "pass",
+    "transport": "OpenSSH over localhost TCP to two Linux Docker guests",
+    "remote_address": "linux/t1",
+    "same_remote_pid_after_interruption": 63,
+    "rust_adapter_remote_attach": true,
+    "strict_host_key_checking": true,
+    "second_guest_usable_during_first_ssh_outage": true,
+    "remote_projects_test": false,
+    "remote_worktrees_test": false,
+    "limits": [
+      "not two physical computers",
+      "no WAN/sleep/MFA acceptance",
+      "UI acceptance is manual and documented separately"
+    ]
+  },
+  "limits": [
+    "single macOS host and two disposable Linux guests",
+    "no manual native keyboard/IME or real-agent approval acceptance",
+    "synthetic emulator workload, not parser-only or SSH throughput",
+    "candidate compatibility failures remain visible"
+  ]
+}

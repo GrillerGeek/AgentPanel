@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Terminal } from "@xterm/xterm";
-import { FitAddon } from "@xterm/addon-fit";
-import { SearchAddon } from "@xterm/addon-search";
-import { WebglAddon } from "@xterm/addon-webgl";
-import { SerializeAddon } from "@xterm/addon-serialize";
+import { createXtermRenderer } from "./lib/terminalRenderer/xtermRenderer";
+import type { TerminalRenderer } from "./lib/terminalRenderer/types";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
@@ -127,10 +124,7 @@ export function TerminalPane({
   active?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const termRef = useRef<Terminal | null>(null);
-  const webglRef = useRef<WebglAddon | null>(null);
-  const fitRef = useRef<FitAddon | null>(null);
-  const searchRef = useRef<SearchAddon | null>(null);
+  const termRef = useRef<TerminalRenderer | null>(null);
   const sessionRef = useRef<TerminalConnection | null>(null);
   const [connectionError, setConnectionError] = useState("");
   const [reconnect, setReconnect] = useState(0);
@@ -163,23 +157,14 @@ export function TerminalPane({
       updateSettings({ pathSyncHintShown: true });
     }
 
-    const term = new Terminal({
+    const term = createXtermRenderer(container, {
       fontFamily: composeFont(fontFamily),
       fontSize,
       cursorBlink: true,
+      webgl: webglWanted,
       theme: xtermThemeFor(schemeBySlug(themeSlug)),
     });
     termRef.current = term;
-    const fit = new FitAddon();
-    fitRef.current = fit;
-    term.loadAddon(fit);
-    const search = new SearchAddon();
-    term.loadAddon(search);
-    searchRef.current = search;
-    const serialize = new SerializeAddon();
-    term.loadAddon(serialize);
-    term.open(container);
-
     // Copy/paste (issue #31): one paste pipeline only. Pasted text goes
     // through term.paste() -> onData -> pty_write, so bracketed paste is
     // honored and the WebView's native paste (suppressed in the handler)
@@ -189,34 +174,25 @@ export function TerminalPane({
       readClipboard: readText,
       writeClipboard: writeText,
       pasteToTerminal: (text) => term.paste(text),
-      getSelection: () => term.getSelection(),
+      getSelection: () => {
+        const result = term.getSelection();
+        if (result.status !== "supported") throw new Error(result.reason);
+        return result.value;
+      },
       hasSelection: () => term.hasSelection(),
       clearSelection: () => term.clearSelection(),
       openSearch: () => setSearchOpen(true),
     };
-    term.attachCustomKeyEventHandler(makeCopyPasteKeyHandler(clipboardDeps));
+    term.setKeyHandler(makeCopyPasteKeyHandler(clipboardDeps));
     const onContextMenu = makeContextMenuHandler(clipboardDeps);
     container.addEventListener("contextmenu", onContextMenu);
     // Keep right-clicks from also reaching a mouse-tracking app (e.g. Claude
     // Code), which would paste a second time.
-    const onRightButton = makeRightButtonGuard(() => term.modes.mouseTrackingMode !== "none");
+    const onRightButton = makeRightButtonGuard(() => term.isMouseTracking());
     container.addEventListener("mousedown", onRightButton, true);
     container.addEventListener("mouseup", onRightButton, true);
 
-    // WebGL is the fast renderer locally but streams poorly over remote desktop,
-    // and each live context taxes the GPU compositor — so only attach it when
-    // this pane is enabled AND visible (toggled live by the effect below).
-    if (webglWanted) {
-      try {
-        const w = new WebglAddon();
-        term.loadAddon(w);
-        webglRef.current = w;
-      } catch (e) {
-        console.warn("WebGL addon unavailable, falling back to canvas/DOM", e);
-      }
-    }
-
-    fit.fit();
+    term.fit();
 
     let connection: TerminalConnection | null = null;
     let ready = false;
@@ -224,11 +200,12 @@ export function TerminalPane({
     setConnectionError("");
     if (runtime && paneId) noteRuntimeState(paneId, "unknown");
     let disposed = false;
+    let rendererFailed = false;
 
     // Stream PTY output -> xterm, and feed the activity tracker (drives the
     // agent running/idle/awaiting status dots).
     const output = (chunk: string, consumed: () => void) => {
-      if (disposed) return;
+      if (disposed || rendererFailed) return;
       const bytes = decodeBase64(chunk);
       term.write(bytes, consumed);
       if (paneId) noteOutput(paneId, tailDecoder.decode(bytes));
@@ -240,6 +217,17 @@ export function TerminalPane({
       setConnectionError(message);
       if (paneId) noteRuntimeState(paneId, "disconnected");
     };
+    // Renderer failure is terminal for this attachment. openTerminal can emit
+    // output before resolving; the post-open check below handles that race.
+    const errorSub = term.onError((error) => {
+      rendererFailed = true;
+      disconnected(`Terminal renderer failed: ${error.message}`);
+      if (!runtime) pushToast(`Terminal renderer failed: ${error.message}`);
+      if (connection) {
+        const failed = connection; connection = null; sessionRef.current = null;
+        void failed.dispose(false).catch((err) => pushToast(`Could not detach failed terminal: ${err}`));
+      }
+    });
     const failedInput = (error: unknown) => {
       if (runtime) disconnected(String(error));
       else pushToast(`Terminal input failed: ${error}`);
@@ -276,8 +264,15 @@ export function TerminalPane({
           // No saved buffer, or the store is unreadable — start clean.
         }
       }
-      if (disposed) return;
-      if (paneId && !runtime) registerPane(paneId, () => serialize.serialize());
+      if (disposed || rendererFailed) return;
+      // Write completion is the restore boundary, before capture or spawn.
+      await term.whenIdle();
+      if (disposed || rendererFailed) return;
+      if (paneId && !runtime && term.capabilities.styledHistory === "supported") registerPane(paneId, () => {
+        const result = term.serializeStyledHistory();
+        if (result.status !== "supported") throw new Error(result.reason);
+        return result.value;
+      });
       if (paneId) registerPaneWriter(paneId, (text) => term.paste(text));
 
       const env = runtime?.attachOnly || runtime?.target ? null : await resolveSpawnEnv(shell, terminalEnv, syncLoginPath);
@@ -292,8 +287,8 @@ export function TerminalPane({
         disconnected,
         binding: (binding) => { if (paneId) useStore.getState().setPaneBinding(paneId, binding); },
       });
-      if (disposed) {
-        await opened.dispose(terminateOnUnmount());
+      if (disposed || rendererFailed) {
+        await opened.dispose(rendererFailed ? false : terminateOnUnmount());
         return;
       }
       connection = opened;
@@ -305,7 +300,7 @@ export function TerminalPane({
       if (ready) await startInitialCommand(opened, initialCommand);
     };
     void restoreThenSpawn().catch((err) => {
-      if (!disposed) { term.writeln(`\r\n[terminal connection error] ${err}`); if (runtime) disconnected(String(err)); }
+      if (!disposed) { term.write(`\r\n[terminal connection error] ${err}\r\n`); if (runtime) disconnected(String(err)); }
     });
 
     const dataSub = term.onData((data) => {
@@ -331,7 +326,7 @@ export function TerminalPane({
       rafId = requestAnimationFrame(() => {
         rafId = 0;
         if (container.clientWidth === 0 || container.clientHeight === 0) return;
-        fit.fit();
+        term.fit();
         if (connection && (term.rows !== lastRows || term.cols !== lastCols)) {
           lastRows = term.rows;
           lastCols = term.cols;
@@ -351,6 +346,7 @@ export function TerminalPane({
       container.removeEventListener("mouseup", onRightButton, true);
       dataSub.dispose();
       titleSub.dispose();
+      errorSub.dispose();
       unlistenExit?.();
       if (paneId) forgetPane(paneId);
       if (connection) void connection.dispose(terminateOnUnmount()).catch((err) => pushToast(`Could not close terminal: ${err}`));
@@ -360,7 +356,8 @@ export function TerminalPane({
             // An empty buffer means we never got a real capture (e.g. unmounted
             // before the restore load resolved) — writing it would overwrite this
             // pane's real history on disk with a blank "restored" banner.
-            const data = serialize.serialize();
+            const capture = term.serializeStyledHistory();
+            const data = capture.status === "supported" ? capture.value : undefined;
             if (data) void invoke("scrollback_save", { paneId, data }).catch(() => {});
           } catch {
             // Serialization can throw if the buffer is already torn down.
@@ -371,9 +368,6 @@ export function TerminalPane({
       }
       term.dispose(); // also disposes loaded addons (incl. WebGL, search)
       termRef.current = null;
-      webglRef.current = null;
-      fitRef.current = null;
-      searchRef.current = null;
       sessionRef.current = null;
     };
   }, [cwd, reconnect]);
@@ -384,12 +378,11 @@ export function TerminalPane({
   useEffect(() => {
     const term = termRef.current;
     if (!term) return;
-    term.options.fontFamily = composeFont(fontFamily);
-    term.options.fontSize = fontSize;
+    term.setAppearance({ fontFamily: composeFont(fontFamily), fontSize });
     const id = requestAnimationFrame(() => {
       const c = containerRef.current;
       if (!c || c.clientWidth === 0 || c.clientHeight === 0) return;
-      fitRef.current?.fit();
+      term.fit();
       if (sessionRef.current !== null) {
         void sessionRef.current.resize(term.rows, term.cols).catch((err) => pushToast(`Terminal resize failed: ${err}`));
       }
@@ -404,29 +397,16 @@ export function TerminalPane({
   useEffect(() => {
     const term = termRef.current;
     if (!term) return;
-    if (webglWanted && !webglRef.current) {
-      try {
-        const w = new WebglAddon();
-        term.loadAddon(w);
-        webglRef.current = w;
-      } catch (e) {
-        console.warn("WebGL addon unavailable", e);
-      }
-      // Becoming visible: container just went from 0x0 to sized — re-fit so the
-      // grid matches the viewport (and the freshly-attached renderer paints it).
-      requestAnimationFrame(() => {
-        const c = containerRef.current;
-        if (c && c.clientWidth > 0 && c.clientHeight > 0) fitRef.current?.fit();
-      });
-    } else if (!webglWanted && webglRef.current) {
-      webglRef.current.dispose();
-      webglRef.current = null;
+    term.setVisibility(active, webglEnabled);
+    if (active) {
+      const id = requestAnimationFrame(() => term.fit());
+      return () => cancelAnimationFrame(id);
     }
-  }, [webglWanted]);
+  }, [active, webglEnabled]);
 
   // Live-update the terminal colors when the theme changes (no remount).
   useEffect(() => {
-    if (termRef.current) termRef.current.options.theme = xtermThemeFor(schemeBySlug(themeSlug));
+    termRef.current?.setAppearance({ theme: xtermThemeFor(schemeBySlug(themeSlug)) });
   }, [themeSlug]);
 
   // Focus this terminal when its tab becomes active, so keystrokes go straight
@@ -439,12 +419,11 @@ export function TerminalPane({
 
   const runSearch = (q: string, prev = false) => {
     if (!q) return;
-    if (prev) searchRef.current?.findPrevious(q);
-    else searchRef.current?.findNext(q);
+    termRef.current?.search(q, prev);
   };
   const closeSearch = () => {
     setSearchOpen(false);
-    searchRef.current?.clearDecorations?.();
+    termRef.current?.clearSearch();
     termRef.current?.focus();
   };
 

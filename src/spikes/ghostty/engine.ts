@@ -55,7 +55,7 @@ export async function createEngine(kind: Kind, parent: HTMLElement, webgl = true
 }
 
 // Bound work while preserving the same consumed-callback contract used by Herdr.
-export async function writeWindow(engine: Engine, bytes: Uint8Array, windowBytes = 65536): Promise<void> {
+export async function writeWindow(engine: Pick<Engine, "write">, bytes: Uint8Array, windowBytes = 65536): Promise<void> {
   const chunk = 16384;
   for (let offset = 0; offset < bytes.length; offset += windowBytes) {
     const pending: Promise<void>[] = [];

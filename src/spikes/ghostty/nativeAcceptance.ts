@@ -3,6 +3,7 @@ import type { HerdrInventory, HerdrRuntime } from "../../types";
 import { openTerminal, type TerminalConnection } from "../../lib/terminalRuntime";
 import { createEngine, type Engine, type Kind } from "./engine";
 import { benchmark, compatibility } from "./probes";
+import { createAdapterEngine, adapterCompatibility, adapterBenchmark, characterizeXtermUnicode, type AdapterEngine } from "./adapterHarness";
 
 async function until(test: () => boolean, label: string) {
   const end = performance.now() + 20000;
@@ -12,23 +13,32 @@ async function until(test: () => boolean, label: string) {
   }
 }
 
-async function transport(engine: Engine, cwd: string, runtime?: HerdrRuntime) {
+async function transport(engine: Engine | AdapterEngine, cwd: string, runtime?: HerdrRuntime) {
   let connection: TerminalConnection | undefined;
   let ready = false;
   let bytes = 0; let credits = 0; let tail = "";
   const decoder = new TextDecoder();
   const errors: string[] = [];
+  let rendererFailed = false;
+  const rendererError = engine.consumption === "adapter" ? (engine as AdapterEngine).term.onError((error) => {
+    rendererFailed = true; ready = false; errors.push(error.message);
+    const failed = connection; connection = undefined; void failed?.dispose(false);
+  }) : undefined;
   const input = engine.term.onData((data) => { if (ready && connection) void connection.write(data).catch((error) => errors.push(String(error))); });
   const attach = async () => {
+    if (engine.consumption === "adapter") await (engine as AdapterEngine).term.whenIdle();
     engine.term.reset();
     connection = await openTerminal({ runtime, cwd, shell: "/bin/sh", env: null, rows: engine.term.rows, cols: engine.term.cols,
       output: (chunk, consumed) => {
         const data = Uint8Array.from(atob(chunk), (c) => c.charCodeAt(0));
         bytes += data.length; tail = (tail + decoder.decode(data, { stream: true })).slice(-8192);
-        void engine.write(data).then(() => { credits += data.length; consumed(); }).catch((error) => errors.push(String(error)));
+        const parsed = () => { credits += data.length; consumed(); };
+        if (engine.consumption === "adapter") (engine as AdapterEngine).term.write(data, parsed);
+        else void engine.write(data).then(parsed).catch((error) => errors.push(String(error)));
       }, status: () => {}, closed: () => { ready = false; }, disconnected: (error) => { ready = false; errors.push(error); },
       binding: (binding) => { if (runtime) runtime.binding = binding; },
     });
+    if (rendererFailed) { await connection.dispose(false); connection = undefined; throw new Error("Renderer failed while opening"); }
     ready = true;
     await new Promise((resolve) => setTimeout(resolve, 100));
   };
@@ -63,15 +73,17 @@ async function transport(engine: Engine, cwd: string, runtime?: HerdrRuntime) {
     return { kind: engine.kind, consumption: engine.consumption, result: "pass", runtime: runtime ? (runtime.target ? "Herdr SSH" : "Herdr local") : "Local PTY",
       pid: originalPid, resumedPid, bytes, consumedBytes: credits, binding: runtime?.binding, floodBytesAtLeast: 300 * 1024, resize: "37x101", rawByteOutput: true };
   } finally {
-    ready = false; input.dispose(); await connection?.dispose(!runtime);
+    ready = false; input.dispose(); rendererError?.dispose(); await connection?.dispose(!runtime);
   }
 }
 
-export async function nativeAcceptance(host: HTMLElement, comparison: Engine[], options: URLSearchParams) {
+export async function nativeAcceptance(host: HTMLElement, comparison: Array<{ dispose(): void }>, options: URLSearchParams) {
   const output: Record<string, unknown> = { runId: options.get("runId"), package: "ghostty-web@0.4.0", userAgent: navigator.userAgent,
     mode: "automated native Tauri/WebKit acceptance; not manual UI/IME or real-agent approval acceptance" };
   for (const engine of comparison) engine.dispose();
   output.benchmark = await benchmark(host);
+  output.adapterBenchmark = await adapterBenchmark(host);
+  output.xtermUnicodeBaseline = await characterizeXtermUnicode(host);
   const executable = options.get("hc"); const session = options.get("session") ?? "agentpanel-adapter-test";
   const cwd = options.get("cwd") ?? "/private/tmp/agentpanel-ghostty-spike";
   const transports: unknown[] = []; const compatible: Record<string, unknown> = {};
@@ -100,6 +112,33 @@ export async function nativeAcceptance(host: HTMLElement, comparison: Engine[], 
       }
     } finally { try { engine.dispose(); } catch { /* recorded compatibility failures */ } target.remove(); }
   }
+  const adapterTransports: unknown[] = []; const adapterChecks: Record<string, unknown> = {};
+  for (const kind of ["xterm", "ghostty"] as Kind[]) {
+    const target = document.createElement("div"); target.style.cssText = "width:800px;height:420px"; host.append(target);
+    const engine = await createAdapterEngine(kind, target);
+    try {
+      const modes: Array<{ cwd: string; runtime?: HerdrRuntime }> = [{ cwd }];
+      if (executable && inventory) {
+        const make = (): HerdrRuntime => ({ kind: "herdr", executable, session, key: crypto.randomUUID().replaceAll("-", "") });
+        modes.push({ cwd, runtime: make() });
+        const machine = inventory.machines.find((m) => m.name === "linux" && m.state === "connected");
+        if (!machine) throw new Error("Disposable linux SSH machine not connected");
+        modes.push({ cwd: "/home/agentpanel/project", runtime: { ...make(), target: { endpoint: { executable, session }, coreId: inventory.coreId,
+          machine: machine.name, machineId: machine.coreId, session: machine.session } } });
+      }
+      for (const mode of modes) {
+        try { adapterTransports.push(await transport(engine, mode.cwd, mode.runtime)); }
+        catch (error) { adapterTransports.push({ kind, consumption: "adapter", result: "fail", runtime: mode.runtime?.target ? "Herdr SSH" : mode.runtime ? "Herdr local" : "Local PTY", error: String(error) }); }
+      }
+    } finally { engine.dispose(); target.remove(); }
+    // Compatibility starts from a fresh renderer; terminal.reset() is not a
+    // guarantee that a wrapper has released all history from transport floods.
+    const probeTarget = document.createElement("div"); probeTarget.style.cssText = "width:800px;height:420px"; host.append(probeTarget);
+    const probeEngine = await createAdapterEngine(kind, probeTarget);
+    try { adapterChecks[kind] = await adapterCompatibility(probeEngine); }
+    finally { probeEngine.dispose(); probeTarget.remove(); }
+  }
+  output.adapterTransport = adapterTransports; output.adapterCompatibility = adapterChecks;
   // Probe unsupported addons only after every transport sample has finished.
   for (const kind of ["xterm", "ghostty"] as Kind[]) {
     const target = document.createElement("div"); target.style.cssText = "width:800px;height:420px"; host.append(target);

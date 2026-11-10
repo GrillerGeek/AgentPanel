@@ -43,7 +43,10 @@ and describe what you checked in the PR — type-checks and unit tests don't cat
 The isolated Ghostty feasibility harness is separate from the production terminal. See the
 [spike report and reproduction steps](docs/dev/2026-11-07-ghostty-feasibility-spike.md) before
 changing renderers. `npm run build:ghostty-spike` builds the experiment; `npm run build`
-continues to build AgentPanel with xterm.js.
+continues to build AgentPanel with xterm.js. The [renderer adapter report](docs/dev/2026-11-09-ghostty-renderer-adapter-report.md)
+describes the shared boundary, bounded experimental ingestion, current capability limits and
+new adapter probes. Keep Ghostty imports confined to the experimental graph and never use
+plain diagnostic text as a substitute for replayable styled history.
 
 ## Pull request guidelines
 

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { createEngine, type Engine, type Kind } from "./engine";
-import { compatibility, benchmark } from "./probes";
+import type { Kind } from "./engine";
+import { createAdapterEngine, adapterCompatibility, adapterBenchmark, characterizeXtermUnicode, type AdapterEngine } from "./adapterHarness";
 import { nativeAcceptance } from "./nativeAcceptance";
 import { openTerminal, type TerminalConnection } from "../../lib/terminalRuntime";
 import { makeCopyPasteKeyHandler } from "../../lib/terminalClipboard";
@@ -11,7 +11,7 @@ import "@xterm/xterm/css/xterm.css";
 import "./spike.css";
 
 const kinds: Kind[] = ["xterm", "ghostty"];
-interface View { engine: Engine; connection?: TerminalConnection; runtime?: HerdrRuntime; ready: boolean; inputs: number; outputs: number }
+interface View { engine: AdapterEngine; connection?: TerminalConnection; runtime?: HerdrRuntime; ready: boolean; inputs: number; outputs: number; failed: boolean; disposed: boolean }
 export default function GhosttySpike() {
   const hosts = useRef<Partial<Record<Kind, HTMLDivElement>>>({});
   const views = useRef<Partial<Record<Kind, View>>>({});
@@ -34,15 +34,19 @@ export default function GhosttySpike() {
     void (async () => {
       for (const kind of kinds) {
         const start = performance.now();
-        const engine = await createEngine(kind, hosts.current[kind]!);
+        const engine = await createAdapterEngine(kind, hosts.current[kind]!);
         if (disposed) { engine.dispose(); return; }
-        const view: View = { engine, ready: false, inputs: 0, outputs: 0 }; views.current[kind] = view;
+        const view: View = { engine, ready: false, inputs: 0, outputs: 0, failed: false, disposed: false }; views.current[kind] = view;
         const handler = makeCopyPasteKeyHandler({ isMac: /Mac/.test(navigator.platform), readClipboard: readText,
-          writeClipboard: writeText, pasteToTerminal: (text) => engine.term.paste(text), getSelection: () => engine.term.getSelection(),
+          writeClipboard: writeText, pasteToTerminal: (text) => engine.term.paste(text), getSelection: () => { const result = engine.term.getSelection(); if (result.status !== "supported") { message(kind, result.reason); return undefined; } return result.value; },
           hasSelection: () => engine.term.hasSelection(), clearSelection: () => engine.term.clearSelection(),
-          openSearch: () => message(kind, "Search requires a compatible addon; use the compatibility probe.") });
-        // ghostty-web 0.4.0 reverses xterm's boolean convention: true means handled.
-        engine.term.attachCustomKeyEventHandler((event) => kind === "ghostty" ? !handler(event) : handler(event));
+          openSearch: () => message(kind, JSON.stringify(engine.term.search("approval"))) });
+        // Adapters normalize false to suppress keyboard processing.
+        engine.term.setKeyHandler(handler);
+        engine.term.onError((error) => {
+          view.failed = true; view.ready = false; message(kind, `Renderer failed: ${error.message}; reload the spike to retry`);
+          const failed = view.connection; view.connection = undefined; void failed?.dispose(false);
+        });
         engine.term.onData((data) => {
           view.inputs++;
           if (view.ready && view.connection) void view.connection.write(data).catch((error) => { view.ready = false; message(kind, String(error)); });
@@ -70,7 +74,7 @@ export default function GhosttySpike() {
       }) });
     });
     return () => { disposed = true; for (const view of Object.values(views.current)) {
-      view.ready = false; void view.connection?.dispose(false); view.engine.dispose();
+      view.disposed = true; view.ready = false; void view.connection?.dispose(false); view.engine.dispose();
     } };
   }, []);
 
@@ -85,6 +89,7 @@ export default function GhosttySpike() {
   const connect = (kind: Kind) => run(async () => {
     const view = views.current[kind]!;
     if (view.connection) return;
+    if (view.failed || view.disposed) throw new Error("Renderer unavailable; reload the spike before reconnecting");
     if (!view.runtime && mode === "herdr") {
       const selected = inventory?.machines.find((m) => m.name === machine);
       if (machine && (!selected || selected.state !== "connected")) throw new Error("Refresh and select a connected remote machine");
@@ -92,7 +97,7 @@ export default function GhosttySpike() {
         ...(selected ? { target: { endpoint: { executable, session }, coreId: inventory!.coreId,
           machine: selected.name, machineId: selected.coreId, session: selected.session } } : {}) };
     }
-    view.engine.term.reset();
+    await view.engine.term.whenIdle(); view.engine.term.reset();
     const requested = view.runtime ? { ...view.runtime } : undefined;
     if (view.runtime?.target) view.runtime.existingOnly = true;
     const connection = await openTerminal({ runtime: requested, cwd, shell: "/bin/sh", env: null,
@@ -106,6 +111,7 @@ export default function GhosttySpike() {
       disconnected: (error) => { view.ready = false; message(kind, error); },
       binding: (binding) => { if (view.runtime) view.runtime.binding = binding; },
     });
+    if (view.failed || view.disposed) { await connection.dispose(false); return; }
     view.connection = connection; view.ready = true;
     message(kind, `connected ${view.runtime?.binding?.address ?? "local PTY"}; ${view.engine.renderer}`);
   });
@@ -116,8 +122,14 @@ export default function GhosttySpike() {
   });
   const probe = () => run(async () => {
     const results: Record<string, unknown> = {};
-    for (const kind of kinds) results[kind] = await compatibility(views.current[kind]!.engine);
-    setReport((old) => ({ ...old, compatibility: results }));
+    for (const kind of kinds) {
+      const target = document.createElement("div"); target.style.cssText = "width:800px;height:420px"; benchHost.current!.append(target);
+      const engine = await createAdapterEngine(kind, target);
+      try { results[kind] = await adapterCompatibility(engine); }
+      finally { engine.dispose(); target.remove(); }
+    }
+    const baseline = await characterizeXtermUnicode(benchHost.current!);
+    setReport((old) => ({ ...old, adapterCompatibility: results, xtermUnicodeBaseline: baseline }));
   });
   const connected = Object.values(views.current).some((v) => v.connection);
   const bound = Object.values(views.current).some((v) => v.runtime);
@@ -142,14 +154,14 @@ export default function GhosttySpike() {
         for (const view of Object.values(views.current)) view.runtime = undefined;
         message("binding", "Cleared spike bindings. Detached Herdr programs keep running; choose the next target explicitly.");
       }}>Clear bindings for new target</button>
-      <button disabled={!ready || busy || connected} onClick={probe}>Run compatibility probes</button>
+      <button disabled={!ready || busy || connected} onClick={probe}>Run adapter capability probes</button>
       <button disabled={!ready || busy || connected} onClick={() => run(async () => {
         // Dispose comparison surfaces so each sample has one live render loop.
         // Reload explicitly after measurement to recreate interactive viewers.
         for (const kind of kinds) { views.current[kind]!.engine.dispose(); delete views.current[kind]; }
         setReady(false); setRetired(true);
-        const result = await benchmark(benchHost.current!); setReport((old) => ({ ...old, benchmark: result }));
-      })}>Run paired benchmark</button>
+        const result = await adapterBenchmark(benchHost.current!); setReport((old) => ({ ...old, benchmark: result }));
+      })}>Run adapter benchmark</button>
       <button disabled={busy} onClick={() => window.location.reload()}>Reload spike</button>
       <button disabled={busy} onClick={() => run(async () => { await invoke("write_bench", { data: JSON.stringify(report, null, 2) }); message("saved", "Saved synthetic results to the OS temp directory: agentpanel_bench.json"); })}>Save synthetic results to temp</button>
       <button disabled={busy} onClick={() => setReport((old) => ({ ...old, transport: Object.fromEntries(kinds.map((kind) => { const v = views.current[kind];
