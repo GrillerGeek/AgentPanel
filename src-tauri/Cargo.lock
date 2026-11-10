@@ -186,6 +186,7 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-sentry",
  "tauri-plugin-updater",
+ "tempfile",
  "tokio",
  "winreg 0.52.0",
 ]

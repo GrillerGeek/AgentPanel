@@ -55,6 +55,10 @@ tokio = { version = "1", features = ["rt", "process", "io-util", "sync", "time",
 # Worktree file watching (Phase 2): emit change events to refresh status.
 notify = "6"
 
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+tempfile = "3.27.0"
+
 [target.'cfg(windows)'.dependencies]
 # Enumerate installed font families (for the terminal-font picker in Settings).
 winreg = "0.52"

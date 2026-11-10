@@ -166,6 +166,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Check updater signer and strict client configuration
+        run: node scripts/check-updater-signing.mjs
+
       # Crash reporting (docs/superpowers/specs/2026-07-23-crash-reporting-design.md):
       # builds once here so minified-JS stack traces can be mapped back to
       # source in Sentry. Conditional on the secret so forks (which don't have
@@ -217,48 +220,21 @@ jobs:
           releaseName: "AgentPanel ${{ env.RELEASE_TAG }}"
           releaseDraft: true
           prerelease: false
+          tauriScript: npm run tauri
           args: ${{ matrix.args }}
 
-  # The updater looks up an exact `{os}-{arch}` key in latest.json and has no
-  # fallback (tauri-plugin-updater's updater.rs). A key missing from the merged
-  # manifest means that platform silently stops receiving updates, so fail the
-  # release loudly while it is still an unpublished draft.
+  # Verify the downloaded bytes and signed version of every updater artifact
+  # while the release is still a draft.
   verify-manifest:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Check latest.json covers every shipped platform
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.4
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Verify the draft updater manifest and artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # `GET /releases/tags/{tag}` omits drafts, so list and match instead.
-          assets=$(gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate --jq \
-            ".[] | select(.tag_name == \"${RELEASE_TAG}\") | .assets[] | select(.name == \"latest.json\") | .url")
-          count=$(printf '%s\n' "$assets" | grep -c '^https' || true)
-          if [ "$count" -eq 0 ]; then
-            echo "::error::no latest.json asset on the ${RELEASE_TAG} release"
-            exit 1
-          fi
-          # More than one means the build legs raced and each wrote a partial
-          # manifest -- the v0.6.0 failure. strategy.max-parallel is meant to
-          # prevent it; if this fires, that serialization has regressed.
-          if [ "$count" -gt 1 ]; then
-            echo "::error::${count} assets named latest.json on the ${RELEASE_TAG} release -- the build legs raced and each wrote a partial manifest. Check strategy.max-parallel, delete the release, and re-run every leg."
-            exit 1
-          fi
-          asset="$assets"
-          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" \
-                    -H "Accept: application/octet-stream" "$asset" -o latest.json
-          cat latest.json
-          fail=0
-          for key in darwin-aarch64 darwin-x86_64 windows-x86_64 linux-x86_64; do
-            if ! jq -e --arg k "$key" '.platforms[$k].url' latest.json >/dev/null; then
-              echo "::error::latest.json is missing the '$key' platform entry"
-              fail=1
-            fi
-          done
-          if [ "$fail" -ne 0 ]; then
-            echo "Do not publish this draft — those users would never see an update."
-            exit 1
-          fi
-          echo "latest.json covers all four platform keys."
+        run: node scripts/verify-updater-release.mjs
