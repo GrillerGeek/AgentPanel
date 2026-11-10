@@ -4,7 +4,9 @@ import wasmUrl from "ghostty-web/ghostty-vt.wasm?url";
 import { WriteQueue, type QueueScheduler } from "./writeQueue";
 import { OscTitleParser } from "./oscTitleParser";
 import { events } from "./events";
-import { copyGhosttySelection, findGhosttyText, readGhosttyText } from "./ghosttyText";
+import { copyGhosttySelection, findGhosttyText, normalizeGhosttyRange, readGhosttyText } from "./ghosttyText";
+import { decorateGhosttyCanvas } from "./ghosttyCanvas";
+import { GhosttySelection, type SelectionDiagnostics } from "./ghosttySelection";
 import { unsupported, type RendererOptions, type TerminalRenderer } from "./types";
 let loading: Promise<Ghostty> | undefined;
 export function loadGhostty(): Promise<Ghostty> {
@@ -12,60 +14,82 @@ export function loadGhostty(): Promise<Ghostty> {
   return loading;
 }
 const historyReason = "ghostty-web 0.4.0 cannot replay styled history: color provenance, scrollback wraps, inactive normal buffer, overline and hyperlink URIs are unavailable";
-const searchReason = "Literal text match only; public selection/navigation cannot reliably present and highlight scrollback matches";
+const selections = new WeakMap<TerminalRenderer, GhosttySelection>();
+const canvasRedraws = new WeakMap<TerminalRenderer, () => void>();
+/** Isolated-harness diagnostics, deliberately outside the production renderer interface. */
+/** Explicit harness repaint, no second render loop or private surface access. */
+export const repaintGhosttyCanvas = (renderer: TerminalRenderer): void => canvasRedraws.get(renderer)?.();
+export const getGhosttySelectionDiagnostics = (renderer: TerminalRenderer): SelectionDiagnostics | undefined => selections.get(renderer)?.diagnostics();
 export async function createGhosttyRenderer(parent: HTMLElement, options: RendererOptions = {}, scheduler?: QueueScheduler): Promise<TerminalRenderer> {
   const { webgl: _webgl, ...terminalOptions } = options;
-  const term = new Terminal({ scrollback: 2000, ...terminalOptions, ghostty: await loadGhostty() });
+  const term = new Terminal({ scrollback: 2000, ...terminalOptions, smoothScrollDuration: 0, ghostty: await loadGhostty() });
   const fit = new FitAddon(); term.loadAddon(fit); term.open(parent);
   const titles = events<string>(); const errors = events<Error>();
   const parser = new OscTitleParser(titles.emit);
   let disposed = false; let searchOffset = -1; let lastQuery = "";
+  const mapped = () => term.wasmTerm ? readGhosttyText(term.wasmTerm) : unsupported("Public WASM buffer unavailable");
+  const publicRenderer = term.renderer;
+  if (!publicRenderer) { term.dispose(); throw new Error("Public Ghostty Canvas renderer unavailable"); }
+  const canvasPatch = decorateGhosttyCanvas(publicRenderer, () => term.wasmTerm);
+  const selection = new GhosttySelection(parent, {
+    canvas: publicRenderer.getCanvas(),
+    geometry: () => ({ cols: term.cols, rows: term.rows, history: term.wasmTerm?.getScrollbackLength() ?? 0,
+      viewport: term.getViewportY(), ...publicRenderer.getMetrics() }),
+    normalize: (range) => term.wasmTerm ? normalizeGhosttyRange(term.wasmTerm, range) : unsupported("Public WASM buffer unavailable"),
+    focus: () => term.focus(), isMouseTracking: () => term.wasmTerm?.hasMouseTracking() ?? false,
+    scrollToDistance: (distance) => term.scrollToLine(distance), scrollLines: (lines) => term.scrollLines(lines),
+    onScroll: (listener) => term.onScroll(listener),
+  });
+  const invalidate = () => { selection.invalidate(); searchOffset = -1; lastQuery = ""; };
   const queue = new WriteQueue((bytes) => {
+    // No public line generation/eviction identity exists: never copy a stale range.
+    invalidate();
     // Pinned 0.4.0 parses synchronously. Do not pass its rAF-scheduled callback.
     term.write(bytes); parser.write(bytes);
   }, errors.emit, scheduler);
-  const mapped = () => term.wasmTerm ? readGhosttyText(term.wasmTerm) : unsupported("Public WASM buffer unavailable");
-  return {
+  const afterGridChange = (cols: number, rows: number) => {
+    if (term.cols !== cols || term.rows !== rows) invalidate();
+    selection.refresh();
+  };
+  const renderer: TerminalRenderer = {
     kind: "ghostty", capabilities: { selection: "limited", search: "limited", styledHistory: "unsupported", renderingSuspension: "unsupported" },
     get cols() { return term.cols; }, get rows() { return term.rows; },
     write: (data, consumed) => queue.write(data, consumed), whenIdle: () => queue.whenIdle(),
-    fit() { if (!disposed && parent.clientWidth > 0 && parent.clientHeight > 0) fit.fit(); },
-    resize: (cols, rows) => term.resize(cols, rows), focus: () => term.focus(), paste: (text) => term.paste(text),
+    fit() {
+      if (disposed || parent.clientWidth === 0 || parent.clientHeight === 0) return;
+      const { cols, rows } = term; fit.fit(); afterGridChange(cols, rows);
+    },
+    resize(cols, rows) { if (term.cols !== cols || term.rows !== rows) invalidate(); term.resize(cols, rows); selection.refresh(); }, focus: () => term.focus(), paste: (text) => term.paste(text),
     onData: (listener) => term.onData(listener), onTitleChange: titles.on, onError: errors.on,
     setKeyHandler: (handler) => term.attachCustomKeyEventHandler((event) => !handler(event)),
     isMouseTracking: () => term.wasmTerm?.hasMouseTracking() ?? false,
     getSelection() {
-      // Identical endpoints also occur on an ordinary click. The public API
-      // cannot distinguish those from a one-cell programmatic selection.
-      if (!term.hasSelection()) return unsupported("No unambiguous active selection (single-cell selection is unsupported)");
-      const range = term.getSelectionPosition();
-      if (!range) return unsupported("Public selection positions are unavailable for an offscreen selection");
-      const viewport = term.getViewportY();
-      // Public positions are viewport-relative and clipped at the viewport edges.
-      // Interior endpoints are unambiguous; do not fabricate the hidden part of
-      // an edge-crossing selection or round fractional smooth-scroll positions.
-      if (!Number.isInteger(viewport) || range.start.y <= 0 || range.end.y >= term.rows - 1) return unsupported("Public selection positions clip at viewport boundaries; full copy cannot be recovered reliably");
-      const text = mapped();
-      if (text.status !== "supported") return text;
-      const absolute = (point: { x: number; y: number }) => ({ x: point.x, y: text.value.history + point.y - viewport });
-      return copyGhosttySelection(text.value, { start: absolute(range.start), end: absolute(range.end) });
+      const range = selection.getRange(); if (!range) return { status: "supported", value: "" };
+      const text = mapped(); return text.status === "supported" ? copyGhosttySelection(text.value, range) : text;
     },
-    // Preserve the wrapper's active-selection signal; a plain click must not copy.
-    hasSelection: () => term.hasSelection(), clearSelection: () => term.clearSelection(),
-    select: () => unsupported("ghostty-web select() clamps to viewport and uses inconsistent absolute coordinates after scrolling/resize"),
+    hasSelection: () => selection.hasSelection(), clearSelection: () => selection.clear(),
+    select: (range) => selection.select(range),
     search(query, backwards = false) {
-      const text = mapped(); if (text.status !== "supported") return text;
+      const text = mapped();
+      if (text.status !== "supported") { selection.clear("search"); return text; }
       if (query !== lastQuery) { searchOffset = -1; lastQuery = query; }
       const found = findGhosttyText(text.value, query, searchOffset, backwards); searchOffset = found.offset;
-      return { status: "limited", match: found.match, reason: searchReason };
+      if (!found.match) { selection.clear("search"); return { status: "supported", found: false }; }
+      const presented = selection.select(found.match, "search", true);
+      if (presented.status !== "supported") return presented;
+      if (!selection.diagnostics().rectangles.length) { selection.clear("search"); return unsupported("Match cannot be presented on a hidden or zero-sized surface"); }
+      return { status: "supported", found: true };
     },
-    clearSearch() { searchOffset = -1; lastQuery = ""; },
+    clearSearch() { searchOffset = -1; lastQuery = ""; selection.clear("search"); },
     serializeStyledHistory: () => unsupported(historyReason),
     extractText() { const text = mapped(); return text.status === "supported" ? { status: "supported", value: text.value.text } : text; },
-    setAppearance(appearance) { Object.assign(term.options, appearance); },
+    setAppearance(appearance) { const { cols, rows } = term; Object.assign(term.options, appearance); afterGridChange(cols, rows); },
     // Parsing remains task-budgeted while hidden. The wrapper has no public render-pause API.
-    setVisibility() {},
-    reset() { term.reset(); parser.reset(); searchOffset = -1; lastQuery = ""; },
-    dispose() { if (disposed) return; disposed = true; queue.dispose(); parser.reset(); titles.clear(); errors.clear(); term.dispose(); },
+    setVisibility(visible) { selection.setVisibility(visible); },
+    reset() { invalidate(); term.reset(); parser.reset(); selection.refresh(); },
+    dispose() { if (disposed) return; disposed = true; queue.dispose(); selection.dispose(); canvasPatch.dispose(); selections.delete(renderer); canvasRedraws.delete(renderer); parser.reset(); titles.clear(); errors.clear(); term.dispose(); },
   };
+  selections.set(renderer, selection);
+  canvasRedraws.set(renderer, () => { if (!disposed && term.wasmTerm) publicRenderer.render(term.wasmTerm, true, term.getViewportY(), term); });
+  return renderer;
 }

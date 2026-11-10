@@ -1,4 +1,4 @@
-import { unsupported, type CellPosition, type Result, type SearchMatch } from "./types";
+import { unsupported, type CellPosition, type Result, type SearchMatch, type SelectionRange } from "./types";
 export interface TextCell { codepoint: number; width: number; grapheme_len: number }
 export interface GraphemeBuffer {
   getDimensions(): { cols: number; rows: number };
@@ -31,16 +31,47 @@ export function readGhosttyText(buffer: GraphemeBuffer, maxCells = 2_000_000): R
   }
   return { status: "supported", value: { text: lines.map((line) => line.text).join("\n"), lines, starts, history } };
 }
-export function copyGhosttySelection(mapped: MappedText, range: { start: CellPosition; end: CellPosition }): Result<string> {
-  // ghostty 0.4.0 public getSelectionPosition() endpoints are inclusive, absolute.
-  let { start, end } = range;
+/** Normalize absolute EXCLUSIVE endpoints and snap intersected wide cells to full clusters.
+ * Reads at most the two endpoint rows; suitable for pointer movement. */
+export function normalizeGhosttyRange(buffer: GraphemeBuffer, range: SelectionRange): Result<SelectionRange> {
+  const { cols, rows } = buffer.getDimensions(); const history = buffer.getScrollbackLength();
+  return normalizeRange(range, cols, history + rows, (y) => y < history ? buffer.getScrollbackLine(y) : buffer.getLine(y - history));
+}
+function normalizeRange(range: SelectionRange, cols: number, lineCount: number,
+  getLine: (y: number) => Array<{ width: number }> | null): Result<SelectionRange> {
+  let start = { ...range.start }; let end = { ...range.end };
   if (start.y > end.y || (start.y === end.y && start.x > end.x)) [start, end] = [end, start];
-  if (![start.x, start.y, end.x, end.y].every(Number.isInteger) || start.y < 0 || end.y >= mapped.lines.length || start.x < 0 || end.x < 0) return unsupported("Selection coordinates unavailable or outside retained buffer");
+  if (![start.x, start.y, end.x, end.y].every(Number.isInteger) || start.y < 0 || end.y >= lineCount || start.x < 0 || end.x < 0 || start.x > cols || end.x > cols) return unsupported("Selection coordinates outside retained buffer");
+  if (start.y === end.y && start.x === end.x) return { status: "supported", value: { start, end } };
+  for (const [point, exclusive] of [[start, false], [end, true]] as const) {
+    const row = getLine(point.y); if (!row) return unsupported("Public endpoint row unavailable");
+    // A continuation has width zero. Locate the preceding wide base cell.
+    if (point.x < cols && row[point.x]?.width === 0) {
+      let x = point.x; while (x > 0 && row[x]?.width === 0) x--;
+      const width = row[x]?.width ?? 1;
+      if (x + width > point.x) point.x = exclusive ? Math.min(cols, x + width) : x;
+    }
+  }
+  return { status: "supported", value: { start, end } };
+}
+export function copyGhosttySelection(mapped: MappedText, range: SelectionRange): Result<string> {
+  const cols = mapped.lines[0]?.cells.reduce((n, cell) => Math.max(n, cell.x + cell.width), 0) ?? 0;
+  const normalized = normalizeRange(range, cols, mapped.lines.length, (y) => {
+    const row = Array.from({ length: cols }, () => ({ width: 0 }));
+    for (const cell of mapped.lines[y]?.cells ?? []) row[cell.x] = { width: cell.width };
+    return mapped.lines[y] ? row : null;
+  });
+  if (normalized.status !== "supported") return normalized;
+  const { start, end } = normalized.value;
+  if (start.x === end.x && start.y === end.y) return { status: "supported", value: "" };
   const result: string[] = [];
   for (let y = start.y; y <= end.y; y++) {
-    const line = mapped.lines[y]; const from = y === start.y ? start.x : 0; const through = y === end.y ? end.x : Infinity;
-    const cells = line.cells.filter((cell) => cell.x + cell.width > from && cell.x <= through);
-    result.push(cells.map((cell) => line.text.slice(cell.start, cell.end)).join(""));
+    const line = mapped.lines[y]; const from = y === start.y ? start.x : 0; const through = y === end.y ? end.x : cols;
+    let text = line.cells.filter((cell) => cell.x + cell.width > from && cell.x < through).map((cell) => line.text.slice(cell.start, cell.end)).join("");
+    // Terminal padding at a physical row end is not part of multi-line copy.
+    // Explicit trailing spaces inside a partial last-row range remain intact.
+    if (through === cols) text = text.replace(/ +$/, "");
+    result.push(text);
   }
   return { status: "supported", value: result.join("\n") };
 }

@@ -1,7 +1,9 @@
 import { createXtermRenderer } from "../../lib/terminalRenderer/xtermRenderer";
-import { createGhosttyRenderer } from "../../lib/terminalRenderer/ghosttyRenderer";
+import { createGhosttyRenderer, getGhosttySelectionDiagnostics, repaintGhosttyCanvas } from "../../lib/terminalRenderer/ghosttyRenderer";
+import type { SelectionDiagnostics } from "../../lib/terminalRenderer/ghosttySelection";
 import type { TerminalRenderer } from "../../lib/terminalRenderer/types";
 import { frames, writeWindow, type Kind } from "./engine";
+export interface CanvasPaintEvidence { column: number; viewportRow: number; cellWidth: number; cellHeight: number; calls: Array<{ text: string; x: number; y: number }>; capped: boolean }
 export interface AdapterEngine {
   kind: Kind;
   term: TerminalRenderer;
@@ -11,13 +13,38 @@ export interface AdapterEngine {
   text(): string;
   write(data: string | Uint8Array): Promise<void>;
   dispose(): void;
+  captureCanvasPaint?(action: () => void, column: number): Promise<CanvasPaintEvidence>;
+  selectionPresentation?(): { owned: SelectionDiagnostics | undefined; visibleRects: Array<{ row: number; startCol: number; endCol: number; x: number; y: number; width: number; height: number }> };
 }
 export async function createAdapterEngine(kind: Kind, parent: HTMLElement): Promise<AdapterEngine> {
   const options = { cols: 80, rows: 24, scrollback: 2000, fontSize: 14, cursorBlink: false, webgl: true };
   const term = kind === "xterm" ? createXtermRenderer(parent, options) : await createGhosttyRenderer(parent, options);
   return { kind, term, renderer: kind === "xterm" ? "xterm adapter (WebGL requested)" : "Ghostty adapter (Canvas)", consumption: "adapter",
     fit: () => term.fit(), text() { const result = term.extractText(); if (result.status !== "supported") throw new Error(result.reason); return result.value; },
-    write(data) { term.write(data); return term.whenIdle(); }, dispose: () => term.dispose() };
+    write(data) { term.write(data); return term.whenIdle(); }, dispose: () => term.dispose(),
+    ...(kind === "ghostty" ? {
+      async captureCanvasPaint(action: () => void, column: number): Promise<CanvasPaintEvidence> {
+        const canvas = parent.querySelector("canvas")!; const context = canvas.getContext("2d")!;
+        const original = context.fillText; const calls: CanvasPaintEvidence["calls"] = [];
+        const cellWidth = parseFloat(canvas.style.width) / term.cols; const cellHeight = parseFloat(canvas.style.height) / term.rows;
+        let viewportRow = -1; let capped = false;
+        const wrapped: CanvasRenderingContext2D["fillText"] = function(this: CanvasRenderingContext2D, text, x, y, maxWidth) {
+          if (Math.abs(x - column * cellWidth) < 0.05 && Math.floor(y / cellHeight) === viewportRow) {
+            if (calls.length < 16) calls.push({ text, x, y }); else capped = true;
+          }
+          if (maxWidth === undefined) original.call(this, text, x, y); else original.call(this, text, x, y, maxWidth);
+        };
+        context.fillText = wrapped;
+        try {
+          action(); const owned = getGhosttySelectionDiagnostics(term);
+          viewportRow = owned?.range ? owned.range.start.y - owned.viewportTop : -1;
+          repaintGhosttyCanvas(term); await frames();
+          return { column, viewportRow, cellWidth, cellHeight, calls, capped };
+        } finally { if (context.fillText === wrapped) context.fillText = original; }
+      },
+      selectionPresentation: () => ({ owned: getGhosttySelectionDiagnostics(term), visibleRects: Array.from(parent.querySelectorAll<HTMLElement>(".ghostty-selection-rect")).map((node) => {
+      const rect = node.getBoundingClientRect(); return { row: Number(node.dataset.row), startCol: Number(node.dataset.startCol), endCol: Number(node.dataset.endCol), x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    }) }) } : {}) };
 }
 export interface AdapterCheck { name: string; status: "pass" | "fail" | "unsupported"; detail: unknown }
 export async function adapterCompatibility(engine: AdapterEngine): Promise<AdapterCheck[]> {
@@ -43,7 +70,11 @@ export async function adapterCompatibility(engine: AdapterEngine): Promise<Adapt
     if (selection.status === "unsupported") checks.push({ name: "programmatic selection after resize", status: "unsupported", detail: selection.reason });
     else { const copy = term.getSelection(); record("programmatic selection after resize", copy.status === "supported" && copy.value === "café", copy); }
     const search = term.search("history-0 👩🏽‍💻");
-    checks.push({ name: "search navigation and visible highlight", status: search.status === "supported" ? search.found ? "pass" : "fail" : "unsupported", detail: search });
+    await frames();
+    const presentation = engine.selectionPresentation?.(); const selected = term.getSelection();
+    const visibleMatch = !presentation || (!!presentation.owned?.range && presentation.visibleRects.some((rect) => rect.width > 0 && rect.height > 0) && selected.status === "supported" && selected.value === "history-0 👩🏽‍💻");
+    checks.push({ name: "search navigation and visible highlight", status: search.status === "supported" ? search.found && visibleMatch ? "pass" : "fail" : "unsupported", detail: { search, selected, presentation } });
+    if (engine.kind === "ghostty") checks.push(...await selectionSearchCompatibility(engine));
     const history = term.serializeStyledHistory();
     checks.push({ name: "replayable styled history", status: history.status === "supported" ? "pass" : "unsupported", detail: history.status === "supported" ? { bytes: history.value.length } : history.reason });
     term.setVisibility(false, false); let consumed = 0; const payload = new Uint8Array(96 * 1024).fill(120);
@@ -89,4 +120,50 @@ export async function characterizeXtermUnicode(host: HTMLElement) {
   return { expected: { screen: "café 👩🏽‍💻 中文 é", titles: ["café 👩🏽‍💻"] }, ...observed,
     adapterMatchesRaw: JSON.stringify(observed.raw) === JSON.stringify(observed.adapter),
     meaning: "Untouched xterm vs xterm adapter, identical one-byte UTF-8 writes. Any missing grapheme codepoints remain strict compatibility failures; equality only characterizes the baseline." };
+}
+
+export const selectionSearchFixture = "\x1b[3J\x1b[2J\x1b[H" + Array.from({ length: 120 }, (_, i) =>
+  `${i === 8 || i === 83 ? "needle 👩🏽‍💻 · " : ""}fixture-${String(i).padStart(3, "0")} café 👩🏽‍💻 中文  spaced\r\n`).join("");
+
+export async function loadSelectionSearchFixture(engine: AdapterEngine) {
+  await engine.term.whenIdle(); engine.term.reset(); await engine.write(selectionSearchFixture);
+}
+async function selectionSearchCompatibility(engine: AdapterEngine): Promise<AdapterCheck[]> {
+  const term = engine.term; const checks: AdapterCheck[] = [];
+  const record = (name: string, pass: boolean, detail: unknown) => checks.push({ name, status: pass ? "pass" : "fail", detail });
+  await loadSelectionSearchFixture(engine); await frames();
+  const lines = engine.text().split("\n"); const first = lines.findIndex((line) => line.includes("fixture-000"));
+  const bottom = lines.findIndex((line) => line.includes("fixture-119")); const needleRows = lines.flatMap((line, y) => line.includes("needle 👩🏽‍💻") ? [y] : []);
+  term.select({ start: { x: 0, y: first }, end: { x: 1, y: first } });
+  const oneCell = term.getSelection(); const offscreen = engine.selectionPresentation?.();
+  record("owned one-cell and offscreen scrollback copy", first >= 0 && oneCell.status === "supported" && oneCell.value === "f" && term.hasSelection() && offscreen?.owned?.range?.start.y === first && offscreen.owned.viewportTop > first && offscreen.visibleRects.length === 0, { oneCell, offscreen });
+  term.select({ start: { x: 7, y: bottom }, end: { x: 0, y: bottom } }); const edge = term.getSelection();
+  record("owned reversed bottom-edge selection", edge.status === "supported" && edge.value === "fixture" && (engine.selectionPresentation?.().visibleRects.length ?? 0) > 0, { edge, presentation: engine.selectionPresentation?.() });
+  term.select({ start: { x: 4, y: first + 1 }, end: { x: 0, y: first } }); const multiline = term.getSelection();
+  record("owned multiline copy trims terminal row padding", multiline.status === "supported" && multiline.value === `${lines[first].trimEnd()}\nfixt`, multiline);
+  const query = "needle 👩🏽‍💻";
+  const present = async (backwards = false) => {
+    let result!: ReturnType<TerminalRenderer["search"]>;
+    const paint = await engine.captureCanvasPaint?.(() => { result = term.search(query, backwards); }, 7);
+    if (!paint) result = term.search(query, backwards);
+    await frames(); return { result, selected: term.getSelection(), presentation: engine.selectionPresentation?.(), paint };
+  };
+  const at = (value: Awaited<ReturnType<typeof present>>, row: number) => value.result.status === "supported" && value.result.found && value.selected.status === "supported" && value.selected.value === query && value.presentation?.owned?.range?.start.y === row && value.presentation.owned.range.start.x === 0 && value.presentation.owned.range.end.x === 9 && value.presentation.visibleRects.some((rect) => rect.row === row && rect.startCol === 0 && rect.endCol === 9 && rect.width > 0 && rect.height > 0);
+  const firstMatch = await present(); const secondMatch = await present(); const previousMatch = await present(true); const wrappedMatch = await present(true);
+  record("search reveals and highlights actual old scrollback cells", needleRows.length === 2 && at(firstMatch, needleRows[0]), firstMatch);
+  record("search next previous and wrap move actual selected occurrence", at(secondMatch, needleRows[1]) && at(previousMatch, needleRows[0]) && at(wrappedMatch, needleRows[1]), { secondMatch, previousMatch, wrappedMatch });
+  const drawnCluster = (paint: CanvasPaintEvidence | undefined) => !!paint && paint.calls.length > 0 && !paint.capped && paint.calls.every((call) => call.text === "👩🏽‍💻");
+  const activePaint = await engine.captureCanvasPaint?.(() => { term.search("fixture-119 café 👩🏽‍💻"); }, 17);
+  record("Canvas paints the full cluster at highlighted history and active cells", drawnCluster(firstMatch.paint) && drawnCluster(secondMatch.paint) && drawnCluster(activePaint), { firstHistoryPaint: firstMatch.paint, secondHistoryPaint: secondMatch.paint, activePaint });
+  term.clearSearch(); const cleared = !term.hasSelection() && engine.selectionPresentation?.().visibleRects.length === 0;
+  await present(); const missing = term.search("no-such-fixture-needle");
+  record("clear and no-match remove stale search highlights", cleared && missing.status === "supported" && !missing.found && !term.hasSelection() && engine.selectionPresentation?.().visibleRects.length === 0, { cleared, missing, presentation: engine.selectionPresentation?.() });
+  term.select({ start: { x: 0, y: first }, end: { x: 1, y: first } }); term.clearSearch(); term.search("no-such-fixture-needle");
+  const manualPreserved = term.hasSelection(); await engine.write("output invalidates old range");
+  const outputCleared = !term.hasSelection(); term.select({ start: { x: 0, y: first }, end: { x: 1, y: first } });
+  term.resize(term.cols + 1, term.rows + 1); const resizeCleared = !term.hasSelection();
+  const newFirst = engine.text().split("\n").findIndex((line) => line.includes("fixture-000"));
+  const afterResize = term.select({ start: { x: 0, y: newFirst }, end: { x: 1, y: newFirst } }); const resizedCopy = term.getSelection();
+  record("output and grid changes clear stale ranges; new resize selection works", manualPreserved && outputCleared && resizeCleared && afterResize.status === "supported" && resizedCopy.status === "supported" && resizedCopy.value === "f", { manualPreserved, outputCleared, resizeCleared, afterResize, resizedCopy });
+  term.clearSelection(); return checks;
 }

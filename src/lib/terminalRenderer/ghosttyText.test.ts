@@ -13,10 +13,13 @@ describe("public Ghostty grapheme text", () => {
     if (result.status !== "supported") return;
     expect(result.value.text).toBe("👩🏽‍💻 é  \n中a b "); expect(result.value.lines[0].cells[0].width).toBe(2);
   });
-  it("copies actual inclusive endpoints, including one cell, backward selections and retained scrollback", () => {
+  it("copies exclusive endpoints, snaps full clusters, and trims row padding across lines", () => {
     const result = readGhosttyText(buffer()); if (result.status !== "supported") throw new Error("fixture");
-    expect(copyGhosttySelection(result.value, { start: { x: 0, y: 0 }, end: { x: 0, y: 0 } })).toEqual({ status: "supported", value: "👩🏽‍💻" });
-    expect(copyGhosttySelection(result.value, { start: { x: 2, y: 1 }, end: { x: 3, y: 0 } })).toEqual({ status: "supported", value: "é  \n中a" });
+    expect(copyGhosttySelection(result.value, { start: { x: 0, y: 0 }, end: { x: 1, y: 0 } })).toEqual({ status: "supported", value: "👩🏽‍💻" });
+    expect(copyGhosttySelection(result.value, { start: { x: 3, y: 1 }, end: { x: 3, y: 0 } })).toEqual({ status: "supported", value: "é\n中a" });
+    expect(copyGhosttySelection(result.value, { start: { x: 1, y: 0 }, end: { x: 1, y: 0 } })).toEqual({ status: "supported", value: "" });
+    expect(copyGhosttySelection(result.value, { start: { x: 1, y: 1 }, end: { x: 2, y: 1 } })).toEqual({ status: "supported", value: "中" });
+    expect(copyGhosttySelection(result.value, { start: { x: 3, y: 1 }, end: { x: 4, y: 1 } })).toEqual({ status: "supported", value: " " });
     expect(copyGhosttySelection(result.value, { start: { x: 0, y: -1 }, end: { x: 0, y: 0 } }).status).toBe("unsupported");
   });
   it("maps Unicode literal forward/backward matches to cells and reports wrap", () => {

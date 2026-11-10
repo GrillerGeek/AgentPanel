@@ -13,3 +13,26 @@ Assumptions: “continue” authorizes the adapter foundation and isolated candi
 5. Run frontend tests (Node 25 uses `NODE_OPTIONS=--no-webstorage`), normal and experimental builds, updater tests and ordinary Rust tests when practical. Attempt the new native cases when prerequisites permit. Record current evidence and outstanding manual/platform gates in a separate implementation report.
 
 Open acceptance gates include physical keyboard/IME, native clipboard/right-click/accessibility, real Codex/Claude permission flows, hidden/visible panes, outage/sleep/multiple sessions, Linux/Windows ConPTY, full selection/search parity, styled history and duplicate WASM packaging. No default change, release, real host provisioning or paid agent calls are authorized by this implementation.
+
+## Selection and visible search increment
+
+Continue the isolated candidate with an owned exclusive-end absolute selection model and a
+bounded noninteractive overlay, using only public Canvas metrics and scrolling APIs. Own
+ordinary left drag in capture after the wrapper's scrollbar handler; preserve mouse reporting
+unless Shift overrides, modified links, wheel, right-click and paste. Support real one-cell,
+reversed, multiline, viewport-edge and scrollback copy using complete grapheme boundaries.
+Search must reveal and visibly highlight the actual selected occurrence; status alone is not
+evidence. Clear selection/search before parsed output, reset or actual grid changes because
+public buffer-generation/eviction identities are unavailable. Preserve historical evidence,
+keep xterm default and styled history unsupported, and document physical-row/soft-wrap and
+selection-during-output limits. Test model geometry, controller events/disposal/invalidation
+and current real-browser/native selection/search behavior before publishing the increment.
+
+Paint evidence extension: screenshot review found that the pinned Canvas renderer retrieved
+complex graphemes using viewport rows even when its cells came from scrollback/shifted active
+rows. Correct extraction and overlay geometry were insufficient. Add an original public
+`CanvasRenderer.render()` decorator using an explicit bound `IRenderable` facade, integer
+viewport mapping, per-frame history snapshot, scrolled redraw and alternate-screen isolation.
+Restore the public method on disposal and prove actual `fillText()` cluster data at highlighted
+history and active-screen cells. Preserve the before-correction screenshot and final corrected
+paint evidence; do not reinterpret the preliminary geometry checks as pixel acceptance.

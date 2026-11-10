@@ -1,19 +1,25 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ load: vi.fn(), terms: [] as any[] }));
 vi.mock("ghostty-web", () => ({ Ghostty: { load: mocks.load }, FitAddon: class { fit = vi.fn(); }, Terminal: class {
   options: any; cols = 5; rows = 4; viewportY = 0; activeSelection = true;
+  canvas = document.createElement("canvas"); scrollListeners: Array<() => void> = [];
+  renderer = { render: vi.fn(), getCanvas: () => this.canvas, getMetrics: () => ({ width: 10, height: 20 }) };
   range: any = { start: { x: 1, y: 1 }, end: { x: 2, y: 1 } }; key: any;
   wasmTerm = { hasMouseTracking: () => true, getDimensions: () => ({ cols: 5, rows: 4 }), getScrollbackLength: () => 1,
     getLine: () => [..."hello"].map((ch) => ({ codepoint: ch.charCodeAt(0), width: 1, grapheme_len: 0 })),
     getScrollbackLine: () => this.wasmTerm.getLine(), getGraphemeString: () => "", getScrollbackGraphemeString: () => "" };
-  constructor(options: any) { this.options = options; mocks.terms.push(this); }
-  loadAddon = vi.fn(); open = vi.fn(); write = vi.fn(); dispose = vi.fn(); reset = vi.fn(); resize = vi.fn(); focus = vi.fn(); paste = vi.fn();
+  constructor(options: any) { this.options = options; mocks.terms.push(this); this.canvas.getBoundingClientRect = () => ({ left: 0, top: 0, right: 50, bottom: 80, width: 50, height: 80 }) as DOMRect; }
+  onScroll(listener: () => void) { this.scrollListeners.push(listener); return { dispose: vi.fn() }; }
+  scrollToLine(distance: number) { this.viewportY = distance; for (const listener of this.scrollListeners) listener(); }
+  scrollLines(lines: number) { this.scrollToLine(Math.max(0, Math.min(1, this.viewportY - lines))); }
+  loadAddon = vi.fn(); open = vi.fn((parent: HTMLElement) => parent.append(this.canvas)); write = vi.fn(); dispose = vi.fn(); reset = vi.fn(); resize = vi.fn((cols: number, rows: number) => { this.cols = cols; this.rows = rows; }); focus = vi.fn(); paste = vi.fn();
   onData = vi.fn(() => ({ dispose: vi.fn() })); onTitleChange = vi.fn();
   attachCustomKeyEventHandler(handler: any) { this.key = handler; }
   getSelectionPosition() { return this.range; } hasSelection() { return this.activeSelection; } getViewportY() { return this.viewportY; } clearSelection = vi.fn();
 } }));
-const parent = { clientWidth: 800, clientHeight: 400 } as HTMLElement;
-beforeEach(() => { vi.resetModules(); mocks.load.mockReset().mockResolvedValue({}); mocks.terms.length = 0; });
+let parent: HTMLElement;
+beforeEach(() => { vi.resetModules(); mocks.load.mockReset().mockResolvedValue({}); mocks.terms.length = 0; document.body.replaceChildren(); parent = document.createElement("div"); document.body.append(parent); });
 describe("isolated Ghostty adapter", () => {
   it("shares explicit-URL WASM loading and allows retry after rejection", async () => {
     const { loadGhostty } = await import("./ghosttyRenderer");
@@ -30,19 +36,43 @@ describe("isolated Ghostty adapter", () => {
     expect(term.onTitleChange).not.toHaveBeenCalled(); expect(renderer.isMouseTracking()).toBe(true);
     renderer.paste("once"); expect(term.paste).toHaveBeenCalledExactlyOnceWith("once"); renderer.dispose();
   });
-  it("reports search limitations and unsupported styled history instead of empty/plaintext fallback", async () => {
+  it("presents search while keeping styled history explicitly unsupported", async () => {
     const { createGhosttyRenderer } = await import("./ghosttyRenderer"); const renderer = await createGhosttyRenderer(parent);
-    expect(renderer.search("hello")).toMatchObject({ status: "limited", match: { start: { x: 0, y: 0 } } });
-    expect(renderer.search("absent")).toMatchObject({ status: "limited", match: null });
+    expect(renderer.search("hello")).toEqual({ status: "supported", found: true });
+    expect(renderer.getSelection()).toEqual({ status: "supported", value: "hello" });
+    expect(renderer.search("absent")).toEqual({ status: "supported", found: false });
     expect(renderer.serializeStyledHistory()).toMatchObject({ status: "unsupported", reason: expect.stringContaining("styled history") });
-    expect(renderer.select({ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }).status).toBe("unsupported"); renderer.dispose();
+    expect(renderer.select({ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }).status).toBe("supported"); renderer.dispose();
   });
-  it("copies only unambiguous interior active selections and refuses clipped/fractional/click endpoints", async () => {
-    const { createGhosttyRenderer } = await import("./ghosttyRenderer"); const renderer = await createGhosttyRenderer(parent); const term = mocks.terms[0];
-    expect(renderer.getSelection()).toEqual({ status: "supported", value: "el" });
-    term.range.start.y = 0; expect(renderer.getSelection().status).toBe("unsupported"); term.range.start.y = 1;
-    term.viewportY = 0.5; expect(renderer.getSelection().status).toBe("unsupported"); term.viewportY = 0;
-    term.activeSelection = false; expect(renderer.hasSelection()).toBe(false); expect(renderer.getSelection().status).toBe("unsupported"); renderer.dispose();
+  it("owns one-cell, edge, reversed and offscreen copy and invalidates before output/reset/grid changes", async () => {
+    const { createGhosttyRenderer, getGhosttySelectionDiagnostics } = await import("./ghosttyRenderer");
+    const renderer = await createGhosttyRenderer(parent);
+    expect(renderer.getSelection()).toEqual({ status: "supported", value: "" });
+    renderer.select({ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } });
+    expect(renderer.hasSelection()).toBe(true); expect(renderer.getSelection()).toEqual({ status: "supported", value: "h" });
+    expect(getGhosttySelectionDiagnostics(renderer)?.rectangles).toEqual([]); // retained offscreen range
+    renderer.select({ start: { x: 5, y: 4 }, end: { x: 0, y: 4 } });
+    expect(renderer.getSelection()).toEqual({ status: "supported", value: "hello" });
+    expect(getGhosttySelectionDiagnostics(renderer)?.rectangles[0]).toMatchObject({ row: 4, startCol: 0, endCol: 5 });
+    renderer.write("new output"); await renderer.whenIdle(); expect(renderer.hasSelection()).toBe(false);
+    renderer.select({ start: { x: 0, y: 1 }, end: { x: 1, y: 1 } }); renderer.resize(5, 4); expect(renderer.hasSelection()).toBe(true);
+    renderer.resize(6, 4); expect(renderer.hasSelection()).toBe(false);
+    renderer.select({ start: { x: 0, y: 1 }, end: { x: 1, y: 1 } }); renderer.reset(); expect(renderer.hasSelection()).toBe(false); renderer.dispose();
+  });
+  it("clears stale search highlights without clearing later manual selections and refuses hidden presentation", async () => {
+    const { createGhosttyRenderer, getGhosttySelectionDiagnostics } = await import("./ghosttyRenderer"); const renderer = await createGhosttyRenderer(parent);
+    renderer.search("hello"); expect(getGhosttySelectionDiagnostics(renderer)?.rectangles.length).toBeGreaterThan(0);
+    renderer.clearSearch(); expect(renderer.hasSelection()).toBe(false);
+    renderer.search("hello"); renderer.select({ start: { x: 0, y: 2 }, end: { x: 1, y: 2 } }); renderer.clearSearch(); expect(renderer.hasSelection()).toBe(true);
+    renderer.search("missing"); expect(renderer.hasSelection()).toBe(true);
+    renderer.setVisibility(false, false); expect(renderer.search("hello").status).toBe("unsupported"); expect(getGhosttySelectionDiagnostics(renderer)?.rectangles).toEqual([]);
+    renderer.setVisibility(true, false); mocks.terms[0].canvas.getBoundingClientRect = () => ({ width: 0, height: 0 }) as DOMRect;
+    expect(renderer.search("hello").status).toBe("unsupported"); renderer.dispose();
+  });
+  it("keeps ordinary no-selection output free of DOM geometry work", async () => {
+    const { createGhosttyRenderer } = await import("./ghosttyRenderer"); const renderer = await createGhosttyRenderer(parent);
+    const geometry = vi.spyOn(mocks.terms[0].canvas, "getBoundingClientRect");
+    renderer.write(new Uint8Array(100_000)); await renderer.whenIdle(); expect(geometry).not.toHaveBeenCalled(); renderer.dispose();
   });
   it("stops on parser trap with no consumed callback and rejects disposal work", async () => {
     const { createGhosttyRenderer } = await import("./ghosttyRenderer"); const renderer = await createGhosttyRenderer(parent); const term = mocks.terms[0];

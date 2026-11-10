@@ -1,0 +1,1541 @@
+{
+  "execution": "pass",
+  "native": {
+    "runId": "db6df036de014f8d883f2d89e8eed22f",
+    "package": "ghostty-web@0.4.0",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+    "mode": "automated native Tauri/WebKit acceptance; not manual UI/IME or real-agent approval acceptance",
+    "benchmark": {
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+      "devicePixelRatio": 2,
+      "hardwareConcurrency": 8,
+      "method": "80x24, 2000 scrollback; 16KiB raw byte chunks, 64KiB callback window; warmup; alternating 4 rounds; completion + two rAFs; explicit library-callback vs experimental parse-return consumption (parse-return may block longer); excludes shell/SSH; startup includes shared WASM warm state after first load",
+      "results": [
+        {
+          "kind": "xterm",
+          "consumption": "library-callback",
+          "renderer": "WebGL",
+          "round": 0,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 7,
+          "writeAndFramesMs": 89,
+          "maxTimerGapMs": 18,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "library-callback",
+          "renderer": "Canvas 2D",
+          "round": 0,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 12,
+          "writeAndFramesMs": 249,
+          "maxTimerGapMs": 10,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "parse-return",
+          "renderer": "Canvas 2D",
+          "round": 0,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 23,
+          "maxTimerGapMs": 14,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "parse-return",
+          "renderer": "Canvas 2D",
+          "round": 1,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 28,
+          "maxTimerGapMs": 11,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "library-callback",
+          "renderer": "Canvas 2D",
+          "round": 1,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 249,
+          "maxTimerGapMs": 10,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "xterm",
+          "consumption": "library-callback",
+          "renderer": "WebGL",
+          "round": 1,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 9,
+          "writeAndFramesMs": 78,
+          "maxTimerGapMs": 15,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "xterm",
+          "consumption": "library-callback",
+          "renderer": "WebGL",
+          "round": 2,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 6,
+          "writeAndFramesMs": 70,
+          "maxTimerGapMs": 15,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "library-callback",
+          "renderer": "Canvas 2D",
+          "round": 2,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 249,
+          "maxTimerGapMs": 9,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "parse-return",
+          "renderer": "Canvas 2D",
+          "round": 2,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 27,
+          "maxTimerGapMs": 16,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "parse-return",
+          "renderer": "Canvas 2D",
+          "round": 3,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 28,
+          "maxTimerGapMs": 12,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "library-callback",
+          "renderer": "Canvas 2D",
+          "round": 3,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 250,
+          "maxTimerGapMs": 9,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "xterm",
+          "consumption": "library-callback",
+          "renderer": "WebGL",
+          "round": 3,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 9,
+          "writeAndFramesMs": 79,
+          "maxTimerGapMs": 13,
+          "retainedLastLine": true
+        }
+      ]
+    },
+    "adapterBenchmark": {
+      "method": "Adapter-only synthetic emulator writes, 16KiB chunks/64KiB window, four alternating rounds, warmup and two final frames; no incompatible addons; not real-agent latency",
+      "results": [
+        {
+          "kind": "xterm",
+          "round": 0,
+          "bytes": 660890,
+          "writeAndFramesMs": 67,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        },
+        {
+          "kind": "ghostty",
+          "round": 0,
+          "bytes": 660890,
+          "writeAndFramesMs": 61,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        },
+        {
+          "kind": "ghostty",
+          "round": 1,
+          "bytes": 660890,
+          "writeAndFramesMs": 59,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        },
+        {
+          "kind": "xterm",
+          "round": 1,
+          "bytes": 660890,
+          "writeAndFramesMs": 68,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        },
+        {
+          "kind": "xterm",
+          "round": 2,
+          "bytes": 660890,
+          "writeAndFramesMs": 54,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        },
+        {
+          "kind": "ghostty",
+          "round": 2,
+          "bytes": 660890,
+          "writeAndFramesMs": 46,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        },
+        {
+          "kind": "ghostty",
+          "round": 3,
+          "bytes": 660890,
+          "writeAndFramesMs": 45,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        },
+        {
+          "kind": "xterm",
+          "round": 3,
+          "bytes": 660890,
+          "writeAndFramesMs": 53,
+          "retainedLastLine": true,
+          "consumption": "adapter"
+        }
+      ]
+    },
+    "xtermUnicodeBaseline": {
+      "expected": {
+        "screen": "caf\u00e9 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb \u4e2d\u6587 e\u0301",
+        "titles": [
+          "caf\u00e9 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+        ]
+      },
+      "raw": {
+        "screen": "caf\u00e9 \ud83d\udc69\ud83c\udffd\ud83d\udcbb \u4e2d\u6587 e\u0301",
+        "titles": [
+          "caf\u00e9 \ud83d\udc69\ud83c\udffd\ud83d\udcbb"
+        ]
+      },
+      "adapter": {
+        "screen": "caf\u00e9 \ud83d\udc69\ud83c\udffd\ud83d\udcbb \u4e2d\u6587 e\u0301",
+        "titles": [
+          "caf\u00e9 \ud83d\udc69\ud83c\udffd\ud83d\udcbb"
+        ]
+      },
+      "adapterMatchesRaw": true,
+      "meaning": "Untouched xterm vs xterm adapter, identical one-byte UTF-8 writes. Any missing grapheme codepoints remain strict compatibility failures; equality only characterizes the baseline."
+    },
+    "adapterTransport": [
+      {
+        "kind": "xterm",
+        "consumption": "adapter",
+        "result": "pass",
+        "runtime": "Local PTY",
+        "pid": 18836,
+        "bytes": 307515,
+        "consumedBytes": 307515,
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "xterm",
+        "consumption": "adapter",
+        "result": "pass",
+        "runtime": "Herdr local",
+        "pid": 18841,
+        "resumedPid": 18841,
+        "bytes": 332043,
+        "consumedBytes": 332043,
+        "binding": {
+          "coreId": "ff474bde78e37f3b2f7b6269247a1222",
+          "address": "t4"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "xterm",
+        "consumption": "adapter",
+        "result": "pass",
+        "runtime": "Herdr SSH",
+        "pid": 130,
+        "resumedPid": 130,
+        "bytes": 331971,
+        "consumedBytes": 331971,
+        "binding": {
+          "coreId": "ff474bde78e37f3b2f7b6269247a1222",
+          "address": "linux/t5",
+          "machineId": "65f09d3013825f375c5a647d7ad72029"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "adapter",
+        "result": "pass",
+        "runtime": "Local PTY",
+        "pid": 18849,
+        "bytes": 307515,
+        "consumedBytes": 307515,
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "adapter",
+        "result": "pass",
+        "runtime": "Herdr local",
+        "pid": 18854,
+        "resumedPid": 18854,
+        "bytes": 332043,
+        "consumedBytes": 332043,
+        "binding": {
+          "coreId": "ff474bde78e37f3b2f7b6269247a1222",
+          "address": "t5"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "adapter",
+        "result": "pass",
+        "runtime": "Herdr SSH",
+        "pid": 137,
+        "resumedPid": 137,
+        "bytes": 331971,
+        "consumedBytes": 331971,
+        "binding": {
+          "coreId": "ff474bde78e37f3b2f7b6269247a1222",
+          "address": "linux/t6",
+          "machineId": "65f09d3013825f375c5a647d7ad72029"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      }
+    ],
+    "adapterCompatibility": {
+      "xterm": [
+        {
+          "name": "raw split UTF-8/full screen graphemes",
+          "status": "fail",
+          "detail": "caf\u00e9 \ud83d\udc69\ud83c\udffd\ud83d\udcbb \u4e2d\u6587 e\u0301"
+        },
+        {
+          "name": "raw titles BEL/ST and split UTF-8, exactly once",
+          "status": "fail",
+          "detail": [
+            "caf\u00e9 \ud83d\udc69\ud83c\udffd\ud83d\udcbb",
+            "split"
+          ]
+        },
+        {
+          "name": "single bracketed paste path",
+          "status": "pass",
+          "detail": [
+            "\u001b[200~PASTE-ONCE\u001b[201~"
+          ]
+        },
+        {
+          "name": "alternate screen restores normal",
+          "status": "fail",
+          "detail": "caf\u00e9 \ud83d\udc69\ud83c\udffd\ud83d\udcbb \u4e2d\u6587 e\u0301"
+        },
+        {
+          "name": "full scrollback graphemes after resize",
+          "status": "pass",
+          "detail": {
+            "rows": 37,
+            "cols": 101
+          }
+        },
+        {
+          "name": "programmatic selection after resize",
+          "status": "pass",
+          "detail": {
+            "status": "supported",
+            "value": "caf\u00e9"
+          }
+        },
+        {
+          "name": "search navigation and visible highlight",
+          "status": "pass",
+          "detail": {
+            "search": {
+              "status": "supported",
+              "found": true
+            },
+            "selected": {
+              "status": "supported",
+              "value": "history-0 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+            }
+          }
+        },
+        {
+          "name": "replayable styled history",
+          "status": "pass",
+          "detail": {
+            "bytes": 2017
+          }
+        },
+        {
+          "name": "hidden ingestion and exact original acknowledgement",
+          "status": "pass",
+          "detail": {
+            "consumed": 1,
+            "bytes": 98304,
+            "renderSuspension": "limited"
+          }
+        },
+        {
+          "name": "no adapter errors",
+          "status": "pass",
+          "detail": []
+        }
+      ],
+      "ghostty": [
+        {
+          "name": "raw split UTF-8/full screen graphemes",
+          "status": "pass",
+          "detail": "caf\u00e9 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb \u4e2d\u6587 e\u0301xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        {
+          "name": "raw titles BEL/ST and split UTF-8, exactly once",
+          "status": "pass",
+          "detail": [
+            "caf\u00e9 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+            "split"
+          ]
+        },
+        {
+          "name": "single bracketed paste path",
+          "status": "pass",
+          "detail": [
+            "\u001b[200~PASTE-ONCE\u001b[201~"
+          ]
+        },
+        {
+          "name": "alternate screen restores normal",
+          "status": "pass",
+          "detail": "caf\u00e9 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb \u4e2d\u6587 e\u0301xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        {
+          "name": "full scrollback graphemes after resize",
+          "status": "pass",
+          "detail": {
+            "rows": 37,
+            "cols": 101
+          }
+        },
+        {
+          "name": "programmatic selection after resize",
+          "status": "pass",
+          "detail": {
+            "status": "supported",
+            "value": "caf\u00e9"
+          }
+        },
+        {
+          "name": "search navigation and visible highlight",
+          "status": "pass",
+          "detail": {
+            "search": {
+              "status": "supported",
+              "found": true
+            },
+            "selected": {
+              "status": "supported",
+              "value": "history-0 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+            },
+            "presentation": {
+              "owned": {
+                "range": {
+                  "start": {
+                    "y": 1,
+                    "x": 0
+                  },
+                  "end": {
+                    "y": 1,
+                    "x": 12
+                  }
+                },
+                "origin": "search",
+                "viewportTop": 1,
+                "rectangles": [
+                  {
+                    "x": 0,
+                    "y": 0,
+                    "width": 108,
+                    "height": 13,
+                    "row": 1,
+                    "startCol": 0,
+                    "endCol": 12
+                  }
+                ],
+                "dragging": false,
+                "visible": true
+              },
+              "visibleRects": [
+                {
+                  "row": 1,
+                  "startCol": 0,
+                  "endCol": 12,
+                  "x": 18,
+                  "y": 82,
+                  "width": 108,
+                  "height": 13
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "owned one-cell and offscreen scrollback copy",
+          "status": "pass",
+          "detail": {
+            "oneCell": {
+              "status": "supported",
+              "value": "f"
+            },
+            "offscreen": {
+              "owned": {
+                "range": {
+                  "start": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "end": {
+                    "x": 1,
+                    "y": 0
+                  }
+                },
+                "origin": "manual",
+                "viewportTop": 84,
+                "rectangles": [],
+                "dragging": false,
+                "visible": true
+              },
+              "visibleRects": []
+            }
+          }
+        },
+        {
+          "name": "owned reversed bottom-edge selection",
+          "status": "pass",
+          "detail": {
+            "edge": {
+              "status": "supported",
+              "value": "fixture"
+            },
+            "presentation": {
+              "owned": {
+                "range": {
+                  "start": {
+                    "x": 0,
+                    "y": 119
+                  },
+                  "end": {
+                    "x": 7,
+                    "y": 119
+                  }
+                },
+                "origin": "manual",
+                "viewportTop": 84,
+                "rectangles": [
+                  {
+                    "x": 0,
+                    "y": 455,
+                    "width": 63,
+                    "height": 13,
+                    "row": 119,
+                    "startCol": 0,
+                    "endCol": 7
+                  }
+                ],
+                "dragging": false,
+                "visible": true
+              },
+              "visibleRects": [
+                {
+                  "row": 119,
+                  "startCol": 0,
+                  "endCol": 7,
+                  "x": 18,
+                  "y": 537,
+                  "width": 63,
+                  "height": 13
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "owned multiline copy trims terminal row padding",
+          "status": "pass",
+          "detail": {
+            "status": "supported",
+            "value": "fixture-000 caf\u00e9 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb \u4e2d\u6587  spaced\nfixt"
+          }
+        },
+        {
+          "name": "search reveals and highlights actual old scrollback cells",
+          "status": "pass",
+          "detail": {
+            "result": {
+              "status": "supported",
+              "found": true
+            },
+            "selected": {
+              "status": "supported",
+              "value": "needle \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+            },
+            "presentation": {
+              "owned": {
+                "range": {
+                  "start": {
+                    "y": 8,
+                    "x": 0
+                  },
+                  "end": {
+                    "y": 8,
+                    "x": 9
+                  }
+                },
+                "origin": "search",
+                "viewportTop": 8,
+                "rectangles": [
+                  {
+                    "x": 0,
+                    "y": 0,
+                    "width": 81,
+                    "height": 13,
+                    "row": 8,
+                    "startCol": 0,
+                    "endCol": 9
+                  }
+                ],
+                "dragging": false,
+                "visible": true
+              },
+              "visibleRects": [
+                {
+                  "row": 8,
+                  "startCol": 0,
+                  "endCol": 9,
+                  "x": 18,
+                  "y": 82,
+                  "width": 81,
+                  "height": 13
+                }
+              ]
+            },
+            "paint": {
+              "column": 7,
+              "viewportRow": 0,
+              "cellWidth": 9,
+              "cellHeight": 13,
+              "calls": [
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 10
+                },
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 10
+                },
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 10
+                },
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 10
+                },
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 10
+                }
+              ],
+              "capped": false
+            }
+          }
+        },
+        {
+          "name": "search next previous and wrap move actual selected occurrence",
+          "status": "pass",
+          "detail": {
+            "secondMatch": {
+              "result": {
+                "status": "supported",
+                "found": true
+              },
+              "selected": {
+                "status": "supported",
+                "value": "needle \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+              },
+              "presentation": {
+                "owned": {
+                  "range": {
+                    "start": {
+                      "y": 83,
+                      "x": 0
+                    },
+                    "end": {
+                      "y": 83,
+                      "x": 9
+                    }
+                  },
+                  "origin": "search",
+                  "viewportTop": 47,
+                  "rectangles": [
+                    {
+                      "x": 0,
+                      "y": 468,
+                      "width": 81,
+                      "height": 13,
+                      "row": 83,
+                      "startCol": 0,
+                      "endCol": 9
+                    }
+                  ],
+                  "dragging": false,
+                  "visible": true
+                },
+                "visibleRects": [
+                  {
+                    "row": 83,
+                    "startCol": 0,
+                    "endCol": 9,
+                    "x": 18,
+                    "y": 550,
+                    "width": 81,
+                    "height": 13
+                  }
+                ]
+              },
+              "paint": {
+                "column": 7,
+                "viewportRow": 36,
+                "cellWidth": 9,
+                "cellHeight": 13,
+                "calls": [
+                  {
+                    "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                    "x": 63,
+                    "y": 478
+                  },
+                  {
+                    "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                    "x": 63,
+                    "y": 478
+                  },
+                  {
+                    "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                    "x": 63,
+                    "y": 478
+                  },
+                  {
+                    "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                    "x": 63,
+                    "y": 478
+                  },
+                  {
+                    "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                    "x": 63,
+                    "y": 478
+                  }
+                ],
+                "capped": false
+              }
+            },
+            "previousMatch": {
+              "result": {
+                "status": "supported",
+                "found": true
+              },
+              "selected": {
+                "status": "supported",
+                "value": "needle \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+              },
+              "presentation": {
+                "owned": {
+                  "range": {
+                    "start": {
+                      "y": 8,
+                      "x": 0
+                    },
+                    "end": {
+                      "y": 8,
+                      "x": 9
+                    }
+                  },
+                  "origin": "search",
+                  "viewportTop": 8,
+                  "rectangles": [
+                    {
+                      "x": 0,
+                      "y": 0,
+                      "width": 81,
+                      "height": 13,
+                      "row": 8,
+                      "startCol": 0,
+                      "endCol": 9
+                    }
+                  ],
+                  "dragging": false,
+                  "visible": true
+                },
+                "visibleRects": [
+                  {
+                    "row": 8,
+                    "startCol": 0,
+                    "endCol": 9,
+                    "x": 18,
+                    "y": 82,
+                    "width": 81,
+                    "height": 13
+                  }
+                ]
+              },
+              "paint": {
+                "column": 7,
+                "viewportRow": 0,
+                "cellWidth": 9,
+                "cellHeight": 13,
+                "calls": [
+                  {
+                    "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                    "x": 63,
+                    "y": 10
+                  },
+                  {
+                    "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                    "x": 63,
+                    "y": 10
+                  },
+                  {
+                    "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                    "x": 63,
+                    "y": 10
+                  },
+                  {
+                    "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                    "x": 63,
+                    "y": 10
+                  },
+                  {
+                    "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                    "x": 63,
+                    "y": 10
+                  }
+                ],
+                "capped": false
+              }
+            },
+            "wrappedMatch": {
+              "result": {
+                "status": "supported",
+                "found": true
+              },
+              "selected": {
+                "status": "supported",
+                "value": "needle \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+              },
+              "presentation": {
+                "owned": {
+                  "range": {
+                    "start": {
+                      "y": 83,
+                      "x": 0
+                    },
+                    "end": {
+                      "y": 83,
+                      "x": 9
+                    }
+                  },
+                  "origin": "search",
+                  "viewportTop": 47,
+                  "rectangles": [
+                    {
+                      "x": 0,
+                      "y": 468,
+                      "width": 81,
+                      "height": 13,
+                      "row": 83,
+                      "startCol": 0,
+                      "endCol": 9
+                    }
+                  ],
+                  "dragging": false,
+                  "visible": true
+                },
+                "visibleRects": [
+                  {
+                    "row": 83,
+                    "startCol": 0,
+                    "endCol": 9,
+                    "x": 18,
+                    "y": 550,
+                    "width": 81,
+                    "height": 13
+                  }
+                ]
+              },
+              "paint": {
+                "column": 7,
+                "viewportRow": 36,
+                "cellWidth": 9,
+                "cellHeight": 13,
+                "calls": [
+                  {
+                    "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                    "x": 63,
+                    "y": 478
+                  },
+                  {
+                    "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                    "x": 63,
+                    "y": 478
+                  },
+                  {
+                    "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                    "x": 63,
+                    "y": 478
+                  }
+                ],
+                "capped": false
+              }
+            }
+          }
+        },
+        {
+          "name": "Canvas paints the full cluster at highlighted history and active cells",
+          "status": "pass",
+          "detail": {
+            "firstHistoryPaint": {
+              "column": 7,
+              "viewportRow": 0,
+              "cellWidth": 9,
+              "cellHeight": 13,
+              "calls": [
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 10
+                },
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 10
+                },
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 10
+                },
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 10
+                },
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 10
+                }
+              ],
+              "capped": false
+            },
+            "secondHistoryPaint": {
+              "column": 7,
+              "viewportRow": 36,
+              "cellWidth": 9,
+              "cellHeight": 13,
+              "calls": [
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 478
+                },
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 478
+                },
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 478
+                },
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 478
+                },
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 63,
+                  "y": 478
+                }
+              ],
+              "capped": false
+            },
+            "activePaint": {
+              "column": 17,
+              "viewportRow": 36,
+              "cellWidth": 9,
+              "cellHeight": 13,
+              "calls": [
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 153,
+                  "y": 478
+                },
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 153,
+                  "y": 478
+                },
+                {
+                  "text": "\ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+                  "x": 153,
+                  "y": 478
+                }
+              ],
+              "capped": false
+            }
+          }
+        },
+        {
+          "name": "clear and no-match remove stale search highlights",
+          "status": "pass",
+          "detail": {
+            "cleared": true,
+            "missing": {
+              "status": "supported",
+              "found": false
+            },
+            "presentation": {
+              "owned": {
+                "range": null,
+                "origin": null,
+                "viewportTop": 8,
+                "rectangles": [],
+                "dragging": false,
+                "visible": true
+              },
+              "visibleRects": []
+            }
+          }
+        },
+        {
+          "name": "output and grid changes clear stale ranges; new resize selection works",
+          "status": "pass",
+          "detail": {
+            "manualPreserved": true,
+            "outputCleared": true,
+            "resizeCleared": true,
+            "afterResize": {
+              "status": "supported"
+            },
+            "resizedCopy": {
+              "status": "supported",
+              "value": "f"
+            }
+          }
+        },
+        {
+          "name": "replayable styled history",
+          "status": "unsupported",
+          "detail": "ghostty-web 0.4.0 cannot replay styled history: color provenance, scrollback wraps, inactive normal buffer, overline and hyperlink URIs are unavailable"
+        },
+        {
+          "name": "hidden ingestion and exact original acknowledgement",
+          "status": "pass",
+          "detail": {
+            "consumed": 1,
+            "bytes": 98304,
+            "renderSuspension": "unsupported"
+          }
+        },
+        {
+          "name": "no adapter errors",
+          "status": "pass",
+          "detail": []
+        }
+      ]
+    },
+    "transport": [
+      {
+        "kind": "xterm",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Local PTY",
+        "pid": 18791,
+        "bytes": 307515,
+        "consumedBytes": 307515,
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "xterm",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Herdr local",
+        "pid": 18797,
+        "resumedPid": 18797,
+        "bytes": 332043,
+        "consumedBytes": 332043,
+        "binding": {
+          "coreId": "ff474bde78e37f3b2f7b6269247a1222",
+          "address": "t1"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "xterm",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Herdr SSH",
+        "pid": 109,
+        "resumedPid": 109,
+        "bytes": 331971,
+        "consumedBytes": 331971,
+        "binding": {
+          "coreId": "ff474bde78e37f3b2f7b6269247a1222",
+          "address": "linux/t2",
+          "machineId": "65f09d3013825f375c5a647d7ad72029"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Local PTY",
+        "pid": 18807,
+        "bytes": 307515,
+        "consumedBytes": 307515,
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Herdr local",
+        "pid": 18817,
+        "resumedPid": 18817,
+        "bytes": 332043,
+        "consumedBytes": 332043,
+        "binding": {
+          "coreId": "ff474bde78e37f3b2f7b6269247a1222",
+          "address": "t2"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Herdr SSH",
+        "pid": 116,
+        "resumedPid": 116,
+        "bytes": 331971,
+        "consumedBytes": 331971,
+        "binding": {
+          "coreId": "ff474bde78e37f3b2f7b6269247a1222",
+          "address": "linux/t3",
+          "machineId": "65f09d3013825f375c5a647d7ad72029"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "parse-return",
+        "result": "pass",
+        "runtime": "Local PTY",
+        "pid": 18824,
+        "bytes": 307515,
+        "consumedBytes": 307515,
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "parse-return",
+        "result": "pass",
+        "runtime": "Herdr local",
+        "pid": 18829,
+        "resumedPid": 18829,
+        "bytes": 332043,
+        "consumedBytes": 332043,
+        "binding": {
+          "coreId": "ff474bde78e37f3b2f7b6269247a1222",
+          "address": "t3"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "parse-return",
+        "result": "pass",
+        "runtime": "Herdr SSH",
+        "pid": 123,
+        "resumedPid": 123,
+        "bytes": 331971,
+        "consumedBytes": 331971,
+        "binding": {
+          "coreId": "ff474bde78e37f3b2f7b6269247a1222",
+          "address": "linux/t4",
+          "machineId": "65f09d3013825f375c5a647d7ad72029"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      }
+    ],
+    "compatibility": {
+      "xterm": [
+        {
+          "name": "split UTF-8 bytes",
+          "pass": true,
+          "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587"
+        },
+        {
+          "name": "ANSI cell style",
+          "pass": true,
+          "detail": {
+            "foreground": 1,
+            "text": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587\nRED"
+          }
+        },
+        {
+          "name": "alternate approval screen",
+          "pass": true,
+          "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+        },
+        {
+          "name": "emoji grapheme buffer extraction",
+          "pass": true,
+          "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+        },
+        {
+          "name": "normal screen restored",
+          "pass": true,
+          "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587\nRED"
+        },
+        {
+          "name": "bracketed paste once",
+          "pass": true,
+          "detail": [
+            "\u001b[200~PASTE-ONCE\u001b[201~"
+          ]
+        },
+        {
+          "name": "terminal status reply",
+          "pass": true,
+          "detail": [
+            "\u001b[0n"
+          ]
+        },
+        {
+          "name": "title event from raw bytes",
+          "pass": true,
+          "detail": [
+            "raw-byte-title"
+          ]
+        },
+        {
+          "name": "title event from string",
+          "pass": true,
+          "detail": [
+            "string-title"
+          ]
+        },
+        {
+          "name": "title event across chunks",
+          "pass": true,
+          "detail": [
+            "split-title"
+          ]
+        },
+        {
+          "name": "resize dimensions",
+          "pass": true,
+          "detail": {
+            "cols": 101,
+            "rows": 37
+          }
+        },
+        {
+          "name": "selection extraction",
+          "pass": true,
+          "detail": "split"
+        },
+        {
+          "name": "existing SearchAddon",
+          "pass": true,
+          "detail": true
+        },
+        {
+          "name": "existing SerializeAddon",
+          "pass": true,
+          "detail": true
+        },
+        {
+          "name": "scrollback retention",
+          "pass": true,
+          "detail": {
+            "lines": 101
+          }
+        }
+      ],
+      "ghostty": [
+        {
+          "name": "split UTF-8 bytes",
+          "pass": true,
+          "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        {
+          "name": "ANSI cell style",
+          "pass": true,
+          "detail": {
+            "foreground": 13395558,
+            "text": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nREDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          }
+        },
+        {
+          "name": "alternate approval screen",
+          "pass": true,
+          "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69"
+        },
+        {
+          "name": "emoji grapheme buffer extraction",
+          "pass": false,
+          "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69"
+        },
+        {
+          "name": "normal screen restored",
+          "pass": true,
+          "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nREDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        {
+          "name": "bracketed paste once",
+          "pass": true,
+          "detail": [
+            "\u001b[200~PASTE-ONCE\u001b[201~"
+          ]
+        },
+        {
+          "name": "terminal status reply",
+          "pass": true,
+          "detail": [
+            "\u001b[0n"
+          ]
+        },
+        {
+          "name": "title event from raw bytes",
+          "pass": false,
+          "detail": []
+        },
+        {
+          "name": "title event from string",
+          "pass": true,
+          "detail": [
+            "string-title"
+          ]
+        },
+        {
+          "name": "title event across chunks",
+          "pass": false,
+          "detail": []
+        },
+        {
+          "name": "resize dimensions",
+          "pass": true,
+          "detail": {
+            "cols": 101,
+            "rows": 37
+          }
+        },
+        {
+          "name": "selection extraction",
+          "pass": false,
+          "detail": "xxxxx"
+        },
+        {
+          "name": "existing SearchAddon",
+          "pass": false,
+          "detail": "TypeError: this._terminal.onWriteParsed is not a function. (In 'this._terminal.onWriteParsed((()=>this._updateMatches()))', 'this._terminal.onWriteParsed' is undefined)"
+        },
+        {
+          "name": "existing SerializeAddon",
+          "pass": false,
+          "detail": "TypeError: r.isOverline is not a function. (In 'r.isOverline()', 'r.isOverline' is undefined)"
+        },
+        {
+          "name": "scrollback retention",
+          "pass": true,
+          "detail": {
+            "lines": 101
+          }
+        }
+      ]
+    }
+  },
+  "cleanup": [
+    {
+      "pid": 18791,
+      "localPtyGoneAfterDispose": true
+    },
+    {
+      "address": "t1",
+      "pid": 18797,
+      "liveAfterDetach": true
+    },
+    {
+      "address": "linux/t2",
+      "pid": 109,
+      "liveAfterDetach": true
+    },
+    {
+      "pid": 18807,
+      "localPtyGoneAfterDispose": true
+    },
+    {
+      "address": "t2",
+      "pid": 18817,
+      "liveAfterDetach": true
+    },
+    {
+      "address": "linux/t3",
+      "pid": 116,
+      "liveAfterDetach": true
+    },
+    {
+      "pid": 18824,
+      "localPtyGoneAfterDispose": true
+    },
+    {
+      "address": "t3",
+      "pid": 18829,
+      "liveAfterDetach": true
+    },
+    {
+      "address": "linux/t4",
+      "pid": 123,
+      "liveAfterDetach": true
+    },
+    {
+      "pid": 18836,
+      "localPtyGoneAfterDispose": true
+    },
+    {
+      "address": "t4",
+      "pid": 18841,
+      "liveAfterDetach": true
+    },
+    {
+      "address": "linux/t5",
+      "pid": 130,
+      "liveAfterDetach": true
+    },
+    {
+      "pid": 18849,
+      "localPtyGoneAfterDispose": true
+    },
+    {
+      "address": "t5",
+      "pid": 18854,
+      "liveAfterDetach": true
+    },
+    {
+      "address": "linux/t6",
+      "pid": 137,
+      "liveAfterDetach": true
+    }
+  ],
+  "sshFixture": {
+    "result": "pass",
+    "transport": "OpenSSH over localhost TCP to two Linux Docker guests",
+    "remote_address": "linux/t1",
+    "same_remote_pid_after_interruption": 69,
+    "rust_adapter_remote_attach": true,
+    "strict_host_key_checking": true,
+    "second_guest_usable_during_first_ssh_outage": true,
+    "remote_projects_test": false,
+    "remote_worktrees_test": false,
+    "limits": [
+      "not two physical computers",
+      "no WAN/sleep/MFA acceptance",
+      "UI acceptance is manual and documented separately"
+    ]
+  },
+  "limits": [
+    "single macOS host and two disposable Linux guests",
+    "no manual native keyboard/IME or real-agent approval acceptance",
+    "synthetic emulator workload, not parser-only or SSH throughput",
+    "candidate compatibility failures remain visible"
+  ]
+}

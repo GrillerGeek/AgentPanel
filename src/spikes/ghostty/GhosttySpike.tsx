@@ -2,20 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
 import type { Kind } from "./engine";
-import { createAdapterEngine, adapterCompatibility, adapterBenchmark, characterizeXtermUnicode, type AdapterEngine } from "./adapterHarness";
+import { createAdapterEngine, adapterCompatibility, adapterBenchmark, characterizeXtermUnicode, loadSelectionSearchFixture, type AdapterEngine } from "./adapterHarness";
 import { nativeAcceptance } from "./nativeAcceptance";
 import { openTerminal, type TerminalConnection } from "../../lib/terminalRuntime";
-import { makeCopyPasteKeyHandler } from "../../lib/terminalClipboard";
+import { makeCopyPasteKeyHandler, makeContextMenuHandler, makeRightButtonGuard, type ClipboardDeps } from "../../lib/terminalClipboard";
 import type { HerdrInventory, HerdrRuntime } from "../../types";
 import "@xterm/xterm/css/xterm.css";
 import "./spike.css";
 
 const kinds: Kind[] = ["xterm", "ghostty"];
-interface View { engine: AdapterEngine; connection?: TerminalConnection; runtime?: HerdrRuntime; ready: boolean; inputs: number; outputs: number; failed: boolean; disposed: boolean }
+interface View { engine: AdapterEngine; connection?: TerminalConnection; runtime?: HerdrRuntime; ready: boolean; inputs: number; outputs: number; failed: boolean; disposed: boolean; cleanup(): void }
 export default function GhosttySpike() {
   const hosts = useRef<Partial<Record<Kind, HTMLDivElement>>>({});
   const views = useRef<Partial<Record<Kind, View>>>({});
   const benchHost = useRef<HTMLDivElement>(null);
+  const fixtureSearchRef = useRef<HTMLInputElement>(null);
+  const [fixtureQuery, setFixtureQuery] = useState("needle 👩🏽‍💻");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [retired, setRetired] = useState(false);
@@ -36,11 +38,23 @@ export default function GhosttySpike() {
         const start = performance.now();
         const engine = await createAdapterEngine(kind, hosts.current[kind]!);
         if (disposed) { engine.dispose(); return; }
-        const view: View = { engine, ready: false, inputs: 0, outputs: 0, failed: false, disposed: false }; views.current[kind] = view;
-        const handler = makeCopyPasteKeyHandler({ isMac: /Mac/.test(navigator.platform), readClipboard: readText,
+        engine.fit(); // UI panes use their visible bounds; benchmark factories keep 80×24.
+        const view: View = { engine, ready: false, inputs: 0, outputs: 0, failed: false, disposed: false, cleanup() {} }; views.current[kind] = view;
+        const clipboard: ClipboardDeps = { isMac: /Mac/.test(navigator.platform), readClipboard: readText,
           writeClipboard: writeText, pasteToTerminal: (text) => engine.term.paste(text), getSelection: () => { const result = engine.term.getSelection(); if (result.status !== "supported") { message(kind, result.reason); return undefined; } return result.value; },
           hasSelection: () => engine.term.hasSelection(), clearSelection: () => engine.term.clearSelection(),
-          openSearch: () => message(kind, JSON.stringify(engine.term.search("approval"))) });
+          openSearch: () => fixtureSearchRef.current?.focus() };
+        const handler = makeCopyPasteKeyHandler(clipboard);
+        const container = hosts.current[kind]!;
+        const context = makeContextMenuHandler(clipboard);
+        const onContext = (event: MouseEvent) => { event.stopImmediatePropagation(); context(event); };
+        const rightButton = makeRightButtonGuard(() => engine.term.isMouseTracking());
+        container.addEventListener("contextmenu", onContext, true);
+        container.addEventListener("mousedown", rightButton, true); container.addEventListener("mouseup", rightButton, true);
+        view.cleanup = () => {
+          container.removeEventListener("contextmenu", onContext, true);
+          container.removeEventListener("mousedown", rightButton, true); container.removeEventListener("mouseup", rightButton, true);
+        };
         // Adapters normalize false to suppress keyboard processing.
         engine.term.setKeyHandler(handler);
         engine.term.onError((error) => {
@@ -58,7 +72,7 @@ export default function GhosttySpike() {
         const query = new URLSearchParams(window.location.search);
         if (query.get("auto") === "1" && await invoke<boolean>("bench_requested").catch(() => false)) {
           setBusy(true); setRetired(true);
-          const engines = kinds.map((kind) => views.current[kind]!.engine);
+          const engines = kinds.map((kind) => { const view = views.current[kind]!; view.cleanup(); return view.engine; });
           // Hand ownership to the acceptance runner; it disposes these surfaces.
           views.current = {};
           const result = await nativeAcceptance(benchHost.current!, engines, query);
@@ -74,7 +88,7 @@ export default function GhosttySpike() {
       }) });
     });
     return () => { disposed = true; for (const view of Object.values(views.current)) {
-      view.disposed = true; view.ready = false; void view.connection?.dispose(false); view.engine.dispose();
+      view.disposed = true; view.ready = false; void view.connection?.dispose(false); view.cleanup(); view.engine.dispose();
     } };
   }, []);
 
@@ -131,6 +145,16 @@ export default function GhosttySpike() {
     const baseline = await characterizeXtermUnicode(benchHost.current!);
     setReport((old) => ({ ...old, adapterCompatibility: results, xtermUnicodeBaseline: baseline }));
   });
+  const loadFixture = () => run(async () => {
+    if (Object.values(views.current).some((view) => view.connection)) throw new Error("Disconnect before loading synthetic output");
+    for (const kind of kinds) { const engine = views.current[kind]!.engine; engine.fit(); await loadSelectionSearchFixture(engine); }
+    message("fixture", "Loaded 120 controlled Unicode rows, with two needle matches. Selection clears when output or the cell grid changes.");
+  });
+  const searchFixture = (kind: Kind, previous = false) => {
+    const engine = views.current[kind]!.engine;
+    const result = engine.term.search(fixtureQuery, previous);
+    message(`${kind} search`, JSON.stringify({ result, selection: engine.term.getSelection(), presentation: engine.selectionPresentation?.() }));
+  };
   const connected = Object.values(views.current).some((v) => v.connection);
   const bound = Object.values(views.current).some((v) => v.runtime);
   return <main className="ghostty-spike">
@@ -158,7 +182,7 @@ export default function GhosttySpike() {
       <button disabled={!ready || busy || connected} onClick={() => run(async () => {
         // Dispose comparison surfaces so each sample has one live render loop.
         // Reload explicitly after measurement to recreate interactive viewers.
-        for (const kind of kinds) { views.current[kind]!.engine.dispose(); delete views.current[kind]; }
+        for (const kind of kinds) { views.current[kind]!.cleanup(); views.current[kind]!.engine.dispose(); delete views.current[kind]; }
         setReady(false); setRetired(true);
         const result = await adapterBenchmark(benchHost.current!); setReport((old) => ({ ...old, benchmark: result }));
       })}>Run adapter benchmark</button>
@@ -167,6 +191,11 @@ export default function GhosttySpike() {
       <button disabled={busy} onClick={() => setReport((old) => ({ ...old, transport: Object.fromEntries(kinds.map((kind) => { const v = views.current[kind];
         return [kind, v ? { inputs: v.inputs, outputChunks: v.outputs, binding: v.runtime?.binding, target: v.runtime?.target?.machine } : null]; })) }))}>Record transport counters</button>
     </section>
+    <section className="spike-actions" aria-label="Controlled selection and search fixture">
+      <button disabled={!ready || busy || connected} onClick={loadFixture}>Load Unicode and scrollback fixture</button>
+      <label>Fixture search <input ref={fixtureSearchRef} value={fixtureQuery} disabled={!ready || busy || connected}
+        onChange={(event) => setFixtureQuery(event.currentTarget.value)} /></label>
+    </section>
     <div role="status">{busy ? "Running…" : retired ? "Benchmark complete; reload for interactive tests" : ready ? "Ready" : "Loading emulators…"} {Object.entries(messages).map(([key, value]) => <p key={key}>{key}: {value}</p>)}</div>
     <div className="spike-panes">{kinds.map((kind) => <section key={kind}>
       <h2>{kind === "ghostty" ? "Ghostty web 0.4.0 · Canvas" : "xterm.js 5.5 · WebGL"}</h2>
@@ -174,6 +203,15 @@ export default function GhosttySpike() {
         <button disabled={!ready || busy} onClick={() => disconnect(kind)}>Disconnect {kind}</button>
         <button disabled={!ready || busy} onClick={() => { const v = views.current[kind]!; v.engine.fit(); void v.connection?.resize(v.engine.term.rows, v.engine.term.cols); }}>Fit {kind}</button>
         <button disabled={!ready || busy} onClick={() => views.current[kind]!.engine.term.focus()}>Focus {kind}</button></div>
+      <div className="spike-actions">
+        <button disabled={!ready || busy || connected} onClick={() => searchFixture(kind, true)}>Previous {kind} match</button>
+        <button disabled={!ready || busy || connected} onClick={() => searchFixture(kind)}>Next {kind} match</button>
+        <button disabled={!ready || busy || connected} onClick={() => { views.current[kind]!.engine.term.clearSearch(); message(`${kind} search`, "Search highlight cleared"); }}>Clear {kind} search</button>
+        <button disabled={!ready || busy || connected} onClick={() => {
+          const engine = views.current[kind]!.engine;
+          setReport((old) => ({ ...old, [`${kind}SelectionReview`]: { selected: engine.term.getSelection(), presentation: engine.selectionPresentation?.() } }));
+        }}>Inspect {kind} selection</button>
+      </div>
       <div className="spike-terminal" ref={(node) => { if (node) hosts.current[kind] = node; }} />
     </section>)}</div>
     <div ref={benchHost} className="spike-bench" />
