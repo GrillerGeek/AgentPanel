@@ -96,6 +96,15 @@ def main():
                     assert all(row["result"] == "pass" for row in native["transport"]), native["transport"]
                     assert len(native["benchmark"]["results"]) == 12
                     assert all(row.get("retainedLastLine") for row in native["benchmark"]["results"]), native["benchmark"]
+                    assert len(native["adapterTransport"]) == 6
+                    assert all(row["result"] == "pass" for row in native["adapterTransport"]), native["adapterTransport"]
+                    assert len(native["adapterBenchmark"]["results"]) == 8
+                    assert all(row.get("retainedLastLine") for row in native["adapterBenchmark"]["results"]), native["adapterBenchmark"]
+                    for kind, checks in native["adapterCompatibility"].items():
+                        assert checks and all(row["status"] in {"pass", "fail", "unsupported"} for row in checks), (kind, checks)
+                        # Compatibility findings (including baseline xterm limitations)
+                        # are separate from transport execution and remain in evidence.
+                    assert native["xtermUnicodeBaseline"]["adapterMatchesRaw"], native["xtermUnicodeBaseline"]
             except BaseException:
                 print(fixture_log.read_text()[-5000:], file=sys.stderr)
                 if native_log.exists():
@@ -114,7 +123,8 @@ def main():
                         client = Client(info["executable"], env)
                         try:
                             # Verify exact test bindings before cleanup. No captured terminal text is saved.
-                            for row in (native or {}).get("transport", []):
+                            transport_rows = (native or {}).get("transport", []) + (native or {}).get("adapterTransport", [])
+                            for row in transport_rows:
                                 if row.get("binding"):
                                     assert client.hello["core"]["id"] == row["binding"]["coreId"]
                                     current = client.rpc("terminal.get", {"terminal": row["binding"]["address"]})

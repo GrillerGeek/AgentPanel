@@ -181,6 +181,10 @@ output is restored after collection.
 
 ## Next implementation gate
 
+The [November 9 implementation report](2026-11-09-ghostty-renderer-adapter-report.md) records
+subsequent bounded adapter work and current gates. The results above remain the original spike;
+new adapter results do not retroactively change them.
+
 1. Define a renderer interface around byte ingestion/consumption, input, resize, selection,
    title events, search, and styled history. Keep the current xterm implementation available.
 2. Build a Ghostty adapter that resolves the six probe failures, preserves clipboard semantics,

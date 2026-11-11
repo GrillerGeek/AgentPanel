@@ -1,0 +1,1102 @@
+{
+  "package": "ghostty-web@0.4.0",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "adapterCompatibility": {
+    "xterm": [
+      {
+        "name": "raw split UTF-8/full screen graphemes",
+        "status": "fail",
+        "detail": "café 👩🏽💻 中文 é"
+      },
+      {
+        "name": "raw titles BEL/ST and split UTF-8, exactly once",
+        "status": "fail",
+        "detail": [
+          "café 👩🏽💻",
+          "split"
+        ]
+      },
+      {
+        "name": "single bracketed paste path",
+        "status": "pass",
+        "detail": [
+          "\u001b[200~PASTE-ONCE\u001b[201~"
+        ]
+      },
+      {
+        "name": "alternate screen restores normal",
+        "status": "fail",
+        "detail": "café 👩🏽💻 中文 é"
+      },
+      {
+        "name": "full scrollback graphemes after resize",
+        "status": "pass",
+        "detail": {
+          "rows": 37,
+          "cols": 101
+        }
+      },
+      {
+        "name": "programmatic selection after resize",
+        "status": "pass",
+        "detail": {
+          "status": "supported",
+          "value": "café"
+        }
+      },
+      {
+        "name": "search navigation and visible highlight",
+        "status": "pass",
+        "detail": {
+          "search": {
+            "status": "supported",
+            "found": true
+          },
+          "selected": {
+            "status": "supported",
+            "value": "history-0 👩🏽‍💻"
+          }
+        }
+      },
+      {
+        "name": "replayable styled history",
+        "status": "pass",
+        "detail": {
+          "bytes": 2017
+        }
+      },
+      {
+        "name": "hidden ingestion and exact original acknowledgement",
+        "status": "pass",
+        "detail": {
+          "consumed": 1,
+          "bytes": 98304,
+          "renderSuspension": "limited"
+        }
+      },
+      {
+        "name": "no adapter errors",
+        "status": "pass",
+        "detail": []
+      }
+    ],
+    "ghostty": [
+      {
+        "name": "raw split UTF-8/full screen graphemes",
+        "status": "pass",
+        "detail": "café 👩🏽‍💻 中文 é"
+      },
+      {
+        "name": "raw titles BEL/ST and split UTF-8, exactly once",
+        "status": "pass",
+        "detail": [
+          "café 👩🏽‍💻",
+          "split"
+        ]
+      },
+      {
+        "name": "single bracketed paste path",
+        "status": "pass",
+        "detail": [
+          "\u001b[200~PASTE-ONCE\u001b[201~"
+        ]
+      },
+      {
+        "name": "alternate screen restores normal",
+        "status": "pass",
+        "detail": "café 👩🏽‍💻 中文 é"
+      },
+      {
+        "name": "full scrollback graphemes after resize",
+        "status": "pass",
+        "detail": {
+          "rows": 37,
+          "cols": 101
+        }
+      },
+      {
+        "name": "programmatic selection after resize",
+        "status": "pass",
+        "detail": {
+          "status": "supported",
+          "value": "café"
+        }
+      },
+      {
+        "name": "search navigation and visible highlight",
+        "status": "pass",
+        "detail": {
+          "search": {
+            "status": "supported",
+            "found": true
+          },
+          "selected": {
+            "status": "supported",
+            "value": "history-0 👩🏽‍💻"
+          },
+          "presentation": {
+            "owned": {
+              "range": {
+                "start": {
+                  "y": 1,
+                  "x": 0
+                },
+                "end": {
+                  "y": 1,
+                  "x": 12
+                }
+              },
+              "origin": "search",
+              "viewportTop": 1,
+              "rectangles": [
+                {
+                  "x": 0,
+                  "y": 0,
+                  "width": 108,
+                  "height": 15,
+                  "row": 1,
+                  "startCol": 0,
+                  "endCol": 12
+                }
+              ],
+              "dragging": false,
+              "visible": true
+            },
+            "visibleRects": [
+              {
+                "row": 1,
+                "startCol": 0,
+                "endCol": 12,
+                "x": 18,
+                "y": 82,
+                "width": 108,
+                "height": 15
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "owned one-cell and offscreen scrollback copy",
+        "status": "pass",
+        "detail": {
+          "oneCell": {
+            "status": "supported",
+            "value": "f"
+          },
+          "offscreen": {
+            "owned": {
+              "range": {
+                "start": {
+                  "x": 0,
+                  "y": 0
+                },
+                "end": {
+                  "x": 1,
+                  "y": 0
+                }
+              },
+              "origin": "manual",
+              "viewportTop": 84,
+              "rectangles": [],
+              "dragging": false,
+              "visible": true
+            },
+            "visibleRects": []
+          }
+        }
+      },
+      {
+        "name": "owned reversed bottom-edge selection",
+        "status": "pass",
+        "detail": {
+          "edge": {
+            "status": "supported",
+            "value": "fixture"
+          },
+          "presentation": {
+            "owned": {
+              "range": {
+                "start": {
+                  "x": 0,
+                  "y": 119
+                },
+                "end": {
+                  "x": 7,
+                  "y": 119
+                }
+              },
+              "origin": "manual",
+              "viewportTop": 84,
+              "rectangles": [
+                {
+                  "x": 0,
+                  "y": 525,
+                  "width": 63,
+                  "height": 15,
+                  "row": 119,
+                  "startCol": 0,
+                  "endCol": 7
+                }
+              ],
+              "dragging": false,
+              "visible": true
+            },
+            "visibleRects": [
+              {
+                "row": 119,
+                "startCol": 0,
+                "endCol": 7,
+                "x": 18,
+                "y": 607,
+                "width": 63,
+                "height": 15
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "owned multiline copy trims terminal row padding",
+        "status": "pass",
+        "detail": {
+          "status": "supported",
+          "value": "fixture-000 café 👩🏽‍💻 中文  spaced\nfixt"
+        }
+      },
+      {
+        "name": "search reveals and highlights actual old scrollback cells",
+        "status": "pass",
+        "detail": {
+          "result": {
+            "status": "supported",
+            "found": true
+          },
+          "selected": {
+            "status": "supported",
+            "value": "needle 👩🏽‍💻"
+          },
+          "presentation": {
+            "owned": {
+              "range": {
+                "start": {
+                  "y": 8,
+                  "x": 0
+                },
+                "end": {
+                  "y": 8,
+                  "x": 9
+                }
+              },
+              "origin": "search",
+              "viewportTop": 8,
+              "rectangles": [
+                {
+                  "x": 0,
+                  "y": 0,
+                  "width": 81,
+                  "height": 15,
+                  "row": 8,
+                  "startCol": 0,
+                  "endCol": 9
+                }
+              ],
+              "dragging": false,
+              "visible": true
+            },
+            "visibleRects": [
+              {
+                "row": 8,
+                "startCol": 0,
+                "endCol": 9,
+                "x": 18,
+                "y": 82,
+                "width": 81,
+                "height": 15
+              }
+            ]
+          },
+          "paint": {
+            "column": 7,
+            "viewportRow": 0,
+            "cellWidth": 9,
+            "cellHeight": 15,
+            "calls": [
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              }
+            ],
+            "capped": false
+          }
+        }
+      },
+      {
+        "name": "search next previous and wrap move actual selected occurrence",
+        "status": "pass",
+        "detail": {
+          "secondMatch": {
+            "result": {
+              "status": "supported",
+              "found": true
+            },
+            "selected": {
+              "status": "supported",
+              "value": "needle 👩🏽‍💻"
+            },
+            "presentation": {
+              "owned": {
+                "range": {
+                  "start": {
+                    "y": 83,
+                    "x": 0
+                  },
+                  "end": {
+                    "y": 83,
+                    "x": 9
+                  }
+                },
+                "origin": "search",
+                "viewportTop": 47,
+                "rectangles": [
+                  {
+                    "x": 0,
+                    "y": 540,
+                    "width": 81,
+                    "height": 15,
+                    "row": 83,
+                    "startCol": 0,
+                    "endCol": 9
+                  }
+                ],
+                "dragging": false,
+                "visible": true
+              },
+              "visibleRects": [
+                {
+                  "row": 83,
+                  "startCol": 0,
+                  "endCol": 9,
+                  "x": 18,
+                  "y": 622,
+                  "width": 81,
+                  "height": 15
+                }
+              ]
+            },
+            "paint": {
+              "column": 7,
+              "viewportRow": 36,
+              "cellWidth": 9,
+              "cellHeight": 15,
+              "calls": [
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                }
+              ],
+              "capped": false
+            }
+          },
+          "previousMatch": {
+            "result": {
+              "status": "supported",
+              "found": true
+            },
+            "selected": {
+              "status": "supported",
+              "value": "needle 👩🏽‍💻"
+            },
+            "presentation": {
+              "owned": {
+                "range": {
+                  "start": {
+                    "y": 8,
+                    "x": 0
+                  },
+                  "end": {
+                    "y": 8,
+                    "x": 9
+                  }
+                },
+                "origin": "search",
+                "viewportTop": 8,
+                "rectangles": [
+                  {
+                    "x": 0,
+                    "y": 0,
+                    "width": 81,
+                    "height": 15,
+                    "row": 8,
+                    "startCol": 0,
+                    "endCol": 9
+                  }
+                ],
+                "dragging": false,
+                "visible": true
+              },
+              "visibleRects": [
+                {
+                  "row": 8,
+                  "startCol": 0,
+                  "endCol": 9,
+                  "x": 18,
+                  "y": 82,
+                  "width": 81,
+                  "height": 15
+                }
+              ]
+            },
+            "paint": {
+              "column": 7,
+              "viewportRow": 0,
+              "cellWidth": 9,
+              "cellHeight": 15,
+              "calls": [
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 12
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 12
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 12
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 12
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 12
+                }
+              ],
+              "capped": false
+            }
+          },
+          "wrappedMatch": {
+            "result": {
+              "status": "supported",
+              "found": true
+            },
+            "selected": {
+              "status": "supported",
+              "value": "needle 👩🏽‍💻"
+            },
+            "presentation": {
+              "owned": {
+                "range": {
+                  "start": {
+                    "y": 83,
+                    "x": 0
+                  },
+                  "end": {
+                    "y": 83,
+                    "x": 9
+                  }
+                },
+                "origin": "search",
+                "viewportTop": 47,
+                "rectangles": [
+                  {
+                    "x": 0,
+                    "y": 540,
+                    "width": 81,
+                    "height": 15,
+                    "row": 83,
+                    "startCol": 0,
+                    "endCol": 9
+                  }
+                ],
+                "dragging": false,
+                "visible": true
+              },
+              "visibleRects": [
+                {
+                  "row": 83,
+                  "startCol": 0,
+                  "endCol": 9,
+                  "x": 18,
+                  "y": 622,
+                  "width": 81,
+                  "height": 15
+                }
+              ]
+            },
+            "paint": {
+              "column": 7,
+              "viewportRow": 36,
+              "cellWidth": 9,
+              "cellHeight": 15,
+              "calls": [
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                }
+              ],
+              "capped": false
+            }
+          }
+        }
+      },
+      {
+        "name": "Canvas paints the full cluster at highlighted history and active cells",
+        "status": "pass",
+        "detail": {
+          "firstHistoryPaint": {
+            "column": 7,
+            "viewportRow": 0,
+            "cellWidth": 9,
+            "cellHeight": 15,
+            "calls": [
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              }
+            ],
+            "capped": false
+          },
+          "secondHistoryPaint": {
+            "column": 7,
+            "viewportRow": 36,
+            "cellWidth": 9,
+            "cellHeight": 15,
+            "calls": [
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 552
+              }
+            ],
+            "capped": false
+          },
+          "activePaint": {
+            "column": 17,
+            "viewportRow": 36,
+            "cellWidth": 9,
+            "cellHeight": 15,
+            "calls": [
+              {
+                "text": "👩🏽‍💻",
+                "x": 153,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 153,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 153,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 153,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 153,
+                "y": 552
+              }
+            ],
+            "capped": false
+          }
+        }
+      },
+      {
+        "name": "clear and no-match remove stale search highlights",
+        "status": "pass",
+        "detail": {
+          "cleared": true,
+          "missing": {
+            "status": "supported",
+            "found": false
+          },
+          "presentation": {
+            "owned": {
+              "range": null,
+              "origin": null,
+              "viewportTop": 8,
+              "rectangles": [],
+              "dragging": false,
+              "visible": true
+            },
+            "visibleRects": []
+          }
+        }
+      },
+      {
+        "name": "output and grid changes clear stale ranges; new resize selection works",
+        "status": "pass",
+        "detail": {
+          "manualPreserved": true,
+          "outputCleared": true,
+          "resizeCleared": true,
+          "afterResize": {
+            "status": "supported"
+          },
+          "resizedCopy": {
+            "status": "supported",
+            "value": "f"
+          }
+        }
+      },
+      {
+        "name": "replayable styled history",
+        "status": "unsupported",
+        "detail": "ghostty-web 0.4.0 cannot replay styled history: color provenance, scrollback wraps, inactive normal buffer, overline and hyperlink URIs are unavailable"
+      },
+      {
+        "name": "hidden ingestion and exact original acknowledgement",
+        "status": "pass",
+        "detail": {
+          "consumed": 1,
+          "bytes": 98304,
+          "renderSuspension": "unsupported"
+        }
+      },
+      {
+        "name": "no adapter errors",
+        "status": "pass",
+        "detail": []
+      }
+    ]
+  },
+  "xtermUnicodeBaseline": {
+    "expected": {
+      "screen": "café 👩🏽‍💻 中文 é",
+      "titles": [
+        "café 👩🏽‍💻"
+      ]
+    },
+    "raw": {
+      "screen": "café 👩🏽💻 中文 é",
+      "titles": [
+        "café 👩🏽💻"
+      ]
+    },
+    "adapter": {
+      "screen": "café 👩🏽💻 中文 é",
+      "titles": [
+        "café 👩🏽💻"
+      ]
+    },
+    "adapterMatchesRaw": true,
+    "meaning": "Untouched xterm vs xterm adapter, identical one-byte UTF-8 writes. Any missing grapheme codepoints remain strict compatibility failures; equality only characterizes the baseline."
+  },
+  "interactionEvidence": {
+    "method": "Playwright trusted Chromium mouse input through visible fixture controls; not native OS/physical keyboard acceptance",
+    "drag": {
+      "selected": {
+        "status": "supported",
+        "value": "fixtur"
+      },
+      "presentation": {
+        "owned": {
+          "range": {
+            "start": {
+              "x": 0,
+              "y": 2
+            },
+            "end": {
+              "x": 6,
+              "y": 2
+            }
+          },
+          "origin": "manual",
+          "viewportTop": 0,
+          "rectangles": [
+            {
+              "x": 0,
+              "y": 30,
+              "width": 54,
+              "height": 15,
+              "row": 2,
+              "startCol": 0,
+              "endCol": 6
+            }
+          ],
+          "dragging": false,
+          "visible": true
+        },
+        "visibleRects": [
+          {
+            "row": 2,
+            "startCol": 0,
+            "endCol": 6,
+            "x": 815,
+            "y": 478.046875,
+            "width": 54,
+            "height": 15
+          }
+        ]
+      }
+    },
+    "plainClick": {
+      "selected": {
+        "status": "supported",
+        "value": ""
+      },
+      "presentation": {
+        "owned": {
+          "range": null,
+          "origin": null,
+          "viewportTop": 0,
+          "rectangles": [],
+          "dragging": false,
+          "visible": true
+        },
+        "visibleRects": []
+      }
+    },
+    "wheel": {
+      "selected": {
+        "status": "supported",
+        "value": ""
+      },
+      "presentation": {
+        "owned": {
+          "range": null,
+          "origin": null,
+          "viewportTop": 32,
+          "rectangles": [],
+          "dragging": false,
+          "visible": true
+        },
+        "visibleRects": []
+      }
+    },
+    "scrollbarGutter": {
+      "selected": {
+        "status": "supported",
+        "value": ""
+      },
+      "presentation": {
+        "owned": {
+          "range": null,
+          "origin": null,
+          "viewportTop": 93,
+          "rectangles": [],
+          "dragging": false,
+          "visible": true
+        },
+        "visibleRects": []
+      }
+    },
+    "edgeAutoscroll": {
+      "selected": {
+        "status": "supported",
+        "value": "e-000 café 👩🏽‍💻 中文  spaced\nfixture-001 café 👩🏽‍💻 中文  spaced\nfixture-002 café 👩🏽‍💻 中文  spaced\nfixture-003 café 👩🏽‍💻 中文  spaced\nfixture-004 café 👩🏽‍💻 中文  spaced\nfixture-005 café 👩🏽‍💻 中文  spaced\nfixture-006 café 👩🏽‍💻 中文  spaced\nfixture-007 café 👩🏽‍💻 中文  spaced\n"
+      },
+      "presentation": {
+        "owned": {
+          "range": {
+            "start": {
+              "x": 6,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 8
+            }
+          },
+          "origin": "manual",
+          "viewportTop": 0,
+          "rectangles": [
+            {
+              "x": 54,
+              "y": 0,
+              "width": 693,
+              "height": 15,
+              "row": 0,
+              "startCol": 6,
+              "endCol": 83
+            },
+            {
+              "x": 0,
+              "y": 15,
+              "width": 747,
+              "height": 15,
+              "row": 1,
+              "startCol": 0,
+              "endCol": 83
+            },
+            {
+              "x": 0,
+              "y": 30,
+              "width": 747,
+              "height": 15,
+              "row": 2,
+              "startCol": 0,
+              "endCol": 83
+            },
+            {
+              "x": 0,
+              "y": 45,
+              "width": 747,
+              "height": 15,
+              "row": 3,
+              "startCol": 0,
+              "endCol": 83
+            },
+            {
+              "x": 0,
+              "y": 60,
+              "width": 747,
+              "height": 15,
+              "row": 4,
+              "startCol": 0,
+              "endCol": 83
+            },
+            {
+              "x": 0,
+              "y": 75,
+              "width": 747,
+              "height": 15,
+              "row": 5,
+              "startCol": 0,
+              "endCol": 83
+            },
+            {
+              "x": 0,
+              "y": 90,
+              "width": 747,
+              "height": 15,
+              "row": 6,
+              "startCol": 0,
+              "endCol": 83
+            },
+            {
+              "x": 0,
+              "y": 105,
+              "width": 747,
+              "height": 15,
+              "row": 7,
+              "startCol": 0,
+              "endCol": 83
+            }
+          ],
+          "dragging": false,
+          "visible": true
+        },
+        "visibleRects": [
+          {
+            "row": 0,
+            "startCol": 6,
+            "endCol": 83,
+            "x": 869,
+            "y": 448.046875,
+            "width": 693,
+            "height": 15
+          },
+          {
+            "row": 1,
+            "startCol": 0,
+            "endCol": 83,
+            "x": 815,
+            "y": 463.046875,
+            "width": 747,
+            "height": 15
+          },
+          {
+            "row": 2,
+            "startCol": 0,
+            "endCol": 83,
+            "x": 815,
+            "y": 478.046875,
+            "width": 747,
+            "height": 15
+          },
+          {
+            "row": 3,
+            "startCol": 0,
+            "endCol": 83,
+            "x": 815,
+            "y": 493.046875,
+            "width": 747,
+            "height": 15
+          },
+          {
+            "row": 4,
+            "startCol": 0,
+            "endCol": 83,
+            "x": 815,
+            "y": 508.046875,
+            "width": 747,
+            "height": 15
+          },
+          {
+            "row": 5,
+            "startCol": 0,
+            "endCol": 83,
+            "x": 815,
+            "y": 523.046875,
+            "width": 747,
+            "height": 15
+          },
+          {
+            "row": 6,
+            "startCol": 0,
+            "endCol": 83,
+            "x": 815,
+            "y": 538.046875,
+            "width": 747,
+            "height": 15
+          },
+          {
+            "row": 7,
+            "startCol": 0,
+            "endCol": 83,
+            "x": 815,
+            "y": 553.046875,
+            "width": 747,
+            "height": 15
+          }
+        ]
+      }
+    },
+    "xtermCanvasCharacterization": {
+      "dpr": 1,
+      "rawCanvases": [
+        {
+          "width": 752,
+          "height": 368,
+          "cssWidth": 752,
+          "cssHeight": 368
+        },
+        {
+          "width": 1504,
+          "height": 736,
+          "cssWidth": 752,
+          "cssHeight": 368
+        }
+      ],
+      "observed": {
+        "css": 752,
+        "device": 1504
+      },
+      "fontSize": 14
+    },
+    "limits": [
+      "xterm raw and adapter canvas ratios reproduce the browser scaling observation; root cause is not established",
+      "no physical clipboard or native OS mouse acceptance"
+    ],
+    "timing": "Pointer checks used the same controller before the final public-render-only grapheme correction; final capability and Canvas fillText probes were rerun afterward."
+  },
+  "screenshot": "2026-11-09-ghostty-selection-search-highlight.png"
+}

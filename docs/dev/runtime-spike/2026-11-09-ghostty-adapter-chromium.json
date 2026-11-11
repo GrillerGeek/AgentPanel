@@ -1,0 +1,178 @@
+{
+  "package": "ghostty-web@0.4.0",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "adapterCompatibility": {
+    "xterm": [
+      {
+        "name": "raw split UTF-8/full screen graphemes",
+        "status": "fail",
+        "detail": "café 👩🏽💻 中文 é"
+      },
+      {
+        "name": "raw titles BEL/ST and split UTF-8, exactly once",
+        "status": "fail",
+        "detail": [
+          "café 👩🏽💻",
+          "split"
+        ]
+      },
+      {
+        "name": "single bracketed paste path",
+        "status": "pass",
+        "detail": [
+          "\u001b[200~PASTE-ONCE\u001b[201~"
+        ]
+      },
+      {
+        "name": "alternate screen restores normal",
+        "status": "fail",
+        "detail": "café 👩🏽💻 中文 é"
+      },
+      {
+        "name": "full scrollback graphemes after resize",
+        "status": "pass",
+        "detail": {
+          "rows": 37,
+          "cols": 101
+        }
+      },
+      {
+        "name": "programmatic selection after resize",
+        "status": "pass",
+        "detail": {
+          "status": "supported",
+          "value": "café"
+        }
+      },
+      {
+        "name": "search navigation and visible highlight",
+        "status": "pass",
+        "detail": {
+          "status": "supported",
+          "found": true
+        }
+      },
+      {
+        "name": "replayable styled history",
+        "status": "pass",
+        "detail": {
+          "bytes": 2017
+        }
+      },
+      {
+        "name": "hidden ingestion and exact original acknowledgement",
+        "status": "pass",
+        "detail": {
+          "consumed": 1,
+          "bytes": 98304,
+          "renderSuspension": "limited"
+        }
+      },
+      {
+        "name": "no adapter errors",
+        "status": "pass",
+        "detail": []
+      }
+    ],
+    "ghostty": [
+      {
+        "name": "raw split UTF-8/full screen graphemes",
+        "status": "pass",
+        "detail": "café 👩🏽‍💻 中文 é"
+      },
+      {
+        "name": "raw titles BEL/ST and split UTF-8, exactly once",
+        "status": "pass",
+        "detail": [
+          "café 👩🏽‍💻",
+          "split"
+        ]
+      },
+      {
+        "name": "single bracketed paste path",
+        "status": "pass",
+        "detail": [
+          "\u001b[200~PASTE-ONCE\u001b[201~"
+        ]
+      },
+      {
+        "name": "alternate screen restores normal",
+        "status": "pass",
+        "detail": "café 👩🏽‍💻 中文 é"
+      },
+      {
+        "name": "full scrollback graphemes after resize",
+        "status": "pass",
+        "detail": {
+          "rows": 37,
+          "cols": 101
+        }
+      },
+      {
+        "name": "programmatic selection after resize",
+        "status": "unsupported",
+        "detail": "ghostty-web select() clamps to viewport and uses inconsistent absolute coordinates after scrolling/resize"
+      },
+      {
+        "name": "search navigation and visible highlight",
+        "status": "unsupported",
+        "detail": {
+          "status": "limited",
+          "match": {
+            "start": {
+              "y": 1,
+              "x": 0
+            },
+            "end": {
+              "y": 1,
+              "x": 12
+            },
+            "wrapped": false
+          },
+          "reason": "Literal text match only; public selection/navigation cannot reliably present and highlight scrollback matches"
+        }
+      },
+      {
+        "name": "replayable styled history",
+        "status": "unsupported",
+        "detail": "ghostty-web 0.4.0 cannot replay styled history: color provenance, scrollback wraps, inactive normal buffer, overline and hyperlink URIs are unavailable"
+      },
+      {
+        "name": "hidden ingestion and exact original acknowledgement",
+        "status": "pass",
+        "detail": {
+          "consumed": 1,
+          "bytes": 98304,
+          "renderSuspension": "unsupported"
+        }
+      },
+      {
+        "name": "no adapter errors",
+        "status": "pass",
+        "detail": []
+      }
+    ]
+  },
+  "xtermUnicodeBaseline": {
+    "expected": {
+      "screen": "café 👩🏽‍💻 中文 é",
+      "titles": [
+        "café 👩🏽‍💻"
+      ]
+    },
+    "raw": {
+      "screen": "café 👩🏽💻 中文 é",
+      "titles": [
+        "café 👩🏽💻"
+      ]
+    },
+    "adapter": {
+      "screen": "café 👩🏽💻 中文 é",
+      "titles": [
+        "café 👩🏽💻"
+      ]
+    },
+    "adapterMatchesRaw": true,
+    "meaning": "Untouched xterm vs xterm adapter, identical one-byte UTF-8 writes. Any missing grapheme codepoints remain strict compatibility failures; equality only characterizes the baseline."
+  }
+}

@@ -17,7 +17,8 @@ export interface ClipboardDeps {
   writeClipboard: (text: string) => Promise<void>;
   /** xterm term.paste — the single entry point for pasted text */
   pasteToTerminal: (text: string) => void;
-  getSelection: () => string;
+  /** Undefined means copying is explicitly unavailable for this renderer. */
+  getSelection: () => string | undefined;
   hasSelection: () => boolean;
   clearSelection: () => void;
   /** open the search UI (Ctrl+F) */
