@@ -36,3 +36,10 @@ __pycache__/
 
 # Harness-created isolation worktrees (never commit a worktree)
 .claude/worktrees/
+
+# Isolated terminal spike bundles and browser evidence
+dist-ghostty-spike/
+output/playwright/
+.playwright/
+
+.playwright-cli/

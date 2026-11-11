@@ -1,0 +1,570 @@
+{
+  "execution": "pass",
+  "native": {
+    "runId": "4e85bd6c43414397b015eb72ed930d0e",
+    "package": "ghostty-web@0.4.0",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+    "mode": "automated native Tauri/WebKit acceptance; not manual UI/IME or real-agent approval acceptance",
+    "benchmark": {
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+      "devicePixelRatio": 2,
+      "hardwareConcurrency": 8,
+      "method": "80x24, 2000 scrollback; 16KiB raw byte chunks, 64KiB callback window; warmup; alternating 4 rounds; completion + two rAFs; explicit library-callback vs experimental parse-return consumption (parse-return may block longer); excludes shell/SSH; startup includes shared WASM warm state after first load",
+      "results": [
+        {
+          "kind": "xterm",
+          "consumption": "library-callback",
+          "renderer": "WebGL",
+          "round": 0,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 6,
+          "writeAndFramesMs": 87,
+          "maxTimerGapMs": 18,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "library-callback",
+          "renderer": "Canvas 2D",
+          "round": 0,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 250,
+          "maxTimerGapMs": 10,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "parse-return",
+          "renderer": "Canvas 2D",
+          "round": 0,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 3,
+          "writeAndFramesMs": 24,
+          "maxTimerGapMs": 14,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "parse-return",
+          "renderer": "Canvas 2D",
+          "round": 1,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 27,
+          "maxTimerGapMs": 12,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "library-callback",
+          "renderer": "Canvas 2D",
+          "round": 1,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 250,
+          "maxTimerGapMs": 11,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "xterm",
+          "consumption": "library-callback",
+          "renderer": "WebGL",
+          "round": 1,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 7,
+          "writeAndFramesMs": 83,
+          "maxTimerGapMs": 13,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "xterm",
+          "consumption": "library-callback",
+          "renderer": "WebGL",
+          "round": 2,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 6,
+          "writeAndFramesMs": 69,
+          "maxTimerGapMs": 13,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "library-callback",
+          "renderer": "Canvas 2D",
+          "round": 2,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 250,
+          "maxTimerGapMs": 9,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "parse-return",
+          "renderer": "Canvas 2D",
+          "round": 2,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 29,
+          "maxTimerGapMs": 12,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "parse-return",
+          "renderer": "Canvas 2D",
+          "round": 3,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 1,
+          "writeAndFramesMs": 28,
+          "maxTimerGapMs": 10,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "ghostty",
+          "consumption": "library-callback",
+          "renderer": "Canvas 2D",
+          "round": 3,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 2,
+          "writeAndFramesMs": 250,
+          "maxTimerGapMs": 10,
+          "retainedLastLine": true
+        },
+        {
+          "kind": "xterm",
+          "consumption": "library-callback",
+          "renderer": "WebGL",
+          "round": 3,
+          "bytes": 816000,
+          "cols": 80,
+          "rows": 24,
+          "startupMs": 6,
+          "writeAndFramesMs": 68,
+          "maxTimerGapMs": 14,
+          "retainedLastLine": true
+        }
+      ]
+    },
+    "transport": [
+      {
+        "kind": "xterm",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Local PTY",
+        "pid": 60439,
+        "bytes": 307515,
+        "consumedBytes": 307515,
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "xterm",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Herdr local",
+        "pid": 60445,
+        "resumedPid": 60445,
+        "bytes": 332043,
+        "consumedBytes": 332043,
+        "binding": {
+          "coreId": "d08199a585e371712f9d873844a4fa7f",
+          "address": "t1"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "xterm",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Herdr SSH",
+        "pid": 108,
+        "resumedPid": 108,
+        "bytes": 331971,
+        "consumedBytes": 331971,
+        "binding": {
+          "coreId": "d08199a585e371712f9d873844a4fa7f",
+          "address": "linux/t2",
+          "machineId": "590f005f08768ec507720e09ff7c97a4"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Local PTY",
+        "pid": 60705,
+        "bytes": 307515,
+        "consumedBytes": 307515,
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Herdr local",
+        "pid": 60711,
+        "resumedPid": 60711,
+        "bytes": 332043,
+        "consumedBytes": 332043,
+        "binding": {
+          "coreId": "d08199a585e371712f9d873844a4fa7f",
+          "address": "t2"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "library-callback",
+        "result": "pass",
+        "runtime": "Herdr SSH",
+        "pid": 115,
+        "resumedPid": 115,
+        "bytes": 331971,
+        "consumedBytes": 331971,
+        "binding": {
+          "coreId": "d08199a585e371712f9d873844a4fa7f",
+          "address": "linux/t3",
+          "machineId": "590f005f08768ec507720e09ff7c97a4"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "parse-return",
+        "result": "pass",
+        "runtime": "Local PTY",
+        "pid": 60795,
+        "bytes": 307515,
+        "consumedBytes": 307515,
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "parse-return",
+        "result": "pass",
+        "runtime": "Herdr local",
+        "pid": 60836,
+        "resumedPid": 60836,
+        "bytes": 332043,
+        "consumedBytes": 332043,
+        "binding": {
+          "coreId": "d08199a585e371712f9d873844a4fa7f",
+          "address": "t3"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      },
+      {
+        "kind": "ghostty",
+        "consumption": "parse-return",
+        "result": "pass",
+        "runtime": "Herdr SSH",
+        "pid": 122,
+        "resumedPid": 122,
+        "bytes": 331971,
+        "consumedBytes": 331971,
+        "binding": {
+          "coreId": "d08199a585e371712f9d873844a4fa7f",
+          "address": "linux/t4",
+          "machineId": "590f005f08768ec507720e09ff7c97a4"
+        },
+        "floodBytesAtLeast": 307200,
+        "resize": "37x101",
+        "rawByteOutput": true
+      }
+    ],
+    "compatibility": {
+      "xterm": [
+        {
+          "name": "split UTF-8 bytes",
+          "pass": true,
+          "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587"
+        },
+        {
+          "name": "ANSI cell style",
+          "pass": true,
+          "detail": {
+            "foreground": 1,
+            "text": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587\nRED"
+          }
+        },
+        {
+          "name": "alternate approval screen",
+          "pass": true,
+          "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+        },
+        {
+          "name": "emoji grapheme buffer extraction",
+          "pass": true,
+          "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+        },
+        {
+          "name": "normal screen restored",
+          "pass": true,
+          "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587\nRED"
+        },
+        {
+          "name": "bracketed paste once",
+          "pass": true,
+          "detail": [
+            "\u001b[200~PASTE-ONCE\u001b[201~"
+          ]
+        },
+        {
+          "name": "terminal status reply",
+          "pass": true,
+          "detail": [
+            "\u001b[0n"
+          ]
+        },
+        {
+          "name": "title event from raw bytes",
+          "pass": true,
+          "detail": [
+            "raw-byte-title"
+          ]
+        },
+        {
+          "name": "title event from string",
+          "pass": true,
+          "detail": [
+            "string-title"
+          ]
+        },
+        {
+          "name": "title event across chunks",
+          "pass": true,
+          "detail": [
+            "split-title"
+          ]
+        },
+        {
+          "name": "resize dimensions",
+          "pass": true,
+          "detail": {
+            "cols": 101,
+            "rows": 37
+          }
+        },
+        {
+          "name": "selection extraction",
+          "pass": true,
+          "detail": "split"
+        },
+        {
+          "name": "existing SearchAddon",
+          "pass": true,
+          "detail": true
+        },
+        {
+          "name": "existing SerializeAddon",
+          "pass": true,
+          "detail": true
+        },
+        {
+          "name": "scrollback retention",
+          "pass": true,
+          "detail": {
+            "lines": 101
+          }
+        }
+      ],
+      "ghostty": [
+        {
+          "name": "split UTF-8 bytes",
+          "pass": true,
+          "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        {
+          "name": "ANSI cell style",
+          "pass": true,
+          "detail": {
+            "foreground": 13395558,
+            "text": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nREDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          }
+        },
+        {
+          "name": "alternate approval screen",
+          "pass": true,
+          "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69"
+        },
+        {
+          "name": "emoji grapheme buffer extraction",
+          "pass": false,
+          "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69"
+        },
+        {
+          "name": "normal screen restored",
+          "pass": true,
+          "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nREDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        {
+          "name": "bracketed paste once",
+          "pass": true,
+          "detail": [
+            "\u001b[200~PASTE-ONCE\u001b[201~"
+          ]
+        },
+        {
+          "name": "terminal status reply",
+          "pass": true,
+          "detail": [
+            "\u001b[0n"
+          ]
+        },
+        {
+          "name": "title event from raw bytes",
+          "pass": false,
+          "detail": []
+        },
+        {
+          "name": "title event from string",
+          "pass": true,
+          "detail": [
+            "string-title"
+          ]
+        },
+        {
+          "name": "title event across chunks",
+          "pass": false,
+          "detail": []
+        },
+        {
+          "name": "resize dimensions",
+          "pass": true,
+          "detail": {
+            "cols": 101,
+            "rows": 37
+          }
+        },
+        {
+          "name": "selection extraction",
+          "pass": false,
+          "detail": "xxxxx"
+        },
+        {
+          "name": "existing SearchAddon",
+          "pass": false,
+          "detail": "TypeError: this._terminal.onWriteParsed is not a function. (In 'this._terminal.onWriteParsed((()=>this._updateMatches()))', 'this._terminal.onWriteParsed' is undefined)"
+        },
+        {
+          "name": "existing SerializeAddon",
+          "pass": false,
+          "detail": "TypeError: r.isOverline is not a function. (In 'r.isOverline()', 'r.isOverline' is undefined)"
+        },
+        {
+          "name": "scrollback retention",
+          "pass": true,
+          "detail": {
+            "lines": 101
+          }
+        }
+      ]
+    }
+  },
+  "cleanup": [
+    {
+      "pid": 60439,
+      "localPtyGoneAfterDispose": true
+    },
+    {
+      "address": "t1",
+      "pid": 60445,
+      "liveAfterDetach": true
+    },
+    {
+      "address": "linux/t2",
+      "pid": 108,
+      "liveAfterDetach": true
+    },
+    {
+      "pid": 60705,
+      "localPtyGoneAfterDispose": true
+    },
+    {
+      "address": "t2",
+      "pid": 60711,
+      "liveAfterDetach": true
+    },
+    {
+      "address": "linux/t3",
+      "pid": 115,
+      "liveAfterDetach": true
+    },
+    {
+      "pid": 60795,
+      "localPtyGoneAfterDispose": true
+    },
+    {
+      "address": "t3",
+      "pid": 60836,
+      "liveAfterDetach": true
+    },
+    {
+      "address": "linux/t4",
+      "pid": 122,
+      "liveAfterDetach": true
+    }
+  ],
+  "sshFixture": {
+    "result": "pass",
+    "transport": "OpenSSH over localhost TCP to two Linux Docker guests",
+    "remote_address": "linux/t1",
+    "same_remote_pid_after_interruption": 68,
+    "rust_adapter_remote_attach": true,
+    "strict_host_key_checking": true,
+    "second_guest_usable_during_first_ssh_outage": true,
+    "remote_projects_test": false,
+    "remote_worktrees_test": false,
+    "limits": [
+      "not two physical computers",
+      "no WAN/sleep/MFA acceptance",
+      "UI acceptance is manual and documented separately"
+    ]
+  },
+  "limits": [
+    "single macOS host and two disposable Linux guests",
+    "no manual native keyboard/IME or real-agent approval acceptance",
+    "synthetic emulator workload, not parser-only or SSH throughput",
+    "candidate compatibility failures remain visible"
+  ]
+}

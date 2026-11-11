@@ -1,0 +1,12 @@
+{
+  "identifier": "com.jason.agentpanel.ghostty-spike",
+  "productName": "AgentPanel Ghostty Spike",
+  "build": {
+    "beforeBuildCommand": "npm run build:ghostty-spike",
+    "frontendDist": "../dist-ghostty-spike"
+  },
+  "app": {
+    "windows": [{ "title": "AgentPanel Ghostty Spike", "width": 1320, "height": 950, "url": "ghostty-spike.html" }]
+  },
+  "bundle": { "createUpdaterArtifacts": false }
+}

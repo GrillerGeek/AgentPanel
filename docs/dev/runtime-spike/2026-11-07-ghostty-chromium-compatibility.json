@@ -1,0 +1,192 @@
+{
+  "package": "ghostty-web@0.4.0",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "compatibility": {
+    "xterm": [
+      {
+        "name": "split UTF-8 bytes",
+        "pass": true,
+        "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587"
+      },
+      {
+        "name": "ANSI cell style",
+        "pass": true,
+        "detail": {
+          "foreground": 1,
+          "text": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587\nRED"
+        }
+      },
+      {
+        "name": "alternate approval screen",
+        "pass": true,
+        "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+      },
+      {
+        "name": "emoji grapheme buffer extraction",
+        "pass": true,
+        "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb"
+      },
+      {
+        "name": "normal screen restored",
+        "pass": true,
+        "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587\nRED"
+      },
+      {
+        "name": "bracketed paste once",
+        "pass": true,
+        "detail": [
+          "\u001b[200~PASTE-ONCE\u001b[201~"
+        ]
+      },
+      {
+        "name": "terminal status reply",
+        "pass": true,
+        "detail": [
+          "\u001b[0n"
+        ]
+      },
+      {
+        "name": "title event from raw bytes",
+        "pass": true,
+        "detail": [
+          "raw-byte-title"
+        ]
+      },
+      {
+        "name": "title event from string",
+        "pass": true,
+        "detail": [
+          "string-title"
+        ]
+      },
+      {
+        "name": "title event across chunks",
+        "pass": true,
+        "detail": [
+          "split-title"
+        ]
+      },
+      {
+        "name": "resize dimensions",
+        "pass": true,
+        "detail": {
+          "cols": 101,
+          "rows": 37
+        }
+      },
+      {
+        "name": "selection extraction",
+        "pass": true,
+        "detail": "split"
+      },
+      {
+        "name": "existing SearchAddon",
+        "pass": true,
+        "detail": true
+      },
+      {
+        "name": "existing SerializeAddon",
+        "pass": true,
+        "detail": true
+      },
+      {
+        "name": "scrollback retention",
+        "pass": true,
+        "detail": {
+          "lines": 101
+        }
+      }
+    ],
+    "ghostty": [
+      {
+        "name": "split UTF-8 bytes",
+        "pass": true,
+        "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587"
+      },
+      {
+        "name": "ANSI cell style",
+        "pass": true,
+        "detail": {
+          "foreground": 13395558,
+          "text": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587\nRED"
+        }
+      },
+      {
+        "name": "alternate approval screen",
+        "pass": true,
+        "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69"
+      },
+      {
+        "name": "emoji grapheme buffer extraction",
+        "pass": false,
+        "detail": "Controlled approval fixture (no real tool call)\n\nAllow a command in the scratch checkout?\n\u276f 1. Approve once\n  2. Decline\n\nEsc cancels \u00b7 arrows choose\n\nUnicode: caf\u00e9 \u03bb \u4e2d\u6587 \ud83d\udc69"
+      },
+      {
+        "name": "normal screen restored",
+        "pass": true,
+        "detail": "split-utf8: caf\u00e9 \u03bb \u4e2d\u6587\nRED"
+      },
+      {
+        "name": "bracketed paste once",
+        "pass": true,
+        "detail": [
+          "\u001b[200~PASTE-ONCE\u001b[201~"
+        ]
+      },
+      {
+        "name": "terminal status reply",
+        "pass": true,
+        "detail": [
+          "\u001b[0n"
+        ]
+      },
+      {
+        "name": "title event from raw bytes",
+        "pass": false,
+        "detail": []
+      },
+      {
+        "name": "title event from string",
+        "pass": true,
+        "detail": [
+          "string-title"
+        ]
+      },
+      {
+        "name": "title event across chunks",
+        "pass": false,
+        "detail": []
+      },
+      {
+        "name": "resize dimensions",
+        "pass": true,
+        "detail": {
+          "cols": 101,
+          "rows": 37
+        }
+      },
+      {
+        "name": "selection extraction",
+        "pass": false,
+        "detail": ""
+      },
+      {
+        "name": "existing SearchAddon",
+        "pass": false,
+        "detail": "TypeError: this._terminal.onWriteParsed is not a function"
+      },
+      {
+        "name": "existing SerializeAddon",
+        "pass": false,
+        "detail": "TypeError: e3.isOverline is not a function"
+      },
+      {
+        "name": "scrollback retention",
+        "pass": true,
+        "detail": {
+          "lines": 101
+        }
+      }
+    ]
+  }
+}

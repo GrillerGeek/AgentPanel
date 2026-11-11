@@ -1,0 +1,18 @@
+html,body,#root { margin:0; min-height:100%; background:#11141d; color:#d7dae0; font:14px system-ui,sans-serif; }
+.ghostty-spike { padding:16px; }
+.ghostty-spike h1 { margin:0 0 8px; font-size:22px; }
+.ghostty-spike h2 { font-size:16px; }
+.spike-controls,.spike-actions { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; align-items:end; }
+.ghostty-spike label { display:flex; flex-direction:column; gap:5px; }
+.ghostty-spike input { width:260px; }
+.ghostty-spike button,.ghostty-spike input,.ghostty-spike select,.ghostty-spike textarea { background:#232936; color:#e6e8ef; border:1px solid #65728e; border-radius:4px; padding:6px; }
+.ghostty-spike button { cursor:pointer; }
+.ghostty-spike button:disabled { opacity:.45; cursor:default; }
+.ghostty-spike button:focus-visible,.ghostty-spike input:focus-visible { outline:2px solid #a6e3a1; }
+.spike-panes { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.spike-panes section { min-width:0; }
+.spike-terminal { height:370px; overflow:hidden; background:#171923; border:1px solid #434a60; padding:6px; }
+.ghostty-spike textarea { width:98%; font:12px monospace; }
+.ghostty-spike [role=status] p { display:inline; margin-right:14px; font:12px monospace; overflow-wrap:anywhere; }
+
+.spike-bench:not(:empty) { position:fixed; left:16px; top:80px; z-index:10; background:#171923; border:2px solid #a6e3a1; }
