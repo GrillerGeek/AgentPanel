@@ -1,6 +1,8 @@
 // This module is imported ONLY by the experimental entry. Never export through a production barrel.
-import { Ghostty, Terminal, FitAddon } from "ghostty-web";
-import wasmUrl from "ghostty-web/ghostty-vt.wasm?url";
+import { Ghostty, Terminal, FitAddon } from "../../../vendor/ghostty-history/dist/ghostty-history.js";
+import wasmUrl from "../../../vendor/ghostty-history/dist/ghostty-history.wasm?url";
+import { StyledHistoryRestorer } from "./historyArchive";
+import { serializeGhosttyHistory, type HistoryDiagnostics } from "./ghosttyHistory";
 import { WriteQueue, type QueueScheduler } from "./writeQueue";
 import { OscTitleParser } from "./oscTitleParser";
 import { events } from "./events";
@@ -13,7 +15,10 @@ export function loadGhostty(): Promise<Ghostty> {
   if (!loading) loading = Ghostty.load(wasmUrl).catch((error) => { loading = undefined; throw error; });
   return loading;
 }
-const historyReason = "ghostty-web 0.4.0 cannot replay styled history: color provenance, scrollback wraps, inactive normal buffer, overline and hyperlink URIs are unavailable";
+const snapshotReaders = new WeakMap<TerminalRenderer, (screen: "primary" | "active") => ReturnType<NonNullable<Terminal["wasmTerm"]>["captureSnapshot"]> | undefined>();
+export const captureGhosttyNativeSnapshot = (renderer: TerminalRenderer, screen: "primary" | "active" = "primary") => snapshotReaders.get(renderer)?.(screen);
+const historyCaptures = new WeakMap<TerminalRenderer, { status: string; diagnostics?: HistoryDiagnostics; reason?: string }>();
+export const getGhosttyHistoryDiagnostics = (renderer: TerminalRenderer) => historyCaptures.get(renderer);
 const selections = new WeakMap<TerminalRenderer, GhosttySelection>();
 const canvasRedraws = new WeakMap<TerminalRenderer, () => void>();
 /** Isolated-harness diagnostics, deliberately outside the production renderer interface. */
@@ -30,7 +35,7 @@ export async function createGhosttyRenderer(parent: HTMLElement, options: Render
   const mapped = () => term.wasmTerm ? readGhosttyText(term.wasmTerm) : unsupported("Public WASM buffer unavailable");
   const publicRenderer = term.renderer;
   if (!publicRenderer) { term.dispose(); throw new Error("Public Ghostty Canvas renderer unavailable"); }
-  const canvasPatch = decorateGhosttyCanvas(publicRenderer, () => term.wasmTerm);
+  const canvasPatch = decorateGhosttyCanvas(publicRenderer, () => term.wasmTerm, (error) => queue.abort(error));
   const selection = new GhosttySelection(parent, {
     canvas: publicRenderer.getCanvas(),
     geometry: () => ({ cols: term.cols, rows: term.rows, history: term.wasmTerm?.getScrollbackLength() ?? 0,
@@ -51,15 +56,14 @@ export async function createGhosttyRenderer(parent: HTMLElement, options: Render
     if (term.cols !== cols || term.rows !== rows) invalidate();
     selection.refresh();
   };
+  const resizeNative = (cols: number, rows: number) => { if (term.cols !== cols || term.rows !== rows) invalidate(); term.resize(cols, rows); selection.refresh(); };
+  let restorer: StyledHistoryRestorer;
   const renderer: TerminalRenderer = {
-    kind: "ghostty", capabilities: { selection: "limited", search: "limited", styledHistory: "unsupported", renderingSuspension: "unsupported" },
+    kind: "ghostty", capabilities: { selection: "limited", search: "limited", styledHistory: "supported", renderingSuspension: "unsupported" },
     get cols() { return term.cols; }, get rows() { return term.rows; },
     write: (data, consumed) => queue.write(data, consumed), whenIdle: () => queue.whenIdle(),
-    fit() {
-      if (disposed || parent.clientWidth === 0 || parent.clientHeight === 0) return;
-      const { cols, rows } = term; fit.fit(); afterGridChange(cols, rows);
-    },
-    resize(cols, rows) { if (term.cols !== cols || term.rows !== rows) invalidate(); term.resize(cols, rows); selection.refresh(); }, focus: () => term.focus(), paste: (text) => term.paste(text),
+    fit: () => restorer.fit(),
+    resize: (cols, rows) => restorer.resize(cols, rows), focus: () => term.focus(), paste: (text) => term.paste(text),
     onData: (listener) => term.onData(listener), onTitleChange: titles.on, onError: errors.on,
     setKeyHandler: (handler) => term.attachCustomKeyEventHandler((event) => !handler(event)),
     isMouseTracking: () => term.wasmTerm?.hasMouseTracking() ?? false,
@@ -81,14 +85,29 @@ export async function createGhosttyRenderer(parent: HTMLElement, options: Render
       return { status: "supported", found: true };
     },
     clearSearch() { searchOffset = -1; lastQuery = ""; selection.clear("search"); },
-    serializeStyledHistory: () => unsupported(historyReason),
+    restoreStyledHistory: (data) => restorer.restore(data),
+    serializeStyledHistory() {
+      try {
+        if (!term.wasmTerm) return unsupported("Primary native metadata unavailable");
+        const result = serializeGhosttyHistory(term.wasmTerm.captureSnapshot());
+        historyCaptures.set(renderer, { status: result.status, diagnostics: result.diagnostics, ...(result.status === "supported" ? {} : { reason: result.reason }) });
+        return result.status === "supported" ? { status: "supported", value: result.value } : unsupported(result.reason);
+      } catch (error) {
+        const reason = `Styled history capture failed: ${String(error)}`;
+        historyCaptures.set(renderer, { status: "error", reason }); return unsupported(reason);
+      }
+    },
     extractText() { const text = mapped(); return text.status === "supported" ? { status: "supported", value: text.value.text } : text; },
     setAppearance(appearance) { const { cols, rows } = term; Object.assign(term.options, appearance); afterGridChange(cols, rows); },
     // Parsing remains task-budgeted while hidden. The wrapper has no public render-pause API.
     setVisibility(visible) { selection.setVisibility(visible); },
     reset() { invalidate(); term.reset(); parser.reset(); selection.refresh(); },
-    dispose() { if (disposed) return; disposed = true; queue.dispose(); selection.dispose(); canvasPatch.dispose(); selections.delete(renderer); canvasRedraws.delete(renderer); parser.reset(); titles.clear(); errors.clear(); term.dispose(); },
+    dispose() { if (disposed) return; disposed = true; restorer.dispose(); queue.dispose(); selection.dispose(); canvasPatch.dispose(); selections.delete(renderer); canvasRedraws.delete(renderer); historyCaptures.delete(renderer); snapshotReaders.delete(renderer); parser.reset(); titles.clear(); errors.clear(); term.dispose(); },
   };
+  restorer = new StyledHistoryRestorer({ grid: () => ({ cols: term.cols, rows: term.rows }), resize: resizeNative,
+    fit: () => { const { cols, rows } = term; fit.fit(); afterGridChange(cols, rows); }, canFit: () => parent.clientWidth > 0 && parent.clientHeight > 0,
+    idle: () => queue.whenIdle(), write: (data) => { queue.write(data); return queue.whenIdle(); }, reset: () => { invalidate(); term.reset(); parser.reset(); selection.refresh(); } });
+  snapshotReaders.set(renderer, (screen) => !disposed ? term.wasmTerm?.captureSnapshot({ screen }) : undefined);
   selections.set(renderer, selection);
   canvasRedraws.set(renderer, () => { if (!disposed && term.wasmTerm) publicRenderer.render(term.wasmTerm, true, term.getViewportY(), term); });
   return renderer;

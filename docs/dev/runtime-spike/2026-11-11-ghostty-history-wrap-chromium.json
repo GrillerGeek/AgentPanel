@@ -1,0 +1,1323 @@
+{
+  "package": "AgentPanel Ghostty history metadata-ABI1 experiment",
+  "rawPackage": "ghostty-web@0.4.0",
+  "candidateBuild": {
+    "id": "agentpanel-ghostty-history-abi1",
+    "metadataAbi": 1,
+    "rawReference": "ghostty-web@0.4.0",
+    "wrapperRevision": "9e4e126d89ac3537d2b2ebec075849851566de9f",
+    "nativeRevision": "5714ed07a1012573261b7b7e3ed2add9c1504496",
+    "zig": "0.15.2",
+    "wasmSha256": "683298ebb0bbd9c0e4cb4c2029eac6afb264d3e3755517ebc6b4724be55d99c8",
+    "manifest": "vendor/ghostty-history/manifest.json"
+  },
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "adapterCompatibility": {
+    "xterm": [
+      {
+        "name": "raw split UTF-8/full screen graphemes",
+        "status": "fail",
+        "detail": "café 👩🏽💻 中文 é"
+      },
+      {
+        "name": "raw titles BEL/ST and split UTF-8, exactly once",
+        "status": "fail",
+        "detail": [
+          "café 👩🏽💻",
+          "split"
+        ]
+      },
+      {
+        "name": "single bracketed paste path",
+        "status": "pass",
+        "detail": [
+          "\u001b[200~PASTE-ONCE\u001b[201~"
+        ]
+      },
+      {
+        "name": "alternate screen restores normal",
+        "status": "fail",
+        "detail": "café 👩🏽💻 中文 é"
+      },
+      {
+        "name": "full scrollback graphemes after resize",
+        "status": "pass",
+        "detail": {
+          "rows": 37,
+          "cols": 101
+        }
+      },
+      {
+        "name": "programmatic selection after resize",
+        "status": "pass",
+        "detail": {
+          "status": "supported",
+          "value": "café"
+        }
+      },
+      {
+        "name": "search navigation and visible highlight",
+        "status": "pass",
+        "detail": {
+          "search": {
+            "status": "supported",
+            "found": true
+          },
+          "selected": {
+            "status": "supported",
+            "value": "history-0 👩🏽‍💻"
+          }
+        }
+      },
+      {
+        "name": "replayable styled history",
+        "status": "pass",
+        "detail": {
+          "bytes": 2017
+        }
+      },
+      {
+        "name": "hidden ingestion and exact original acknowledgement",
+        "status": "pass",
+        "detail": {
+          "consumed": 1,
+          "bytes": 98304,
+          "renderSuspension": "limited"
+        }
+      },
+      {
+        "name": "no adapter errors",
+        "status": "pass",
+        "detail": []
+      }
+    ],
+    "ghostty": [
+      {
+        "name": "raw split UTF-8/full screen graphemes",
+        "status": "pass",
+        "detail": "café 👩🏽‍💻 中文 é"
+      },
+      {
+        "name": "raw titles BEL/ST and split UTF-8, exactly once",
+        "status": "pass",
+        "detail": [
+          "café 👩🏽‍💻",
+          "split"
+        ]
+      },
+      {
+        "name": "single bracketed paste path",
+        "status": "pass",
+        "detail": [
+          "\u001b[200~PASTE-ONCE\u001b[201~"
+        ]
+      },
+      {
+        "name": "alternate screen restores normal",
+        "status": "pass",
+        "detail": "café 👩🏽‍💻 中文 é"
+      },
+      {
+        "name": "full scrollback graphemes after resize",
+        "status": "pass",
+        "detail": {
+          "rows": 37,
+          "cols": 101
+        }
+      },
+      {
+        "name": "programmatic selection after resize",
+        "status": "pass",
+        "detail": {
+          "status": "supported",
+          "value": "café"
+        }
+      },
+      {
+        "name": "search navigation and visible highlight",
+        "status": "pass",
+        "detail": {
+          "search": {
+            "status": "supported",
+            "found": true
+          },
+          "selected": {
+            "status": "supported",
+            "value": "history-0 👩🏽‍💻"
+          },
+          "presentation": {
+            "owned": {
+              "range": {
+                "start": {
+                  "y": 1,
+                  "x": 0
+                },
+                "end": {
+                  "y": 1,
+                  "x": 12
+                }
+              },
+              "origin": "search",
+              "viewportTop": 1,
+              "rectangles": [
+                {
+                  "x": 0,
+                  "y": 0,
+                  "width": 108,
+                  "height": 15,
+                  "row": 1,
+                  "startCol": 0,
+                  "endCol": 12
+                }
+              ],
+              "dragging": false,
+              "visible": true
+            },
+            "visibleRects": [
+              {
+                "row": 1,
+                "startCol": 0,
+                "endCol": 12,
+                "x": 18,
+                "y": 82,
+                "width": 108,
+                "height": 15
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "owned one-cell and offscreen scrollback copy",
+        "status": "pass",
+        "detail": {
+          "oneCell": {
+            "status": "supported",
+            "value": "f"
+          },
+          "offscreen": {
+            "owned": {
+              "range": {
+                "start": {
+                  "x": 0,
+                  "y": 0
+                },
+                "end": {
+                  "x": 1,
+                  "y": 0
+                }
+              },
+              "origin": "manual",
+              "viewportTop": 84,
+              "rectangles": [],
+              "dragging": false,
+              "visible": true
+            },
+            "visibleRects": []
+          }
+        }
+      },
+      {
+        "name": "owned reversed bottom-edge selection",
+        "status": "pass",
+        "detail": {
+          "edge": {
+            "status": "supported",
+            "value": "fixture"
+          },
+          "presentation": {
+            "owned": {
+              "range": {
+                "start": {
+                  "x": 0,
+                  "y": 119
+                },
+                "end": {
+                  "x": 7,
+                  "y": 119
+                }
+              },
+              "origin": "manual",
+              "viewportTop": 84,
+              "rectangles": [
+                {
+                  "x": 0,
+                  "y": 525,
+                  "width": 63,
+                  "height": 15,
+                  "row": 119,
+                  "startCol": 0,
+                  "endCol": 7
+                }
+              ],
+              "dragging": false,
+              "visible": true
+            },
+            "visibleRects": [
+              {
+                "row": 119,
+                "startCol": 0,
+                "endCol": 7,
+                "x": 18,
+                "y": 607,
+                "width": 63,
+                "height": 15
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "owned multiline copy trims terminal row padding",
+        "status": "pass",
+        "detail": {
+          "status": "supported",
+          "value": "fixture-000 café 👩🏽‍💻 中文  spaced\nfixt"
+        }
+      },
+      {
+        "name": "search reveals and highlights actual old scrollback cells",
+        "status": "pass",
+        "detail": {
+          "result": {
+            "status": "supported",
+            "found": true
+          },
+          "selected": {
+            "status": "supported",
+            "value": "needle 👩🏽‍💻"
+          },
+          "presentation": {
+            "owned": {
+              "range": {
+                "start": {
+                  "y": 8,
+                  "x": 0
+                },
+                "end": {
+                  "y": 8,
+                  "x": 9
+                }
+              },
+              "origin": "search",
+              "viewportTop": 8,
+              "rectangles": [
+                {
+                  "x": 0,
+                  "y": 0,
+                  "width": 81,
+                  "height": 15,
+                  "row": 8,
+                  "startCol": 0,
+                  "endCol": 9
+                }
+              ],
+              "dragging": false,
+              "visible": true
+            },
+            "visibleRects": [
+              {
+                "row": 8,
+                "startCol": 0,
+                "endCol": 9,
+                "x": 18,
+                "y": 82,
+                "width": 81,
+                "height": 15
+              }
+            ]
+          },
+          "paint": {
+            "column": 7,
+            "viewportRow": 0,
+            "cellWidth": 9,
+            "cellHeight": 15,
+            "calls": [
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              }
+            ],
+            "backgroundCalls": [
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 0,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 0,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 0,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 0,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 0,
+                "width": 18,
+                "height": 15
+              }
+            ],
+            "capped": false
+          }
+        }
+      },
+      {
+        "name": "search next previous and wrap move actual selected occurrence",
+        "status": "pass",
+        "detail": {
+          "secondMatch": {
+            "result": {
+              "status": "supported",
+              "found": true
+            },
+            "selected": {
+              "status": "supported",
+              "value": "needle 👩🏽‍💻"
+            },
+            "presentation": {
+              "owned": {
+                "range": {
+                  "start": {
+                    "y": 83,
+                    "x": 0
+                  },
+                  "end": {
+                    "y": 83,
+                    "x": 9
+                  }
+                },
+                "origin": "search",
+                "viewportTop": 47,
+                "rectangles": [
+                  {
+                    "x": 0,
+                    "y": 540,
+                    "width": 81,
+                    "height": 15,
+                    "row": 83,
+                    "startCol": 0,
+                    "endCol": 9
+                  }
+                ],
+                "dragging": false,
+                "visible": true
+              },
+              "visibleRects": [
+                {
+                  "row": 83,
+                  "startCol": 0,
+                  "endCol": 9,
+                  "x": 18,
+                  "y": 622,
+                  "width": 81,
+                  "height": 15
+                }
+              ]
+            },
+            "paint": {
+              "column": 7,
+              "viewportRow": 36,
+              "cellWidth": 9,
+              "cellHeight": 15,
+              "calls": [
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                }
+              ],
+              "backgroundCalls": [
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 540,
+                  "width": 18,
+                  "height": 15
+                },
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 540,
+                  "width": 18,
+                  "height": 15
+                },
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 540,
+                  "width": 18,
+                  "height": 15
+                },
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 540,
+                  "width": 18,
+                  "height": 15
+                },
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 540,
+                  "width": 18,
+                  "height": 15
+                }
+              ],
+              "capped": false
+            }
+          },
+          "previousMatch": {
+            "result": {
+              "status": "supported",
+              "found": true
+            },
+            "selected": {
+              "status": "supported",
+              "value": "needle 👩🏽‍💻"
+            },
+            "presentation": {
+              "owned": {
+                "range": {
+                  "start": {
+                    "y": 8,
+                    "x": 0
+                  },
+                  "end": {
+                    "y": 8,
+                    "x": 9
+                  }
+                },
+                "origin": "search",
+                "viewportTop": 8,
+                "rectangles": [
+                  {
+                    "x": 0,
+                    "y": 0,
+                    "width": 81,
+                    "height": 15,
+                    "row": 8,
+                    "startCol": 0,
+                    "endCol": 9
+                  }
+                ],
+                "dragging": false,
+                "visible": true
+              },
+              "visibleRects": [
+                {
+                  "row": 8,
+                  "startCol": 0,
+                  "endCol": 9,
+                  "x": 18,
+                  "y": 82,
+                  "width": 81,
+                  "height": 15
+                }
+              ]
+            },
+            "paint": {
+              "column": 7,
+              "viewportRow": 0,
+              "cellWidth": 9,
+              "cellHeight": 15,
+              "calls": [
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 12
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 12
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 12
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 12
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 12
+                }
+              ],
+              "backgroundCalls": [
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 0,
+                  "width": 18,
+                  "height": 15
+                },
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 0,
+                  "width": 18,
+                  "height": 15
+                },
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 0,
+                  "width": 18,
+                  "height": 15
+                },
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 0,
+                  "width": 18,
+                  "height": 15
+                },
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 0,
+                  "width": 18,
+                  "height": 15
+                }
+              ],
+              "capped": false
+            }
+          },
+          "wrappedMatch": {
+            "result": {
+              "status": "supported",
+              "found": true
+            },
+            "selected": {
+              "status": "supported",
+              "value": "needle 👩🏽‍💻"
+            },
+            "presentation": {
+              "owned": {
+                "range": {
+                  "start": {
+                    "y": 83,
+                    "x": 0
+                  },
+                  "end": {
+                    "y": 83,
+                    "x": 9
+                  }
+                },
+                "origin": "search",
+                "viewportTop": 47,
+                "rectangles": [
+                  {
+                    "x": 0,
+                    "y": 540,
+                    "width": 81,
+                    "height": 15,
+                    "row": 83,
+                    "startCol": 0,
+                    "endCol": 9
+                  }
+                ],
+                "dragging": false,
+                "visible": true
+              },
+              "visibleRects": [
+                {
+                  "row": 83,
+                  "startCol": 0,
+                  "endCol": 9,
+                  "x": 18,
+                  "y": 622,
+                  "width": 81,
+                  "height": 15
+                }
+              ]
+            },
+            "paint": {
+              "column": 7,
+              "viewportRow": 36,
+              "cellWidth": 9,
+              "cellHeight": 15,
+              "calls": [
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                },
+                {
+                  "text": "👩🏽‍💻",
+                  "x": 63,
+                  "y": 552
+                }
+              ],
+              "backgroundCalls": [
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 540,
+                  "width": 18,
+                  "height": 15
+                },
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 540,
+                  "width": 18,
+                  "height": 15
+                },
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 540,
+                  "width": 18,
+                  "height": 15
+                },
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 540,
+                  "width": 18,
+                  "height": 15
+                },
+                {
+                  "style": "#000000",
+                  "x": 63,
+                  "y": 540,
+                  "width": 18,
+                  "height": 15
+                }
+              ],
+              "capped": false
+            }
+          }
+        }
+      },
+      {
+        "name": "Canvas paints the full cluster at highlighted history and active cells",
+        "status": "pass",
+        "detail": {
+          "firstHistoryPaint": {
+            "column": 7,
+            "viewportRow": 0,
+            "cellWidth": 9,
+            "cellHeight": 15,
+            "calls": [
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 12
+              }
+            ],
+            "backgroundCalls": [
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 0,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 0,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 0,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 0,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 0,
+                "width": 18,
+                "height": 15
+              }
+            ],
+            "capped": false
+          },
+          "secondHistoryPaint": {
+            "column": 7,
+            "viewportRow": 36,
+            "cellWidth": 9,
+            "cellHeight": 15,
+            "calls": [
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 63,
+                "y": 552
+              }
+            ],
+            "backgroundCalls": [
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 540,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 540,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 540,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 540,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 63,
+                "y": 540,
+                "width": 18,
+                "height": 15
+              }
+            ],
+            "capped": false
+          },
+          "activePaint": {
+            "column": 17,
+            "viewportRow": 36,
+            "cellWidth": 9,
+            "cellHeight": 15,
+            "calls": [
+              {
+                "text": "👩🏽‍💻",
+                "x": 153,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 153,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 153,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 153,
+                "y": 552
+              },
+              {
+                "text": "👩🏽‍💻",
+                "x": 153,
+                "y": 552
+              }
+            ],
+            "backgroundCalls": [
+              {
+                "style": "#000000",
+                "x": 153,
+                "y": 540,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 153,
+                "y": 540,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 153,
+                "y": 540,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 153,
+                "y": 540,
+                "width": 18,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 153,
+                "y": 540,
+                "width": 18,
+                "height": 15
+              }
+            ],
+            "capped": false
+          }
+        }
+      },
+      {
+        "name": "clear and no-match remove stale search highlights",
+        "status": "pass",
+        "detail": {
+          "cleared": true,
+          "missing": {
+            "status": "supported",
+            "found": false
+          },
+          "presentation": {
+            "owned": {
+              "range": null,
+              "origin": null,
+              "viewportTop": 8,
+              "rectangles": [],
+              "dragging": false,
+              "visible": true
+            },
+            "visibleRects": []
+          }
+        }
+      },
+      {
+        "name": "output and grid changes clear stale ranges; new resize selection works",
+        "status": "pass",
+        "detail": {
+          "manualPreserved": true,
+          "outputCleared": true,
+          "resizeCleared": true,
+          "afterResize": {
+            "status": "supported"
+          },
+          "resizedCopy": {
+            "status": "supported",
+            "value": "f"
+          }
+        }
+      },
+      {
+        "name": "replayable styled history",
+        "status": "pass",
+        "detail": {
+          "bytes": 14404
+        }
+      },
+      {
+        "name": "hidden ingestion and exact original acknowledgement",
+        "status": "pass",
+        "detail": {
+          "consumed": 1,
+          "bytes": 98304,
+          "renderSuspension": "unsupported"
+        }
+      },
+      {
+        "name": "authoritative logical cross-wrap search highlights and copies without a hard newline",
+        "status": "pass",
+        "detail": {
+          "found": {
+            "status": "supported",
+            "found": true
+          },
+          "copied": {
+            "status": "supported",
+            "value": "cross-wrap 👩🏽‍💻 中文 needle"
+          },
+          "presentation": {
+            "owned": {
+              "range": {
+                "start": {
+                  "y": 3,
+                  "x": 20
+                },
+                "end": {
+                  "y": 4,
+                  "x": 21
+                }
+              },
+              "origin": "search",
+              "viewportTop": 3,
+              "rectangles": [
+                {
+                  "x": 180,
+                  "y": 0,
+                  "width": 36,
+                  "height": 15,
+                  "row": 3,
+                  "startCol": 20,
+                  "endCol": 24
+                },
+                {
+                  "x": 0,
+                  "y": 15,
+                  "width": 189,
+                  "height": 15,
+                  "row": 4,
+                  "startCol": 0,
+                  "endCol": 21
+                }
+              ],
+              "dragging": false,
+              "visible": true
+            },
+            "visibleRects": [
+              {
+                "row": 3,
+                "startCol": 20,
+                "endCol": 24,
+                "x": 198,
+                "y": 82,
+                "width": 36,
+                "height": 15
+              },
+              {
+                "row": 4,
+                "startCol": 0,
+                "endCol": 21,
+                "x": 18,
+                "y": 97,
+                "width": 189,
+                "height": 15
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "explicit RGB and palette black paint over a nonblack default background",
+        "status": "pass",
+        "detail": {
+          "defaultBackground": 2241348,
+          "rgbPaint": {
+            "column": 0,
+            "viewportRow": 0,
+            "cellWidth": 9,
+            "cellHeight": 15,
+            "calls": [
+              {
+                "text": "R",
+                "x": 0,
+                "y": 12
+              },
+              {
+                "text": "R",
+                "x": 0,
+                "y": 12
+              },
+              {
+                "text": "R",
+                "x": 0,
+                "y": 12
+              }
+            ],
+            "backgroundCalls": [
+              {
+                "style": "#000000",
+                "x": 0,
+                "y": 0,
+                "width": 9,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 0,
+                "y": 0,
+                "width": 9,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 0,
+                "y": 0,
+                "width": 9,
+                "height": 15
+              }
+            ],
+            "capped": false
+          },
+          "palettePaint": {
+            "column": 9,
+            "viewportRow": 0,
+            "cellWidth": 9,
+            "cellHeight": 15,
+            "calls": [
+              {
+                "text": "P",
+                "x": 81,
+                "y": 12
+              },
+              {
+                "text": "P",
+                "x": 81,
+                "y": 12
+              },
+              {
+                "text": "P",
+                "x": 81,
+                "y": 12
+              }
+            ],
+            "backgroundCalls": [
+              {
+                "style": "#000000",
+                "x": 81,
+                "y": 0,
+                "width": 9,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 81,
+                "y": 0,
+                "width": 9,
+                "height": 15
+              },
+              {
+                "style": "#000000",
+                "x": 81,
+                "y": 0,
+                "width": 9,
+                "height": 15
+              }
+            ],
+            "capped": false
+          }
+        }
+      },
+      {
+        "name": "bounded primary styled history archive carries semantic metadata",
+        "status": "pass",
+        "detail": {
+          "capture": "supported",
+          "diagnostics": {
+            "status": "supported",
+            "diagnostics": {
+              "sourceRows": 18,
+              "logicalRecords": 15,
+              "retainedRecords": 15,
+              "droppedRecords": 0,
+              "incompletePrefixRows": 0,
+              "trailingPaddingRows": 1,
+              "bytes": 6775,
+              "maxBytes": 262144
+            }
+          }
+        }
+      },
+      {
+        "name": "fresh extended core replay preserves semantic styles colors links blanks and wraps",
+        "status": "pass",
+        "detail": {
+          "restored": {
+            "status": "supported"
+          },
+          "primaryUnchanged": true
+        }
+      },
+      {
+        "name": "primary history capture leaves alternate and primary screens and cursors intact",
+        "status": "pass",
+        "detail": {
+          "activeScreen": 1,
+          "capturedScreen": 0,
+          "archiveStatus": "supported",
+          "primaryCursor": [
+            0,
+            11,
+            0
+          ],
+          "alternateCursor": [
+            3,
+            2,
+            0
+          ]
+        }
+      },
+      {
+        "name": "explicit saved-grid replay then current-grid resize preserves reflow semantics",
+        "status": "pass",
+        "detail": {
+          "restored": {
+            "status": "supported"
+          },
+          "finalGrid": [
+            18,
+            10
+          ],
+          "difference": null,
+          "archiveDiagnostics": {
+            "status": "supported",
+            "diagnostics": {
+              "sourceRows": 18,
+              "logicalRecords": 15,
+              "retainedRecords": 15,
+              "droppedRecords": 0,
+              "incompletePrefixRows": 0,
+              "trailingPaddingRows": 1,
+              "bytes": 6775,
+              "maxBytes": 262144
+            }
+          }
+        }
+      },
+      {
+        "name": "no adapter errors",
+        "status": "pass",
+        "detail": []
+      }
+    ]
+  },
+  "xtermUnicodeBaseline": {
+    "expected": {
+      "screen": "café 👩🏽‍💻 中文 é",
+      "titles": [
+        "café 👩🏽‍💻"
+      ]
+    },
+    "raw": {
+      "screen": "café 👩🏽💻 中文 é",
+      "titles": [
+        "café 👩🏽💻"
+      ]
+    },
+    "adapter": {
+      "screen": "café 👩🏽💻 中文 é",
+      "titles": [
+        "café 👩🏽💻"
+      ]
+    },
+    "adapterMatchesRaw": true,
+    "meaning": "Untouched xterm vs xterm adapter, identical one-byte UTF-8 writes. Any missing grapheme codepoints remain strict compatibility failures; equality only characterizes the baseline."
+  }
+}

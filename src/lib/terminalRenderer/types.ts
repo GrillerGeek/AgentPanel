@@ -47,6 +47,8 @@ export interface TerminalRenderer {
   search(query: string, backwards?: boolean): SearchResult;
   clearSearch(): void;
   serializeStyledHistory(): Result<string>;
+  /** Explicit stored-archive replay before transport opens; never interpret raw program writes. */
+  restoreStyledHistory(data: string): Promise<Result<void>>;
   /** Diagnostic text only; never a persistence fallback. */
   extractText(): Result<string>;
   setAppearance(appearance: Appearance): void;

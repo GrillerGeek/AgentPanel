@@ -46,7 +46,10 @@ changing renderers. `npm run build:ghostty-spike` builds the experiment; `npm ru
 continues to build AgentPanel with xterm.js. The [renderer adapter report](docs/dev/2026-11-09-ghostty-renderer-adapter-report.md)
 describes the shared boundary, bounded experimental ingestion, current capability limits and
 new adapter probes. Keep Ghostty imports confined to the experimental graph and never use
-plain diagnostic text as a substitute for replayable styled history.
+plain diagnostic text as a substitute for replayable styled history. The later
+[history/wrap extension report](docs/dev/2026-11-10-ghostty-history-wrap-report.md) and
+[pinned rebuild workflow](vendor/ghostty-history/README.md) describe the maintained metadata
+ABI1 candidate; the unmodified npm package remains the historical comparison.
 
 ## Pull request guidelines
 

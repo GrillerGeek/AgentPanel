@@ -1,3 +1,4 @@
+import { historyHeader } from "./historyArchive";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ terms: [] as any[], fits: [] as any[], searches: [] as any[], gpus: [] as any[] }));
 vi.mock("@xterm/xterm", () => ({ Terminal: class {
@@ -50,6 +51,11 @@ describe("production xterm adapter", () => {
     renderer.setVisibility(true, true); expect(mocks.gpus).toHaveLength(2);
     renderer.fit(); Object.assign(host, { clientWidth: 0 }); renderer.fit(); expect(mocks.fits[0].fit).toHaveBeenCalledOnce();
     renderer.dispose(); renderer.dispose(); expect(term.dispose).toHaveBeenCalledOnce(); expect(mocks.terms).toHaveLength(1);
+  });
+  it("raw program marker bytes are forwarded without invoking dimension restore", async () => {
+    const renderer = createXtermRenderer(parent); const term = mocks.terms[0]; const marker = historyHeader(8, 4) + "program output";
+    renderer.write(marker); term.callbacks.shift()(); await renderer.whenIdle();
+    expect(term.resize).not.toHaveBeenCalled(); expect(term.write).toHaveBeenCalledWith(marker, expect.any(Function)); renderer.dispose();
   });
   it("reports parser failure and refuses further ingestion without acknowledging it", async () => {
     const renderer = createXtermRenderer(parent); const term = mocks.terms[0]; const error = vi.fn(); renderer.onError(error);

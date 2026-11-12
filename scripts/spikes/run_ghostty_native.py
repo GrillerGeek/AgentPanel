@@ -50,6 +50,8 @@ def main():
     info = None
     native = None
     cleanup = []
+    last_stage = None
+    stage_started = None
     with tempfile.TemporaryDirectory(prefix="ap-ghostty-", dir="/private/tmp") as scratch:
         root = Path(scratch)
         checkout = root / "checkout"
@@ -83,9 +85,18 @@ def main():
                     print("Running native benchmark, transport, and compatibility probes", flush=True)
 
                     def read_result():
+                        nonlocal last_stage, stage_started
                         try:
                             data = json.loads(result_path.read_text())
+                            if data.get("progressRunId") == run_id and data.get("stage") != last_stage:
+                                last_stage = data.get("stage")
+                                stage_started = time.monotonic()
+                                print(f"Native progress: {last_stage}", flush=True)
+                            if data.get("progressRunId") == run_id and stage_started is not None and time.monotonic() - stage_started > 45:
+                                raise TimeoutError(f"Native stage stalled for 45s: {last_stage}")
                             return data if data.get("runId") == run_id else None
+                        except TimeoutError:
+                            raise
                         except (OSError, json.JSONDecodeError):
                             return None
 
@@ -105,7 +116,11 @@ def main():
                         # Compatibility findings (including baseline xterm limitations)
                         # are separate from transport execution and remain in evidence.
                     assert native["xtermUnicodeBaseline"]["adapterMatchesRaw"], native["xtermUnicodeBaseline"]
-            except BaseException:
+            except BaseException as error:
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text(json.dumps({"execution": "fail", "error": f"{type(error).__name__}: {error}",
+                    "lastStage": last_stage, "native": native,
+                    "limits": ["No completed native acceptance is claimed", "Cleanup runs in the runner finally block"]}, indent=2) + "\n")
                 print(fixture_log.read_text()[-5000:], file=sys.stderr)
                 if native_log.exists():
                     print(native_log.read_text()[-3000:], file=sys.stderr)

@@ -3,7 +3,7 @@ import type { HerdrInventory, HerdrRuntime } from "../../types";
 import { openTerminal, type TerminalConnection } from "../../lib/terminalRuntime";
 import { createEngine, type Engine, type Kind } from "./engine";
 import { benchmark, compatibility } from "./probes";
-import { createAdapterEngine, adapterCompatibility, adapterBenchmark, characterizeXtermUnicode, type AdapterEngine } from "./adapterHarness";
+import { createAdapterEngine, adapterCompatibility, adapterBenchmark, characterizeXtermUnicode, type AdapterEngine, candidateBuild } from "./adapterHarness";
 
 async function until(test: () => boolean, label: string) {
   const end = performance.now() + 20000;
@@ -78,11 +78,18 @@ async function transport(engine: Engine | AdapterEngine, cwd: string, runtime?: 
 }
 
 export async function nativeAcceptance(host: HTMLElement, comparison: Array<{ dispose(): void }>, options: URLSearchParams) {
-  const output: Record<string, unknown> = { runId: options.get("runId"), package: "ghostty-web@0.4.0", userAgent: navigator.userAgent,
+  const output: Record<string, unknown> = { runId: options.get("runId"), package: "AgentPanel Ghostty history metadata-ABI1 experiment", rawPackage: "ghostty-web@0.4.0", candidateBuild, userAgent: navigator.userAgent,
     mode: "automated native Tauri/WebKit acceptance; not manual UI/IME or real-agent approval acceptance" };
   for (const engine of comparison) engine.dispose();
-  output.benchmark = await benchmark(host);
+  const progress = (stage: string) => invoke("write_bench", { data: JSON.stringify({ progressRunId: options.get("runId"), stage }) });
+  await progress("raw benchmark");
+  const rawBenchmark = await benchmark(host, ({ kind, consumption, round, stage }) => progress(`raw benchmark round${round} ${kind} ${consumption}: ${stage}`));
+  output.benchmark = rawBenchmark;
+  const rawFailure = rawBenchmark.results.find((row) => typeof row === "object" && row !== null && "error" in row);
+  if (rawFailure) throw new Error(`Raw benchmark failed: ${JSON.stringify(rawFailure)}`);
+  await progress("adapter benchmark");
   output.adapterBenchmark = await adapterBenchmark(host);
+  await progress("xterm baseline");
   output.xtermUnicodeBaseline = await characterizeXtermUnicode(host);
   const executable = options.get("hc"); const session = options.get("session") ?? "agentpanel-adapter-test";
   const cwd = options.get("cwd") ?? "/private/tmp/agentpanel-ghostty-spike";
@@ -94,6 +101,7 @@ export async function nativeAcceptance(host: HTMLElement, comparison: Array<{ di
     { kind: "ghostty", consumption: "parse-return" },
   ];
   for (const { kind, consumption } of cases) {
+    await progress(`raw transport ${kind} ${consumption}`);
     const target = document.createElement("div"); target.style.cssText = "width:800px;height:420px"; host.append(target);
     const engine = await createEngine(kind, target, true, consumption);
     try {
@@ -114,6 +122,7 @@ export async function nativeAcceptance(host: HTMLElement, comparison: Array<{ di
   }
   const adapterTransports: unknown[] = []; const adapterChecks: Record<string, unknown> = {};
   for (const kind of ["xterm", "ghostty"] as Kind[]) {
+    await progress(`adapter transport ${kind}`);
     const target = document.createElement("div"); target.style.cssText = "width:800px;height:420px"; host.append(target);
     const engine = await createAdapterEngine(kind, target);
     try {
@@ -135,12 +144,14 @@ export async function nativeAcceptance(host: HTMLElement, comparison: Array<{ di
     // guarantee that a wrapper has released all history from transport floods.
     const probeTarget = document.createElement("div"); probeTarget.style.cssText = "width:800px;height:420px"; host.append(probeTarget);
     const probeEngine = await createAdapterEngine(kind, probeTarget);
+    await progress(`adapter compatibility ${kind}`);
     try { adapterChecks[kind] = await adapterCompatibility(probeEngine); }
     finally { probeEngine.dispose(); probeTarget.remove(); }
   }
   output.adapterTransport = adapterTransports; output.adapterCompatibility = adapterChecks;
   // Probe unsupported addons only after every transport sample has finished.
   for (const kind of ["xterm", "ghostty"] as Kind[]) {
+    await progress(`raw compatibility ${kind}`);
     const target = document.createElement("div"); target.style.cssText = "width:800px;height:420px"; host.append(target);
     const engine = await createEngine(kind, target);
     try { compatible[kind] = await compatibility(engine); }

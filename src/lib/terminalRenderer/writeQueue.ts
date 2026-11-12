@@ -71,5 +71,6 @@ export class WriteQueue {
     for (const waiter of this.waiters.splice(0)) waiter.reject(error);
     if (notify) this.onError(error);
   }
+  abort(error: Error) { this.fail(error); }
   dispose() { this.fail(new Error("Terminal renderer disposed"), false); }
 }

@@ -201,6 +201,7 @@ export function TerminalPane({
     if (runtime && paneId) noteRuntimeState(paneId, "unknown");
     let disposed = false;
     let rendererFailed = false;
+    let canPersistHistory = false;
 
     // Stream PTY output -> xterm, and feed the activity tracker (drives the
     // agent running/idle/awaiting status dots).
@@ -253,21 +254,30 @@ export function TerminalPane({
     // every terminal — killing its PTY — whenever the toggle changes.
     const restoreThenSpawn = async () => {
       if (!runtime && paneId && useStore.getState().settings.persistScrollback) {
-        try {
-          const saved = await invoke<string>("scrollback_load", { paneId });
-          if (!disposed && saved) {
-            term.write(saved);
-            // Dim rule so a stale buffer is never mistaken for a live agent.
+        let saved = "";
+        try { saved = await invoke<string>("scrollback_load", { paneId }); }
+        catch { /* No readable saved buffer: preserve the existing clean-start behavior. */ }
+        if (!disposed && saved) {
+          try {
+            const restored = await term.restoreStyledHistory(saved);
+            if (restored.status !== "supported") throw new Error(restored.reason);
+            if (disposed || rendererFailed) return;
             term.write("\r\n\x1b[2m── restored from your last session ──\x1b[0m\r\n");
+          } catch (error) {
+            if (!disposed) {
+              setConnectionError(`History restore failed: ${String(error)}. The saved archive was preserved.`);
+              if (paneId) noteRuntimeState(paneId, "disconnected");
+            }
+            // Do not spawn, register a serializer, or save partial replay on cleanup.
+            return;
           }
-        } catch {
-          // No saved buffer, or the store is unreadable — start clean.
         }
       }
       if (disposed || rendererFailed) return;
       // Write completion is the restore boundary, before capture or spawn.
       await term.whenIdle();
       if (disposed || rendererFailed) return;
+      canPersistHistory = true;
       if (paneId && !runtime && term.capabilities.styledHistory === "supported") registerPane(paneId, () => {
         const result = term.serializeStyledHistory();
         if (result.status !== "supported") throw new Error(result.reason);
@@ -351,7 +361,7 @@ export function TerminalPane({
       if (paneId) forgetPane(paneId);
       if (connection) void connection.dispose(terminateOnUnmount()).catch((err) => pushToast(`Could not close terminal: ${err}`));
       if (paneId) {
-        if (!runtime && useStore.getState().settings.persistScrollback) {
+        if (!runtime && canPersistHistory && useStore.getState().settings.persistScrollback) {
           try {
             // An empty buffer means we never got a real capture (e.g. unmounted
             // before the restore load resolved) — writing it would overwrite this
@@ -429,6 +439,9 @@ export function TerminalPane({
 
   return (
     <div className="terminal-pane-wrap">
+      {!runtime && connectionError && <div className="runtime-status" role="alert">
+        {connectionError} <button onClick={() => setReconnect((n) => n + 1)}>Retry</button>
+      </div>}
       {runtime && <div className="runtime-status" role="status">
         Herdr core · {runtime.session}
         {(runtime.attachOnly || runtime.target) && <> · {locationLabel} · closing detaches</>}

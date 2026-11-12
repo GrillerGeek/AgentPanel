@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
-import type { Kind } from "./engine";
-import { createAdapterEngine, adapterCompatibility, adapterBenchmark, characterizeXtermUnicode, loadSelectionSearchFixture, type AdapterEngine } from "./adapterHarness";
+import { frames, type Kind } from "./engine";
+import { createAdapterEngine, adapterCompatibility, adapterBenchmark, characterizeXtermUnicode, loadSelectionSearchFixture, type AdapterEngine, candidateBuild } from "./adapterHarness";
+import { loadStyledHistoryFixture, logicalWrapQuery } from "./historyWrapProbes";
+import { getGhosttyHistoryDiagnostics } from "../../lib/terminalRenderer/ghosttyRenderer";
 import { nativeAcceptance } from "./nativeAcceptance";
 import { openTerminal, type TerminalConnection } from "../../lib/terminalRuntime";
 import { makeCopyPasteKeyHandler, makeContextMenuHandler, makeRightButtonGuard, type ClipboardDeps } from "../../lib/terminalClipboard";
@@ -18,10 +20,12 @@ export default function GhosttySpike() {
   const benchHost = useRef<HTMLDivElement>(null);
   const fixtureSearchRef = useRef<HTMLInputElement>(null);
   const [fixtureQuery, setFixtureQuery] = useState("needle 👩🏽‍💻");
+  const [storedHistory, setStoredHistory] = useState("");
+  const [replayGrid, setReplayGrid] = useState("18x10");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [retired, setRetired] = useState(false);
-  const [report, setReport] = useState<Record<string, unknown>>({ package: "ghostty-web@0.4.0", userAgent: navigator.userAgent });
+  const [report, setReport] = useState<Record<string, unknown>>({ package: "AgentPanel Ghostty history metadata-ABI1 experiment", rawPackage: "ghostty-web@0.4.0", candidateBuild, userAgent: navigator.userAgent });
   const [messages, setMessages] = useState<Record<string, string>>({});
   const [mode, setMode] = useState("local");
   const [cwd, setCwd] = useState("/private/tmp/agentpanel-ghostty-spike");
@@ -34,6 +38,8 @@ export default function GhosttySpike() {
   useEffect(() => {
     let disposed = false;
     void (async () => {
+      const startupQuery = new URLSearchParams(window.location.search);
+      if (startupQuery.get("auto") === "1") await invoke("write_bench", { data: JSON.stringify({ progressRunId: startupQuery.get("runId"), stage: "initializing comparison renderers" }) });
       for (const kind of kinds) {
         const start = performance.now();
         const engine = await createAdapterEngine(kind, hosts.current[kind]!);
@@ -148,6 +154,7 @@ export default function GhosttySpike() {
   const loadFixture = () => run(async () => {
     if (Object.values(views.current).some((view) => view.connection)) throw new Error("Disconnect before loading synthetic output");
     for (const kind of kinds) { const engine = views.current[kind]!.engine; engine.fit(); await loadSelectionSearchFixture(engine); }
+    setFixtureQuery("needle 👩🏽‍💻");
     message("fixture", "Loaded 120 controlled Unicode rows, with two needle matches. Selection clears when output or the cell grid changes.");
   });
   const searchFixture = (kind: Kind, previous = false) => {
@@ -155,11 +162,36 @@ export default function GhosttySpike() {
     const result = engine.term.search(fixtureQuery, previous);
     message(`${kind} search`, JSON.stringify({ result, selection: engine.term.getSelection(), presentation: engine.selectionPresentation?.() }));
   };
+  const loadStyledFixture = () => run(async () => {
+    if (Object.values(views.current).some((view) => view.connection)) throw new Error("Disconnect before loading synthetic output");
+    for (const kind of kinds) await loadStyledHistoryFixture(views.current[kind]!.engine);
+    setFixtureQuery(logicalWrapQuery); message("fixture", "Loaded styled primary history with a linked Unicode query across logical wraps and explicit black backgrounds.");
+  });
+  const captureHistory = () => run(async () => {
+    const engine = views.current.ghostty!.engine;
+    if (views.current.ghostty!.connection) throw new Error("Disconnect before history review");
+    await engine.term.whenIdle(); const result = engine.term.serializeStyledHistory();
+    if (result.status !== "supported") throw new Error(result.reason);
+    if (!result.value) throw new Error("No meaningful history captured; previous archive preserved");
+    setStoredHistory(result.value);
+    const review = { bytes: new TextEncoder().encode(result.value).length, diagnostics: getGhosttyHistoryDiagnostics(engine.term) };
+    setReport((old) => ({ ...old, styledHistoryCapture: review })); message("history", JSON.stringify(review));
+  });
+  const replayHistory = () => run(async () => {
+    const engine = views.current.ghostty!.engine;
+    if (views.current.ghostty!.connection) throw new Error("Disconnect before history replay");
+    const [cols, rows] = replayGrid.split("x").map(Number); engine.term.resize(cols, rows);
+    const result = await engine.term.restoreStyledHistory(storedHistory);
+    if (result.status !== "supported") throw new Error(result.reason);
+    engine.term.search(fixtureQuery); await frames();
+    const review = { requestedGrid: [cols, rows], finalGrid: [engine.term.cols, engine.term.rows], selected: engine.term.getSelection(), presentation: engine.selectionPresentation?.() };
+    setReport((old) => ({ ...old, styledHistoryReplay: review })); message("history", "Replayed primary history at the saved grid, then reflowed to the selected review grid.");
+  });
   const connected = Object.values(views.current).some((v) => v.connection);
   const bound = Object.values(views.current).some((v) => v.runtime);
   return <main className="ghostty-spike">
     <h1>Ghostty feasibility spike</h1>
-    <p>Experimental comparison only. No saved repositories or normal terminal preferences are used. xterm remains the product default.</p>
+    <p>Candidate: AgentPanel metadata ABI1 extension; raw ghostty-web0.4.0 remains the historical reference. Experimental comparison only. No saved repositories or normal terminal preferences are used. xterm remains the product default.</p>
     <section className="spike-controls">
       <label>Connection <select value={mode} disabled={connected || bound || busy} onChange={(e) => setMode(e.target.value)}>
         <option value="local">Local PTY</option><option value="herdr">Herdr core</option></select></label>
@@ -196,9 +228,17 @@ export default function GhosttySpike() {
       <label>Fixture search <input ref={fixtureSearchRef} value={fixtureQuery} disabled={!ready || busy || connected}
         onChange={(event) => setFixtureQuery(event.currentTarget.value)} /></label>
     </section>
+    <section className="spike-actions" aria-label="Styled history and logical wraps">
+      <button disabled={!ready || busy || connected} onClick={loadStyledFixture}>Load styled history and logical wraps</button>
+      <button disabled={!ready || busy || connected} onClick={captureHistory}>Capture ghostty history</button>
+      <label>Replay grid <select value={replayGrid} disabled={!ready || busy || connected} onChange={(event) => setReplayGrid(event.currentTarget.value)}>
+        <option value="18x10">18 × 10</option><option value="36x12">36 × 12</option>
+      </select></label>
+      <button disabled={!ready || busy || connected || !storedHistory} onClick={replayHistory}>Replay ghostty history</button>
+    </section>
     <div role="status">{busy ? "Running…" : retired ? "Benchmark complete; reload for interactive tests" : ready ? "Ready" : "Loading emulators…"} {Object.entries(messages).map(([key, value]) => <p key={key}>{key}: {value}</p>)}</div>
     <div className="spike-panes">{kinds.map((kind) => <section key={kind}>
-      <h2>{kind === "ghostty" ? "Ghostty web 0.4.0 · Canvas" : "xterm.js 5.5 · WebGL"}</h2>
+      <h2>{kind === "ghostty" ? "Ghostty extended · metadata ABI1 · Canvas" : "xterm.js 5.5 · WebGL"}</h2>
       <div className="spike-actions"><button disabled={!ready || busy} onClick={() => connect(kind)}>Connect {kind}</button>
         <button disabled={!ready || busy} onClick={() => disconnect(kind)}>Disconnect {kind}</button>
         <button disabled={!ready || busy} onClick={() => { const v = views.current[kind]!; v.engine.fit(); void v.connection?.resize(v.engine.term.rows, v.engine.term.cols); }}>Fit {kind}</button>

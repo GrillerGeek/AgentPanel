@@ -1,14 +1,19 @@
 // @vitest-environment jsdom
+import { historyHeader } from "./historyArchive";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ load: vi.fn(), terms: [] as any[] }));
-vi.mock("ghostty-web", () => ({ Ghostty: { load: mocks.load }, FitAddon: class { fit = vi.fn(); }, Terminal: class {
+vi.mock("../../../vendor/ghostty-history/dist/ghostty-history.js", () => ({ Ghostty: { load: mocks.load }, FitAddon: class { fit = vi.fn(); }, Terminal: class {
   options: any; cols = 5; rows = 4; viewportY = 0; activeSelection = true;
   canvas = document.createElement("canvas"); scrollListeners: Array<() => void> = [];
-  renderer = { render: vi.fn(), getCanvas: () => this.canvas, getMetrics: () => ({ width: 10, height: 20 }) };
+  render = vi.fn();
+  renderer = { render: this.render, getCanvas: () => this.canvas, getMetrics: () => ({ width: 10, height: 20 }) };
   range: any = { start: { x: 1, y: 1 }, end: { x: 2, y: 1 } }; key: any;
   wasmTerm = { hasMouseTracking: () => true, getDimensions: () => ({ cols: 5, rows: 4 }), getScrollbackLength: () => 1,
     getLine: () => [..."hello"].map((ch) => ({ codepoint: ch.charCodeAt(0), width: 1, grapheme_len: 0 })),
-    getScrollbackLine: () => this.wasmTerm.getLine(), getGraphemeString: () => "", getScrollbackGraphemeString: () => "" };
+    getScrollbackLine: () => this.wasmTerm.getLine(), getGraphemeString: () => "", getScrollbackGraphemeString: () => "",
+    captureSnapshot: () => ({ abi: 1, screen: 0, active: 0, cols: 5, height: 4, history: 1, cursor: [0, 0, 0], activeCursor: [0, 0, 0],
+      colors: { foreground: 0xffffff, background: 0, cursor: 0xffffff, palette: Array(256).fill(0) },
+      rows: Array.from({ length: 5 }, () => [0, 0, [..."hello"].map((ch) => [ch, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, null, null])]) }) };
   constructor(options: any) { this.options = options; mocks.terms.push(this); this.canvas.getBoundingClientRect = () => ({ left: 0, top: 0, right: 50, bottom: 80, width: 50, height: 80 }) as DOMRect; }
   onScroll(listener: () => void) { this.scrollListeners.push(listener); return { dispose: vi.fn() }; }
   scrollToLine(distance: number) { this.viewportY = distance; for (const listener of this.scrollListeners) listener(); }
@@ -25,7 +30,7 @@ describe("isolated Ghostty adapter", () => {
     const { loadGhostty } = await import("./ghosttyRenderer");
     mocks.load.mockRejectedValueOnce(new Error("WASM unavailable"));
     const first = loadGhostty(); expect(loadGhostty()).toBe(first); await expect(first).rejects.toThrow("unavailable");
-    await loadGhostty(); expect(mocks.load).toHaveBeenCalledTimes(2); expect(mocks.load.mock.calls[0][0]).toContain("ghostty-vt.wasm");
+    await loadGhostty(); expect(mocks.load).toHaveBeenCalledTimes(2); expect(mocks.load.mock.calls[0][0]).toContain("ghostty-history.wasm");
   });
   it("normalizes clipboard keys, uses synchronous parse return and emits titles solely from original bytes", async () => {
     const { createGhosttyRenderer } = await import("./ghosttyRenderer"); const renderer = await createGhosttyRenderer(parent);
@@ -36,12 +41,12 @@ describe("isolated Ghostty adapter", () => {
     expect(term.onTitleChange).not.toHaveBeenCalled(); expect(renderer.isMouseTracking()).toBe(true);
     renderer.paste("once"); expect(term.paste).toHaveBeenCalledExactlyOnceWith("once"); renderer.dispose();
   });
-  it("presents search while keeping styled history explicitly unsupported", async () => {
+  it("presents search and captures a bounded primary styled history", async () => {
     const { createGhosttyRenderer } = await import("./ghosttyRenderer"); const renderer = await createGhosttyRenderer(parent);
     expect(renderer.search("hello")).toEqual({ status: "supported", found: true });
     expect(renderer.getSelection()).toEqual({ status: "supported", value: "hello" });
     expect(renderer.search("absent")).toEqual({ status: "supported", found: false });
-    expect(renderer.serializeStyledHistory()).toMatchObject({ status: "unsupported", reason: expect.stringContaining("styled history") });
+    expect(renderer.serializeStyledHistory()).toMatchObject({ status: "supported", value: expect.stringContaining("hello") });
     expect(renderer.select({ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }).status).toBe("supported"); renderer.dispose();
   });
   it("owns one-cell, edge, reversed and offscreen copy and invalidates before output/reset/grid changes", async () => {
@@ -73,6 +78,19 @@ describe("isolated Ghostty adapter", () => {
     const { createGhosttyRenderer } = await import("./ghosttyRenderer"); const renderer = await createGhosttyRenderer(parent);
     const geometry = vi.spyOn(mocks.terms[0].canvas, "getBoundingClientRect");
     renderer.write(new Uint8Array(100_000)); await renderer.whenIdle(); expect(geometry).not.toHaveBeenCalled(); renderer.dispose();
+  });
+  it("raw program writes never interpret an embedded stored-history dimensions marker", async () => {
+    const { createGhosttyRenderer } = await import("./ghosttyRenderer"); const renderer = await createGhosttyRenderer(parent); const native = mocks.terms[0];
+    const marker = historyHeader(80, 40) + "program output"; renderer.write(marker); await renderer.whenIdle();
+    expect([renderer.cols, renderer.rows]).toEqual([5, 4]); expect(native.resize).not.toHaveBeenCalled();
+    expect(native.write).toHaveBeenCalledWith(new TextEncoder().encode(marker)); renderer.dispose();
+  });
+  it("forwards and freezes asynchronous Canvas errors through fatal ingestion/controller events", async () => {
+    const { createGhosttyRenderer } = await import("./ghosttyRenderer"); const renderer = await createGhosttyRenderer(parent); const native = mocks.terms[0];
+    const error = vi.fn(); const ack = vi.fn(); renderer.onError(error); renderer.write("queued", ack); const idle = renderer.whenIdle();
+    native.render.mockImplementation(() => { throw new Error("Ghostty grapheme limit exceeded"); });
+    expect(() => native.renderer.render({})).not.toThrow(); await expect(idle).rejects.toThrow("grapheme limit");
+    native.renderer.render({}); expect(native.render).toHaveBeenCalledOnce(); expect(error).toHaveBeenCalledOnce(); expect(ack).not.toHaveBeenCalled(); renderer.dispose();
   });
   it("stops on parser trap with no consumed callback and rejects disposal work", async () => {
     const { createGhosttyRenderer } = await import("./ghosttyRenderer"); const renderer = await createGhosttyRenderer(parent); const term = mocks.terms[0];

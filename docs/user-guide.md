@@ -30,6 +30,11 @@ The default **Local PTY** runtime starts a shell owned by AgentPanel. Closing th
 those shells. Session restore can reopen tabs and restore saved terminal text, but that text
 is not a running process or an agent conversation resumed in place.
 
+If saved text cannot be restored, the pane shows an error and **Retry**. Its saved archive
+stays untouched, and the shell does not start. Resolve the reported problem and retry, or
+turn off **Remember terminal scrollback between launches** in Settings, then retry to start
+without restoring that text.
+
 ## Set up persistent local terminals
 
 1. Install [herdr-core](https://herdr.dev/core/) separately on your computer. AgentPanel does

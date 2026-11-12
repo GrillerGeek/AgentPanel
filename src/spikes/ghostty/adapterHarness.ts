@@ -2,8 +2,13 @@ import { createXtermRenderer } from "../../lib/terminalRenderer/xtermRenderer";
 import { createGhosttyRenderer, getGhosttySelectionDiagnostics, repaintGhosttyCanvas } from "../../lib/terminalRenderer/ghosttyRenderer";
 import type { SelectionDiagnostics } from "../../lib/terminalRenderer/ghosttySelection";
 import type { TerminalRenderer } from "../../lib/terminalRenderer/types";
+import manifest from "../../../vendor/ghostty-history/manifest.json";
+import { historyWrapCompatibility } from "./historyWrapProbes";
 import { frames, writeWindow, type Kind } from "./engine";
-export interface CanvasPaintEvidence { column: number; viewportRow: number; cellWidth: number; cellHeight: number; calls: Array<{ text: string; x: number; y: number }>; capped: boolean }
+export const candidateBuild = { id: manifest.id, metadataAbi: manifest.metadataAbi, rawReference: manifest.upstreamPackage,
+  wrapperRevision: manifest.wrapper.revision, nativeRevision: manifest.native.revision, zig: manifest.compiler.version,
+  wasmSha256: manifest.artifacts["dist/ghostty-history.wasm"].sha256, manifest: "vendor/ghostty-history/manifest.json" };
+export interface CanvasPaintEvidence { column: number; viewportRow: number; cellWidth: number; cellHeight: number; calls: Array<{ text: string; x: number; y: number }>; backgroundCalls: Array<{ style: string; x: number; y: number; width: number; height: number }>; capped: boolean }
 export interface AdapterEngine {
   kind: Kind;
   term: TerminalRenderer;
@@ -19,13 +24,13 @@ export interface AdapterEngine {
 export async function createAdapterEngine(kind: Kind, parent: HTMLElement): Promise<AdapterEngine> {
   const options = { cols: 80, rows: 24, scrollback: 2000, fontSize: 14, cursorBlink: false, webgl: true };
   const term = kind === "xterm" ? createXtermRenderer(parent, options) : await createGhosttyRenderer(parent, options);
-  return { kind, term, renderer: kind === "xterm" ? "xterm adapter (WebGL requested)" : "Ghostty adapter (Canvas)", consumption: "adapter",
+  return { kind, term, renderer: kind === "xterm" ? "xterm adapter (WebGL requested)" : "Ghostty history ABI1 adapter (Canvas)", consumption: "adapter",
     fit: () => term.fit(), text() { const result = term.extractText(); if (result.status !== "supported") throw new Error(result.reason); return result.value; },
     write(data) { term.write(data); return term.whenIdle(); }, dispose: () => term.dispose(),
     ...(kind === "ghostty" ? {
       async captureCanvasPaint(action: () => void, column: number): Promise<CanvasPaintEvidence> {
         const canvas = parent.querySelector("canvas")!; const context = canvas.getContext("2d")!;
-        const original = context.fillText; const calls: CanvasPaintEvidence["calls"] = [];
+        const original = context.fillText; const originalRect = context.fillRect; const backgroundCalls: CanvasPaintEvidence["backgroundCalls"] = []; const calls: CanvasPaintEvidence["calls"] = [];
         const cellWidth = parseFloat(canvas.style.width) / term.cols; const cellHeight = parseFloat(canvas.style.height) / term.rows;
         let viewportRow = -1; let capped = false;
         const wrapped: CanvasRenderingContext2D["fillText"] = function(this: CanvasRenderingContext2D, text, x, y, maxWidth) {
@@ -34,13 +39,19 @@ export async function createAdapterEngine(kind: Kind, parent: HTMLElement): Prom
           }
           if (maxWidth === undefined) original.call(this, text, x, y); else original.call(this, text, x, y, maxWidth);
         };
-        context.fillText = wrapped;
+        const wrappedRect: CanvasRenderingContext2D["fillRect"] = function(this: CanvasRenderingContext2D, x, y, width, height) {
+          if (Math.abs(x - column * cellWidth) < 0.05 && Math.floor(y / cellHeight) === viewportRow && width <= cellWidth * 2 && height <= cellHeight) {
+            if (backgroundCalls.length < 16) backgroundCalls.push({ style: String(this.fillStyle), x, y, width, height }); else capped = true;
+          }
+          originalRect.call(this, x, y, width, height);
+        };
+        context.fillText = wrapped; context.fillRect = wrappedRect;
         try {
           action(); const owned = getGhosttySelectionDiagnostics(term);
           viewportRow = owned?.range ? owned.range.start.y - owned.viewportTop : -1;
           repaintGhosttyCanvas(term); await frames();
-          return { column, viewportRow, cellWidth, cellHeight, calls, capped };
-        } finally { if (context.fillText === wrapped) context.fillText = original; }
+          return { column, viewportRow, cellWidth, cellHeight, calls, backgroundCalls, capped };
+        } finally { if (context.fillText === wrapped) context.fillText = original; if (context.fillRect === wrappedRect) context.fillRect = originalRect; }
       },
       selectionPresentation: () => ({ owned: getGhosttySelectionDiagnostics(term), visibleRects: Array.from(parent.querySelectorAll<HTMLElement>(".ghostty-selection-rect")).map((node) => {
       const rect = node.getBoundingClientRect(); return { row: Number(node.dataset.row), startCol: Number(node.dataset.startCol), endCol: Number(node.dataset.endCol), x: rect.x, y: rect.y, width: rect.width, height: rect.height };
@@ -80,6 +91,7 @@ export async function adapterCompatibility(engine: AdapterEngine): Promise<Adapt
     term.setVisibility(false, false); let consumed = 0; const payload = new Uint8Array(96 * 1024).fill(120);
     term.write(payload, () => consumed++); await term.whenIdle(); term.setVisibility(true, true);
     record("hidden ingestion and exact original acknowledgement", consumed === 1, { consumed, bytes: payload.length, renderSuspension: term.capabilities.renderingSuspension });
+    if (engine.kind === "ghostty") checks.push(...await historyWrapCompatibility(engine));
     record("no adapter errors", errors.length === 0, errors);
   } finally { titleSub.dispose(); errorSub.dispose(); inputSub.dispose(); }
   return checks;

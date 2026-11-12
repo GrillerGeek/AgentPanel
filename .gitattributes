@@ -1,0 +1,2 @@
+# Verbatim upstream/source patches retain original context whitespace for hash verification.
+vendor/ghostty-history/patches/*.patch -whitespace

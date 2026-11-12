@@ -1,0 +1,21 @@
+{
+  "execution": "fail",
+  "error": "KeyboardInterrupt: agent interrupted the stalled diagnostic run",
+  "lastStage": "raw benchmark round0 xterm library-callback: write and render",
+  "native": null,
+  "limits": [
+    "No completed native acceptance is claimed",
+    "Cleanup runs in the runner finally block"
+  ],
+  "observations": [
+    "First run reached300s overall deadline without a final result",
+    "Diagnostic retry after recovery stalled at the first unmodified xterm write/render benchmark",
+    "No browser-side deadline fired at the observed stage; no root cause is confirmed",
+    "No current Ghostty adapter transport or native compatibility acceptance was completed"
+  ],
+  "cleanupObserved": {
+    "runnerAndOwnedAppExited": true,
+    "ownedFixtureContainersRemaining": 0
+  },
+  "followUp": "Repeat native acceptance in an active desktop session; runner now also enforces a host-side45s stage deadline"
+}

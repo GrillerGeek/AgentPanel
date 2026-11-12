@@ -43,3 +43,7 @@ output/playwright/
 .playwright/
 
 .playwright-cli/
+
+# Committed, pinned experimental Ghostty source-extension distribution only.
+!vendor/ghostty-history/dist/
+!vendor/ghostty-history/dist/**
