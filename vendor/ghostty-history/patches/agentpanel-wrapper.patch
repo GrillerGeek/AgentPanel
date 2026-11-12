@@ -1,0 +1,230 @@
+--- a/lib/ghostty.ts
++++ b/lib/ghostty.ts
+@@ -1,3 +1,4 @@
++import { assertMetadataAbi, captureMetadata, type MetadataLimits, type MetadataSnapshot, type RowMetadata } from "./metadata";
+ /**
+  * TypeScript wrapper for libghostty-vt WASM API
+  *
+@@ -46,6 +47,7 @@
+   constructor(wasmInstance: WebAssembly.Instance) {
+     this.exports = wasmInstance.exports as GhosttyWasmExports;
+     this.memory = this.exports.memory;
++    assertMetadataAbi(this.exports);
+   }
+ 
+   createKeyEncoder(): KeyEncoder {
+@@ -61,83 +63,10 @@
+   }
+ 
+   static async load(wasmPath?: string): Promise<Ghostty> {
+-    // If explicit path provided, use it
+-    if (wasmPath) {
+-      return Ghostty.loadFromPath(wasmPath);
+-    }
+-
+-    // Resolve path relative to this module
+-    const moduleUrl = new URL('../ghostty-vt.wasm', import.meta.url);
+-
+-    // Build paths to try, prioritizing file system paths for Node/Bun
+-    const defaultPaths: string[] = [];
+-
+-    // For Node/Bun: try absolute file path first (strip file:// protocol)
+-    if (moduleUrl.protocol === 'file:') {
+-      let filePath = moduleUrl.pathname;
+-      // Remove leading slash on Windows paths (e.g., /C:/ -> C:/)
+-      if (filePath.match(/^\/[A-Za-z]:\//)) {
+-        filePath = filePath.slice(1);
+-      }
+-      defaultPaths.push(filePath);
+-    }
+-
+-    // Also try other common paths
+-    defaultPaths.push(moduleUrl.href, './ghostty-vt.wasm', '/ghostty-vt.wasm');
+-
+-    let lastError: Error | null = null;
+-    for (const path of defaultPaths) {
+-      try {
+-        return await Ghostty.loadFromPath(path);
+-      } catch (e) {
+-        lastError = e instanceof Error ? e : new Error(String(e));
+-      }
+-    }
+-    throw lastError || new Error('Failed to load Ghostty WASM');
+-  }
+-
+-  private static async loadFromPath(path: string): Promise<Ghostty> {
+-    let wasmBytes: ArrayBuffer | undefined;
+-
+-    // Try Bun.file first (for Bun environments)
+-    if (typeof Bun !== 'undefined' && typeof Bun.file === 'function') {
+-      try {
+-        const file = Bun.file(path);
+-        if (await file.exists()) {
+-          wasmBytes = await file.arrayBuffer();
+-        }
+-      } catch {
+-        // Bun.file failed, try next method
+-      }
+-    }
+-
+-    // Try Node.js fs module if Bun.file didn't work
+-    if (!wasmBytes) {
+-      try {
+-        const fs = await import('fs/promises');
+-        const buffer = await fs.readFile(path);
+-        wasmBytes = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+-      } catch {
+-        // fs failed, try fetch
+-      }
+-    }
+-
+-    // Fall back to fetch (for browser environments)
+-    if (!wasmBytes) {
+-      const response = await fetch(path);
+-      if (!response.ok) {
+-        throw new Error(`Failed to fetch WASM: ${response.status} ${response.statusText}`);
+-      }
+-      wasmBytes = await response.arrayBuffer();
+-      if (wasmBytes.byteLength === 0) {
+-        throw new Error(`WASM file is empty (0 bytes). Check path: ${path}`);
+-      }
+-    }
+-
+-    if (!wasmBytes) {
+-      throw new Error(`Could not load WASM from path: ${path}`);
+-    }
+-
++    if (!wasmPath) throw new Error("Ghostty history extension requires an explicit WASM URL");
++    const response = await fetch(wasmPath);
++    if (!response.ok) throw new Error(`Failed to fetch history WASM: ${response.status}`);
++    const wasmBytes = await response.arrayBuffer();
+     const wasmModule = await WebAssembly.compile(wasmBytes);
+     const wasmInstance = await WebAssembly.instantiate(wasmModule, {
+       env: {
+@@ -268,6 +197,15 @@
+   /** Cell pool for zero-allocation rendering */
+   private cellPool: GhosttyCell[] = [];
+ 
++  /** Primary by default; read-only even while alternate screen is active. */
++  captureSnapshot(options: MetadataLimits = {}): MetadataSnapshot {
++    return captureMetadata(this.exports, this.handle, true, { screen: "primary", ...options }) as MetadataSnapshot;
++  }
++  /** Compact active-row wrap/wide/text-presence metadata, without styles/links. */
++  getRowMetadata(options: MetadataLimits = {}): RowMetadata {
++    return captureMetadata(this.exports, this.handle, false, { screen: "active", ...options }) as RowMetadata;
++  }
++
+   constructor(
+     exports: GhosttyWasmExports,
+     memory: WebAssembly.Memory,
+@@ -357,6 +295,10 @@
+   }
+ 
+   free(): void {
++    if (this.graphemeBufferPtr) {
++      this.exports.ghostty_wasm_free_u8_array(this.graphemeBufferPtr, 1024 * 4);
++      this.graphemeBufferPtr = 0; this.graphemeBuffer = null;
++    }
+     if (this.viewportBufferPtr) {
+       this.exports.ghostty_wasm_free_u8_array(this.viewportBufferPtr, this.viewportBufferSize);
+       this.viewportBufferPtr = 0;
+@@ -572,7 +514,7 @@
+       this._cols
+     );
+ 
+-    if (count < 0) return null;
++    if (count < 0) throw new Error(count === -2 ? "Ghostty grapheme limit exceeded" : "Ghostty grapheme lookup failed");
+ 
+     // Parse cells
+     const cells: GhosttyCell[] = [];
+@@ -711,10 +653,10 @@
+    * @returns Array of codepoints, or null on error
+    */
+   getGrapheme(row: number, col: number): number[] | null {
+-    // Allocate buffer on first use (16 codepoints should be enough for any grapheme)
++    // Allocate buffer on first use (1024 codepoints, bounded and checked by the native export)
+     if (!this.graphemeBuffer) {
+-      this.graphemeBufferPtr = this.exports.ghostty_wasm_alloc_u8_array(16 * 4);
+-      this.graphemeBuffer = new Uint32Array(this.memory.buffer, this.graphemeBufferPtr, 16);
++      this.graphemeBufferPtr = this.exports.ghostty_wasm_alloc_u8_array(1024 * 4);
++      this.graphemeBuffer = new Uint32Array(this.memory.buffer, this.graphemeBufferPtr, 1024);
+     }
+ 
+     const count = this.exports.ghostty_render_state_get_grapheme(
+@@ -722,10 +664,10 @@
+       row,
+       col,
+       this.graphemeBufferPtr,
+-      16
++      1024
+     );
+ 
+-    if (count < 0) return null;
++    if (count < 0) throw new Error(count === -2 ? "Ghostty grapheme limit exceeded" : "Ghostty grapheme lookup failed");
+ 
+     // Re-create view in case memory grew
+     const view = new Uint32Array(this.memory.buffer, this.graphemeBufferPtr, count);
+@@ -751,8 +693,8 @@
+   getScrollbackGrapheme(offset: number, col: number): number[] | null {
+     // Reuse the same buffer as getGrapheme
+     if (!this.graphemeBuffer) {
+-      this.graphemeBufferPtr = this.exports.ghostty_wasm_alloc_u8_array(16 * 4);
+-      this.graphemeBuffer = new Uint32Array(this.memory.buffer, this.graphemeBufferPtr, 16);
++      this.graphemeBufferPtr = this.exports.ghostty_wasm_alloc_u8_array(1024 * 4);
++      this.graphemeBuffer = new Uint32Array(this.memory.buffer, this.graphemeBufferPtr, 1024);
+     }
+ 
+     const count = this.exports.ghostty_terminal_get_scrollback_grapheme(
+@@ -760,10 +702,10 @@
+       offset,
+       col,
+       this.graphemeBufferPtr,
+-      16
++      1024
+     );
+ 
+-    if (count < 0) return null;
++    if (count < 0) throw new Error(count === -2 ? "Ghostty grapheme limit exceeded" : "Ghostty grapheme lookup failed");
+ 
+     // Re-create view in case memory grew
+     const view = new Uint32Array(this.memory.buffer, this.graphemeBufferPtr, count);
+--- a/lib/types.ts
++++ b/lib/types.ts
+@@ -357,6 +357,10 @@
+  * Interface for libghostty-vt WASM exports
+  */
+ export interface GhosttyWasmExports extends WebAssembly.Exports {
++  ghostty_metadata_version(): number;
++  ghostty_metadata_render_cell_size(): number;
++  ghostty_metadata_capture(handle: number, screen: number, detail: number, out: number, capacity: number, maxRows: number, maxCells: number, maxStrings: number): number;
++
+   memory: WebAssembly.Memory;
+ 
+   // Memory helpers
+--- a/lib/index.ts
++++ b/lib/index.ts
+@@ -100,3 +100,6 @@
+ export { UrlRegexProvider } from './providers/url-regex-provider';
+ export { LinkDetector } from './link-detector';
+ export type { ILink, ILinkProvider, IBufferCellPosition } from './types';
++
++export { METADATA_ABI, assertMetadataAbi } from "./metadata";
++export type { MetadataCell, MetadataRow, MetadataSnapshot, RowMetadata, SnapshotRow, MetadataLimits } from "./metadata";
+--- a/lib/renderer.ts
++++ b/lib/renderer.ts
+@@ -574,11 +574,10 @@
+ 
+     // Only draw cell background if it's different from the default (black)
+     // This lets the theme background (drawn earlier) show through for default cells
+-    const isDefaultBg = bg_r === 0 && bg_g === 0 && bg_b === 0;
+-    if (!isDefaultBg) {
+-      this.ctx.fillStyle = this.rgbToCSS(bg_r, bg_g, bg_b);
+-      this.ctx.fillRect(cellX, cellY, cellWidth, this.metrics.height);
+-    }
++    // The render ABI already resolves default/palette/RGB backgrounds. RGB
++    // black is a real color, never a sentinel for the theme background.
++    this.ctx.fillStyle = this.rgbToCSS(bg_r, bg_g, bg_b);
++    this.ctx.fillRect(cellX, cellY, cellWidth, this.metrics.height);
+   }
+ 
+   /**

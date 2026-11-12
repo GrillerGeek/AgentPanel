@@ -8,9 +8,12 @@ export interface CanvasGraphemeSource extends IRenderable {
 /** Pinned 0.4.0 selects scrolled cells correctly but asks for their graphemes in
  * viewport coordinates. Decorate its PUBLIC render boundary, not WASM/private
  * state, and preserve each other public method's original receiver. */
-export function decorateGhosttyCanvas(renderer: Pick<CanvasRenderer, "render">, current: () => CanvasGraphemeSource | undefined): Disposable {
+export function decorateGhosttyCanvas(renderer: Pick<CanvasRenderer, "render">, current: () => CanvasGraphemeSource | undefined, onError?: (error: Error) => void): Disposable {
   const original = renderer.render;
+  let failed = false;
   const decorated: CanvasRenderer["render"] = function(buffer, forceAll, viewportY = 0, provider, scrollbarOpacity) {
+    if (failed) return;
+    try {
     const source = current();
     if (!source || buffer !== source) return original.call(renderer, buffer, forceAll, viewportY, provider, scrollbarOpacity);
     const distance = source.isAlternateScreen() ? 0 : Math.max(0, Math.floor(viewportY));
@@ -28,6 +31,10 @@ export function decorateGhosttyCanvas(renderer: Pick<CanvasRenderer, "render">, 
     // draw bypasses the wrapper's active-cursor prepass; its main scrolled pass
     // already redraws every visible row, so this adds no extra row work.
     return original.call(renderer, facade, !!forceAll || distance > 0, distance, provider, scrollbarOpacity);
+    } catch (error) {
+      if (!onError) throw error;
+      failed = true; onError(error instanceof Error ? error : new Error(String(error)));
+    }
   };
   renderer.render = decorated;
   return { dispose() { if (renderer.render === decorated) renderer.render = original; } };

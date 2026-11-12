@@ -1,0 +1,146 @@
+{
+  "id": "agentpanel-ghostty-history-abi1",
+  "metadataAbi": 1,
+  "renderCellBytes": 16,
+  "upstreamPackage": "ghostty-web@0.4.0",
+  "wrapper": {
+    "revision": "9e4e126d89ac3537d2b2ebec075849851566de9f",
+    "url": "https://codeload.github.com/coder/ghostty-web/tar.gz/9e4e126d89ac3537d2b2ebec075849851566de9f",
+    "bytes": 143929,
+    "sha256": "d2cedff4d77581b39703d0955bcce3b8607c266e85962ad8ce0bc14385008b8b"
+  },
+  "native": {
+    "revision": "5714ed07a1012573261b7b7e3ed2add9c1504496",
+    "url": "https://codeload.github.com/ghostty-org/ghostty/tar.gz/5714ed07a1012573261b7b7e3ed2add9c1504496",
+    "bytes": 36665625,
+    "sha256": "55cee28558945de6e984bc183cd51f28eefdbf805544da2e70d4635476178790"
+  },
+  "compiler": {
+    "version": "0.15.2",
+    "platform": "linux/aarch64",
+    "url": "https://ziglang.org/download/0.15.2/zig-aarch64-linux-0.15.2.tar.xz",
+    "bytes": 49471996,
+    "sha256": "958ed7d1e00d0ea76590d27666efbf7a932281b3d7ba0c6b01b0ff26498f667f"
+  },
+  "macCompiler": {
+    "version": "0.15.2",
+    "sha256": "3cc2bab367e185cdfb27501c4b30b1b0653c28d9f73df8dc91488e66ece5fa6b",
+    "limitation": "Installed macOS SDKs omit usable arm64-macos libSystem targets for this Zig build runner; use the pinned Linux builder."
+  },
+  "builder": {
+    "platform": "linux/arm64",
+    "image": "debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc",
+    "target": "wasm32-freestanding",
+    "optimize": "ReleaseSmall"
+  },
+  "inputs": {
+    "upstream/LICENSE.ghostty": "386211873e5b7a02f663ae4d7adf96285999f91608f8f9f31fecfd0f4095e6f1",
+    "upstream/LICENSE.ghostty-web": "5eccd0eeca906db6d661b64dd05e1d4a4b2e49d37d43bbcfd2c8cce4d7832920",
+    "upstream/lib/addons/fit.ts": "85ed4bd3fe19e5cd1dcda46933b672caeb20cdf0eb571a6d5e98e930b5667abc",
+    "upstream/lib/buffer.ts": "b20c8b55f226d802e1f62c8b9d2842376689eafc8343ead7f9064badcb356983",
+    "upstream/lib/event-emitter.ts": "f63b8ee7ce104e0bae6e207a18f3155ba151161bafe4f92b44777cc8a559bd8d",
+    "upstream/lib/ghostty.ts": "ee9a70af4d8af1cd9cb4ed441c565afe8c7044ee309b1a4ca10ca9362e0f834d",
+    "upstream/lib/index.ts": "a849e6933c555bec0e00dda0d6004358c2ccef028f54e15be601fbd9c5b58d91",
+    "upstream/lib/input-handler.ts": "78a46ae93d83af20efeb5d3dbb20ad49b6ffa84c8435c9cbecf18f5aae78d846",
+    "upstream/lib/interfaces.ts": "afe106f1e3cec3f7e60306f3d456ec1bf9f1534f6408355357a3cd044a1b9d27",
+    "upstream/lib/link-detector.ts": "e11fc2fb6524051e11928a5ab040a52adb17fc49c989ffa48de02af7e724a0e4",
+    "upstream/lib/providers/osc8-link-provider.ts": "4e5d6cbe41de392a6b1900ae810e64517db1730b03ad6323c265c873bac2b400",
+    "upstream/lib/providers/url-regex-provider.ts": "b5597d5464cc5a0564d622a1fc2686a0a0ae3419ed8e80e78345f946236013c9",
+    "upstream/lib/renderer.ts": "815d0994d8d82560239a06864f58ab1bcd09cd32e3a2a8c9efcc0b710ab72663",
+    "upstream/lib/selection-manager.ts": "f58bc45327df22d8b834e283cd5b3c2ffe63d3cf5e9bdc26c7ee4189f62937be",
+    "upstream/lib/terminal.ts": "f443cfd7abb89275cb51df3ab051ad35bd0063f745360dd67ba3d2de89473157",
+    "upstream/lib/types.ts": "cee5f6225efc6978e1951d99e793c16e374cd3c327308a333b94912a46979669",
+    "patches/agentpanel-native.patch": "f982c773210c1f46454f8232770e8ab7e3b5d6a7de1b80da11c36f32628ae5c9",
+    "patches/agentpanel-wrapper.patch": "844193b9c074399add1ce1b8683ef06bf0edaad3ac1a969233323cf345cd1b8d",
+    "patches/upstream-wasm-api.patch": "ae5b1b034143885e130e5b795209c5bb52ce5987a62240bab1ac5ff4f99f430a",
+    "native/agentpanel_metadata.zig": "9e134c290ad03abb6bb59f4edc3d014cb132f720ab95b9c49a6666d56a9f6869",
+    "extension/metadata.ts": "1a3ea4d4114a761d4523455d3dc49cdf33893e881234c6aa9de28a05ea116761"
+  },
+  "artifacts": {
+    "dist/addons/fit.d.ts": {
+      "sha256": "714a58f92d89cf3a85ef1138eb0ffe757f5fab3765078f254258c4af539e91cb",
+      "bytes": 1958
+    },
+    "dist/buffer.d.ts": {
+      "sha256": "6f2eb055e72938df714b3363d576f068c3eb8831a5a532a4659510d373661f23",
+      "bytes": 3186
+    },
+    "dist/event-emitter.d.ts": {
+      "sha256": "0c1ca20ceb918be862139ea579f9a2e5929e53eb817dbf85712754f3e8e985ad",
+      "bytes": 175
+    },
+    "dist/ghostty-history.d.ts": {
+      "sha256": "78770540a44fbb91253c88273e0d5431d223ada7322d5beb2e4d6c296851c493",
+      "bytes": 25
+    },
+    "dist/ghostty-history.js": {
+      "sha256": "c296e5b299baba188f9df5b66942f07df2ceaee6ae5afa1e4a9ba66ca9f301d6",
+      "bytes": 69352
+    },
+    "dist/ghostty-history.wasm": {
+      "sha256": "683298ebb0bbd9c0e4cb4c2029eac6afb264d3e3755517ebc6b4724be55d99c8",
+      "bytes": 430598
+    },
+    "dist/ghostty.d.ts": {
+      "sha256": "3c5391dfaaebbeac808f76e9a0955fb902ea97224e3a0387d3817c632ea71436",
+      "bytes": 7581
+    },
+    "dist/index.d.ts": {
+      "sha256": "2e619db6c4f36c810c70fbe9fe20bcdb52614818d5ba63a171243ef0ea791f7d",
+      "bytes": 2101
+    },
+    "dist/input-handler.d.ts": {
+      "sha256": "a8e5e19b5279648dc14399291158f0a40609645f6a6b301c9980cd967f9727eb",
+      "bytes": 3461
+    },
+    "dist/interfaces.d.ts": {
+      "sha256": "3477429e1dc237a55b78641e5df3df17f2001de9b005dac098232bfd853a83c1",
+      "bytes": 5690
+    },
+    "dist/link-detector.d.ts": {
+      "sha256": "a1e2038a18a9f1f5945bd37002eb73c0d0dbf988b72c19e76495659a7fe58d6f",
+      "bytes": 2025
+    },
+    "dist/metadata.d.ts": {
+      "sha256": "367c1f7e8bc9632b4bbb5874973d5de5a8d0afc4f6b50407193cf3b0bfb11247",
+      "bytes": 2067
+    },
+    "dist/providers/osc8-link-provider.d.ts": {
+      "sha256": "8a54b6afc96b0dfef4848cadd70df9613655d546b710ab6db4a27490075d7856",
+      "bytes": 1627
+    },
+    "dist/providers/url-regex-provider.d.ts": {
+      "sha256": "93fa6d0a63aec1b61563917ece05a2a1cf7a056365e4016fa208abd397a584c9",
+      "bytes": 1822
+    },
+    "dist/renderer.d.ts": {
+      "sha256": "59fc00a5123828043401f59dc6f62ae6ddfb741ec16d9ef90acdc2c07776ffdf",
+      "bytes": 6030
+    },
+    "dist/selection-manager.d.ts": {
+      "sha256": "dc488dfe57497c930ed1d2be83732d8254aa258f2587b3e694bde9ea24a6f415",
+      "bytes": 4614
+    },
+    "dist/terminal.d.ts": {
+      "sha256": "369311611c719f21bdfb281361a030890c2cb25fe3c34152166944fc8e27ff9e",
+      "bytes": 10818
+    },
+    "dist/types.d.ts": {
+      "sha256": "8a376ba203d2665b876d72d5cd5eba809f1dae2ab3b6a999606d9efeb013b985",
+      "bytes": 18224
+    }
+  },
+  "javascriptTools": {
+    "esbuild": "0.28.2",
+    "typescript": "5.8.3"
+  },
+  "packageLockSha256": "d2410ac60019ec6afb510901b4626739d584981217c51f808294cdba54c6d72a",
+  "javascriptOptions": {
+    "format": "esm",
+    "platform": "browser",
+    "target": "es2022",
+    "minify": true,
+    "legalComments": "none",
+    "useDefineForClassFields": true
+  }
+}

@@ -3,6 +3,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { SerializeAddon } from "@xterm/addon-serialize";
 import { WebglAddon } from "@xterm/addon-webgl";
+import { StyledHistoryRestorer } from "./historyArchive";
 import { events } from "./events";
 import type { TerminalRenderer, RendererOptions } from "./types";
 
@@ -29,7 +30,8 @@ export function createXtermRenderer(parent: HTMLElement, options: RendererOption
     } else if ((!visible || !enabled) && gpu) { gpu.dispose(); gpu = undefined; }
   };
   setVisibility(true, webgl);
-  return {
+  let restorer: StyledHistoryRestorer;
+  const renderer: TerminalRenderer = {
     kind: "xterm", capabilities: { selection: "supported", search: "supported", styledHistory: "supported", renderingSuspension: "limited" },
     get cols() { return term.cols; }, get rows() { return term.rows; },
     write(data, consumed) {
@@ -44,8 +46,8 @@ export function createXtermRenderer(parent: HTMLElement, options: RendererOption
     },
     whenIdle: () => failure ? Promise.reject(failure) : disposed ? Promise.reject(new Error("Terminal renderer disposed")) :
       pending ? new Promise((resolve, reject) => waiters.push({ resolve, reject })) : Promise.resolve(),
-    fit() { if (!disposed && parent.clientWidth > 0 && parent.clientHeight > 0) fit.fit(); },
-    resize: (cols, rows) => term.resize(cols, rows), focus: () => term.focus(), paste: (text) => term.paste(text),
+    fit: () => restorer.fit(),
+    resize: (cols, rows) => restorer.resize(cols, rows), focus: () => term.focus(), paste: (text) => term.paste(text),
     onData: (listener) => term.onData(listener), onTitleChange: (listener) => term.onTitleChange(listener), onError: errors.on,
     setKeyHandler: (handler) => term.attachCustomKeyEventHandler(handler),
     isMouseTracking: () => term.modes.mouseTrackingMode !== "none",
@@ -53,15 +55,20 @@ export function createXtermRenderer(parent: HTMLElement, options: RendererOption
     select(range) { term.select(range.start.x, range.start.y, (range.end.y - range.start.y) * term.cols + range.end.x - range.start.x); return { status: "supported", value: undefined }; },
     search: (query, backwards) => ({ status: "supported", found: backwards ? search.findPrevious(query) : search.findNext(query) }),
     clearSearch: () => search.clearDecorations(),
+    restoreStyledHistory: (data) => restorer.restore(data),
     serializeStyledHistory: () => ({ status: "supported", value: serialize.serialize() }),
     extractText() { const lines: string[] = []; for (let i = 0; i < term.buffer.active.length; i++) lines.push(term.buffer.active.getLine(i)?.translateToString(true) ?? ""); return { status: "supported", value: lines.join("\n") }; },
     setAppearance(appearance) { Object.assign(term.options, appearance); }, setVisibility,
     reset: () => term.reset(),
     dispose() {
       if (disposed) return;
-      disposed = true;
+      disposed = true; restorer.dispose();
       for (const waiter of waiters.splice(0)) waiter.reject(new Error("Terminal renderer disposed"));
       errors.clear(); term.dispose(); gpu = undefined;
     },
   };
+  restorer = new StyledHistoryRestorer({ grid: () => ({ cols: term.cols, rows: term.rows }), resize: (cols, rows) => term.resize(cols, rows),
+    fit: () => fit.fit(), canFit: () => parent.clientWidth > 0 && parent.clientHeight > 0,
+    idle: () => renderer.whenIdle(), write: (data) => { renderer.write(data); return renderer.whenIdle(); }, reset: () => term.reset() });
+  return renderer;
 }

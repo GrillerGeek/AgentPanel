@@ -61,6 +61,10 @@ Follow the [setup instructions](docs/user-guide.md#set-up-persistent-local-termi
 [remote workflow](docs/user-guide.md#connect-a-remote-machine). Developer validation details
 are in the [adapter acceptance notes](docs/dev/2026-11-01-herdr-adapter-acceptance.md).
 
+The separate developer [Ghostty renderer experiment](docs/dev/2026-11-10-ghostty-history-wrap-report.md)
+tests logical-wrap selection/search and bounded styled-history replay with a reproducible source
+extension. It runs in an isolated comparison bundle; the app continues to use xterm.js.
+
 ## Runtime requirements
 
 - **Windows 10 1809+ / Windows 11**, **macOS 11+** (Apple Silicon or Intel), or **Linux**

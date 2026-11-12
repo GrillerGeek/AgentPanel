@@ -1,5 +1,9 @@
 # Terminal renderer adapter implementation
 
+This report records the November 9 public-API adapter increment. The later
+[history/wrap source-extension report](2026-11-10-ghostty-history-wrap-report.md) records
+subsequent capabilities; the package results and limitations below remain historical.
+
 xterm remains the production renderer. `TerminalPane` now depends on a library-independent
 [renderer contract](../../src/lib/terminalRenderer/types.ts), with xterm addons owned by its
 [synchronous adapter](../../src/lib/terminalRenderer/xtermRenderer.ts). The asynchronous
@@ -7,8 +11,8 @@ xterm remains the production renderer. `TerminalPane` now depends on a library-i
 isolated experimental harness. This is a bounded implementation of the
 [implementation plan](2026-11-09-ghostty-renderer-adapter-plan.md), not a default-switch decision.
 The [November 7 spike](2026-11-07-ghostty-feasibility-spike.md) remains historical evidence.
-The current increment adds owned selection and visible literal search using public APIs;
-xterm remains the default, and styled Ghostty history remains unsupported.
+The November 9 increment added owned selection and visible literal search using public APIs;
+xterm remains the default, and styled Ghostty history was unsupported in that public-API-only increment.
 
 ## Implemented behavior
 

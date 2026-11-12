@@ -1,0 +1,330 @@
+--- a/src/terminal/c/terminal.zig
++++ b/src/terminal/c/terminal.zig
+@@ -275,11 +275,76 @@
+         }
+     }
+ 
+-    fn colorOperation(self: *ResponseHandler, op: anytype, requests: anytype) !void {
+-        _ = self;
++    fn colorOperation(
++        self: *ResponseHandler,
++        op: anytype,
++        requests: anytype,
++    ) !void {
+         _ = op;
+-        _ = requests;
+-        // Color operations are not supported in WASM context
++        if (requests.count() == 0) return;
++
++        var it = requests.constIterator(0);
++        while (it.next()) |req| {
++            switch (req.*) {
++                .set => |set| {
++                    switch (set.target) {
++                        .palette => |i| {
++                            self.terminal.flags.dirty.palette = true;
++                            self.terminal.colors.palette.set(i, set.color);
++                        },
++                        .dynamic => |dynamic| switch (dynamic) {
++                            .foreground => self.terminal.colors.foreground.set(set.color),
++                            .background => self.terminal.colors.background.set(set.color),
++                            .cursor => self.terminal.colors.cursor.set(set.color),
++                            .pointer_foreground,
++                            .pointer_background,
++                            .tektronix_foreground,
++                            .tektronix_background,
++                            .highlight_background,
++                            .tektronix_cursor,
++                            .highlight_foreground,
++                            => {},
++                        },
++                        .special => {},
++                    }
++                },
++
++                .reset => |target| switch (target) {
++                    .palette => |i| {
++                        self.terminal.flags.dirty.palette = true;
++                        self.terminal.colors.palette.reset(i);
++                    },
++                    .dynamic => |dynamic| switch (dynamic) {
++                        .foreground => self.terminal.colors.foreground.reset(),
++                        .background => self.terminal.colors.background.reset(),
++                        .cursor => self.terminal.colors.cursor.reset(),
++                        .pointer_foreground,
++                        .pointer_background,
++                        .tektronix_foreground,
++                        .tektronix_background,
++                        .highlight_background,
++                        .tektronix_cursor,
++                        .highlight_foreground,
++                        => {},
++                    },
++                    .special => {},
++                },
++
++                .reset_palette => {
++                    const mask = &self.terminal.colors.palette.mask;
++                    var mask_it = mask.iterator(.{});
++                    while (mask_it.next()) |i| {
++                        self.terminal.flags.dirty.palette = true;
++                        self.terminal.colors.palette.reset(@intCast(i));
++                    }
++                    mask.* = .initEmpty();
++                },
++
++                .query,
++                .reset_special,
++                => {},
++            }
++        }
+     }
+ 
+     fn kittyColorOperation(self: *ResponseHandler, value: anytype) !void {
+@@ -420,7 +485,7 @@
+     wrapper.handler = ResponseHandler.init(alloc, &wrapper.terminal, &wrapper.response_buffer);
+ 
+     // Initialize stream with the handler
+-    wrapper.stream = ResponseStream.init(wrapper.handler);
++    wrapper.stream = ResponseStream.initAlloc(alloc, wrapper.handler);
+ 
+     wrapper.* = .{
+         .alloc = alloc,
+@@ -471,26 +536,26 @@
+ /// Returns dirty state: 0=none, 1=partial, 2=full
+ pub fn renderStateUpdate(ptr: ?*anyopaque) callconv(.c) GhosttyDirty {
+     const wrapper: *TerminalWrapper = @ptrCast(@alignCast(ptr orelse return .full));
+-    
++
+     // Detect screen buffer switch (normal <-> alternate)
+     const current_is_alternate = wrapper.terminal.screens.active_key == .alternate;
+     const screen_switched = current_is_alternate != wrapper.last_screen_is_alternate;
+     wrapper.last_screen_is_alternate = current_is_alternate;
+-    
++
+     // When screen switches, we must fully reset the render state to avoid
+     // stale cached cell data from the previous screen buffer.
+     if (screen_switched) {
+         wrapper.render_state.deinit(wrapper.alloc);
+         wrapper.render_state = RenderState.empty;
+     }
+-    
++
+     wrapper.render_state.update(wrapper.alloc, &wrapper.terminal) catch return .full;
+-    
++
+     // If screen switched, always return full dirty to force complete redraw
+     if (screen_switched) {
+         return .full;
+     }
+-    
++
+     return switch (wrapper.render_state.dirty) {
+         .false => .none,
+         .partial => .partial,
+@@ -515,7 +580,7 @@
+     return @intCast(wrapper.render_state.cursor.active.x);
+ }
+ 
+-/// Get cursor Y position  
++/// Get cursor Y position
+ pub fn renderStateGetCursorY(ptr: ?*anyopaque) callconv(.c) c_int {
+     const wrapper: *const TerminalWrapper = @ptrCast(@alignCast(ptr orelse return 0));
+     return @intCast(wrapper.render_state.cursor.active.y);
+@@ -721,7 +786,7 @@
+     if (cell.hasGrapheme()) {
+         if (page.lookupGrapheme(cell)) |cps| {
+             for (cps) |cp| {
+-                if (count >= buf_size) break;
++                if (count >= buf_size) return -2;
+                 out[count] = cp;
+                 count += 1;
+             }
+@@ -743,8 +808,8 @@
+ pub fn hasMouseTracking(ptr: ?*anyopaque) callconv(.c) bool {
+     const wrapper: *const TerminalWrapper = @ptrCast(@alignCast(ptr orelse return false));
+     return wrapper.terminal.modes.get(.mouse_event_normal) or
+-           wrapper.terminal.modes.get(.mouse_event_button) or
+-           wrapper.terminal.modes.get(.mouse_event_any);
++        wrapper.terminal.modes.get(.mouse_event_button) or
++        wrapper.terminal.modes.get(.mouse_event_any);
+ }
+ 
+ /// Query arbitrary terminal mode by number
+@@ -781,22 +846,22 @@
+     const wrapper: *const TerminalWrapper = @ptrCast(@alignCast(ptr orelse return -1));
+     const rs = &wrapper.render_state;
+     const cols = rs.cols;
+-    
++
+     if (buf_size < cols) return -1;
+     if (offset < 0) return -1;
+-    
++
+     const scrollback_len = getScrollbackLength(ptr);
+     if (offset >= scrollback_len) return -1;
+-    
++
+     // Get the pin for this scrollback row
+     // history point: y=0 is oldest, y=scrollback_len-1 is newest
+     const pages = &wrapper.terminal.screens.active.pages;
+     const pin = pages.pin(.{ .history = .{ .y = @intCast(offset) } }) orelse return -1;
+-    
++
+     // Get cells for this row
+     const cells = pin.cells(.all);
+     const page = pin.node.data;
+-    
++
+     // Fill output buffer
+     for (0..cols) |x| {
+         if (x >= cells.len) {
+@@ -815,15 +880,15 @@
+             };
+             continue;
+         }
+-        
++
+         const cell = &cells[x];
+-        
++
+         // Get style from page styles (cell has style_id)
+         const sty: Style = if (cell.style_id > 0)
+             page.styles.get(page.memory, cell.style_id).*
+         else
+             .{};
+-        
++
+         // Resolve colors
+         const fg: color.RGB = switch (sty.fg_color) {
+             .none => rs.colors.foreground,
+@@ -831,7 +896,7 @@
+             .rgb => |rgb| rgb,
+         };
+         const bg: color.RGB = if (sty.bg(cell, &rs.colors.palette)) |rgb| rgb else rs.colors.background;
+-        
++
+         // Build flags
+         var flags: u8 = 0;
+         if (sty.flags.bold) flags |= 1 << 0;
+@@ -911,7 +976,7 @@
+     if (cell.hasGrapheme()) {
+         if (page.lookupGrapheme(cell)) |cps| {
+             for (cps) |cp| {
+-                if (count >= buf_size) break;
++                if (count >= buf_size) return -2;
+                 out[count] = cp;
+                 count += 1;
+             }
+@@ -927,11 +992,11 @@
+ pub fn isRowWrapped(ptr: ?*anyopaque, y: c_int) callconv(.c) bool {
+     const wrapper: *const TerminalWrapper = @ptrCast(@alignCast(ptr orelse return false));
+     const pages = &wrapper.terminal.screens.active.pages;
+-    
++
+     // Get pin for this row in active area
+     const pin = pages.pin(.{ .active = .{ .y = @intCast(y) } }) orelse return false;
+     const rac = pin.rowAndCell();
+-    
++
+     // wrap_continuation means this row continues from the previous row
+     return rac.row.wrap_continuation;
+ }
+@@ -953,9 +1018,9 @@
+     const wrapper: *TerminalWrapper = @ptrCast(@alignCast(ptr orelse return -1));
+     const len = @min(wrapper.response_buffer.items.len, buf_size);
+     if (len == 0) return 0;
+-    
++
+     @memcpy(out[0..len], wrapper.response_buffer.items[0..len]);
+-    
++
+     // Remove consumed bytes from buffer
+     if (len == wrapper.response_buffer.items.len) {
+         wrapper.response_buffer.clearRetainingCapacity();
+@@ -968,7 +1033,7 @@
+         );
+         wrapper.response_buffer.shrinkRetainingCapacity(wrapper.response_buffer.items.len - len);
+     }
+-    
++
+     return @intCast(len);
+ }
+ 
+@@ -1002,3 +1067,15 @@
+     try std.testing.expectEqual(@as(u32, 'l'), cells[3].codepoint);
+     try std.testing.expectEqual(@as(u32, 'o'), cells[4].codepoint);
+ }
++
++// AgentPanel metadata ABI; separate from the unchanged 16-byte render cell ABI.
++pub fn metadataVersion() callconv(.c) c_int {
++    return 1;
++}
++pub fn metadataRenderCellSize() callconv(.c) c_int {
++    return @sizeOf(GhosttyCell);
++}
++pub fn metadataCapture(ptr: ?*anyopaque, which: u32, detail: u32, out: ?[*]u8, capacity: usize, max_rows: usize, max_cells: usize, max_strings: usize) callconv(.c) c_int {
++    const wrapper: *const TerminalWrapper = @ptrCast(@alignCast(ptr orelse return -1));
++    return @import("agentpanel_metadata.zig").capture(&wrapper.terminal, which, detail, out, capacity, max_rows, max_cells, max_strings);
++}
+--- a/src/terminal/c/main.zig
++++ b/src/terminal/c/main.zig
+@@ -101,3 +101,7 @@
+     // We want to make sure we run the tests for the C allocator interface.
+     _ = @import("../../lib/allocator.zig");
+ }
++
++pub const metadata_version = terminal.metadataVersion;
++pub const metadata_render_cell_size = terminal.metadataRenderCellSize;
++pub const metadata_capture = terminal.metadataCapture;
+--- a/src/lib_vt.zig
++++ b/src/lib_vt.zig
+@@ -141,6 +141,9 @@
+         @export(&c.sgr_attribute_tag, .{ .name = "ghostty_sgr_attribute_tag" });
+         @export(&c.sgr_attribute_value, .{ .name = "ghostty_sgr_attribute_value" });
+         // Terminal lifecycle
++        @export(&c.metadata_version, .{ .name = "ghostty_metadata_version" });
++        @export(&c.metadata_render_cell_size, .{ .name = "ghostty_metadata_render_cell_size" });
++        @export(&c.metadata_capture, .{ .name = "ghostty_metadata_capture" });
+         @export(&c.terminal_new, .{ .name = "ghostty_terminal_new" });
+         @export(&c.terminal_new_with_config, .{ .name = "ghostty_terminal_new_with_config" });
+         @export(&c.terminal_free, .{ .name = "ghostty_terminal_free" });
+--- a/src/terminal/PageList.zig
++++ b/src/terminal/PageList.zig
+@@ -341,7 +341,9 @@
+         // In runtime safety modes we have to memset because the Zig allocator
+         // interface will always memset to 0xAA for undefined. In non-safe modes
+         // we use a page allocator and the OS guarantees zeroed memory.
+-        if (comptime std.debug.runtime_safety) @memset(page_buf, 0);
++        // Native page_allocator/mmap supplies zeroed pages. WASM reuses heap
++    // allocations across terminal lifetimes, so enforce the same invariant.
++    if (comptime @import("builtin").target.cpu.arch.isWasm() or std.debug.runtime_safety) @memset(page_buf, 0);
+ 
+         // Initialize the first set of pages to contain our viewport so that
+         // the top of the first page is always the active area.
+@@ -2675,7 +2677,9 @@
+ 
+     // Required only with runtime safety because allocators initialize
+     // to undefined, 0xAA.
+-    if (comptime std.debug.runtime_safety) @memset(page_buf, 0);
++    // Native page_allocator/mmap supplies zeroed pages. WASM reuses heap
++    // allocations across terminal lifetimes, so enforce the same invariant.
++    if (comptime @import("builtin").target.cpu.arch.isWasm() or std.debug.runtime_safety) @memset(page_buf, 0);
+ 
+     page.* = .{
+         .data = .initBuf(.init(page_buf), layout),
+--- a/src/terminal/osc.zig
++++ b/src/terminal/osc.zig
+@@ -1379,6 +1379,12 @@
+             .allocable_string => {
+                 const alloc = self.alloc.?;
+                 const list = self.buf_dynamic.?;
++                // AgentPanel WASM extension: enabling color parsing must not
++                // allow an unbounded dynamic OSC string allocation.
++                if (list.items.len >= 64 * 1024) {
++                    self.state = .invalid;
++                    return;
++                }
+                 list.append(alloc, c) catch {
+                     self.state = .invalid;
+                     return;

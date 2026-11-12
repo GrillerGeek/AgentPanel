@@ -1,0 +1,94 @@
+{
+  "compiler": {
+    "version": "0.15.2",
+    "platform": "linux/aarch64",
+    "url": "https://ziglang.org/download/0.15.2/zig-aarch64-linux-0.15.2.tar.xz",
+    "bytes": 49471996,
+    "sha256": "958ed7d1e00d0ea76590d27666efbf7a932281b3d7ba0c6b01b0ff26498f667f"
+  },
+  "builder": {
+    "platform": "linux/arm64",
+    "image": "debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc",
+    "target": "wasm32-freestanding",
+    "optimize": "ReleaseSmall"
+  },
+  "artifacts": {
+    "addons/fit.d.ts": {
+      "sha256": "714a58f92d89cf3a85ef1138eb0ffe757f5fab3765078f254258c4af539e91cb",
+      "bytes": 1958
+    },
+    "buffer.d.ts": {
+      "sha256": "6f2eb055e72938df714b3363d576f068c3eb8831a5a532a4659510d373661f23",
+      "bytes": 3186
+    },
+    "event-emitter.d.ts": {
+      "sha256": "0c1ca20ceb918be862139ea579f9a2e5929e53eb817dbf85712754f3e8e985ad",
+      "bytes": 175
+    },
+    "ghostty-history.d.ts": {
+      "sha256": "78770540a44fbb91253c88273e0d5431d223ada7322d5beb2e4d6c296851c493",
+      "bytes": 25
+    },
+    "ghostty-history.js": {
+      "sha256": "c296e5b299baba188f9df5b66942f07df2ceaee6ae5afa1e4a9ba66ca9f301d6",
+      "bytes": 69352
+    },
+    "ghostty-history.wasm": {
+      "sha256": "683298ebb0bbd9c0e4cb4c2029eac6afb264d3e3755517ebc6b4724be55d99c8",
+      "bytes": 430598
+    },
+    "ghostty.d.ts": {
+      "sha256": "3c5391dfaaebbeac808f76e9a0955fb902ea97224e3a0387d3817c632ea71436",
+      "bytes": 7581
+    },
+    "index.d.ts": {
+      "sha256": "2e619db6c4f36c810c70fbe9fe20bcdb52614818d5ba63a171243ef0ea791f7d",
+      "bytes": 2101
+    },
+    "input-handler.d.ts": {
+      "sha256": "a8e5e19b5279648dc14399291158f0a40609645f6a6b301c9980cd967f9727eb",
+      "bytes": 3461
+    },
+    "interfaces.d.ts": {
+      "sha256": "3477429e1dc237a55b78641e5df3df17f2001de9b005dac098232bfd853a83c1",
+      "bytes": 5690
+    },
+    "link-detector.d.ts": {
+      "sha256": "a1e2038a18a9f1f5945bd37002eb73c0d0dbf988b72c19e76495659a7fe58d6f",
+      "bytes": 2025
+    },
+    "metadata.d.ts": {
+      "sha256": "367c1f7e8bc9632b4bbb5874973d5de5a8d0afc4f6b50407193cf3b0bfb11247",
+      "bytes": 2067
+    },
+    "providers/osc8-link-provider.d.ts": {
+      "sha256": "8a54b6afc96b0dfef4848cadd70df9613655d546b710ab6db4a27490075d7856",
+      "bytes": 1627
+    },
+    "providers/url-regex-provider.d.ts": {
+      "sha256": "93fa6d0a63aec1b61563917ece05a2a1cf7a056365e4016fa208abd397a584c9",
+      "bytes": 1822
+    },
+    "renderer.d.ts": {
+      "sha256": "59fc00a5123828043401f59dc6f62ae6ddfb741ec16d9ef90acdc2c07776ffdf",
+      "bytes": 6030
+    },
+    "selection-manager.d.ts": {
+      "sha256": "dc488dfe57497c930ed1d2be83732d8254aa258f2587b3e694bde9ea24a6f415",
+      "bytes": 4614
+    },
+    "terminal.d.ts": {
+      "sha256": "369311611c719f21bdfb281361a030890c2cb25fe3c34152166944fc8e27ff9e",
+      "bytes": 10818
+    },
+    "types.d.ts": {
+      "sha256": "8a376ba203d2665b876d72d5cd5eba809f1dae2ab3b6a999606d9efeb013b985",
+      "bytes": 18224
+    }
+  },
+  "matchesCommitted": true,
+  "cacheWasRequiredEmpty": true,
+  "cacheWasInitiallyEmpty": true,
+  "networkDisabledForCompilation": true,
+  "buildScriptSha256": "9524412e9422086ea9e0e00f4945f9559cecc56386b0c5f5d21bffd30b785fba"
+}

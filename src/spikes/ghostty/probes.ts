@@ -64,7 +64,8 @@ export async function compatibility(engine: Engine): Promise<Check[]> {
 
 // Synthetic end-to-end emulator writes, including callback scheduling and two
 // animation frames. This is not pure-parser throughput or PTY/SSH throughput.
-export async function benchmark(host: HTMLElement) {
+export interface BenchmarkProgress { kind: Kind; consumption: Engine["consumption"]; round: number; stage: string }
+export async function benchmark(host: HTMLElement, progress?: (sample: BenchmarkProgress) => Promise<unknown> | void) {
   const payload = encode(Array.from({ length: 12000 }, (_, i) => `\x1b[3${i % 7 + 1}m${String(i).padStart(5, "0")} build output: abcdefghijklmnopqrstuvwxyz 0123456789\x1b[0m\r\n`).join(""));
   const results: unknown[] = [];
   const cases: Array<{ kind: Kind; consumption: Engine["consumption"] }> = [
@@ -72,30 +73,51 @@ export async function benchmark(host: HTMLElement) {
     { kind: "ghostty", consumption: "library-callback" },
     { kind: "ghostty", consumption: "parse-return" },
   ];
-  for (let round = 0; round < 4; round++) {
+  rounds: for (let round = 0; round < 4; round++) {
     for (const { kind, consumption } of (round % 2 ? [...cases].reverse() : cases)) {
       const target = document.createElement("div"); target.style.cssText = "width:800px;height:420px"; host.append(target);
-      const started = performance.now();
       let engine: Engine | undefined;
       let ticker: ReturnType<typeof setInterval> | undefined;
       let stage = "create";
+      let timedOut = false;
+      const bounded = async <T>(work: () => Promise<T>, ms: number): Promise<T> => {
+        await progress?.({ kind, consumption, round, stage });
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          return await Promise.race([work(), new Promise<never>((_, reject) => {
+            timer = setTimeout(() => { timedOut = true; reject(new Error(`Raw benchmark deadline: ${stage} after ${ms}ms`)); }, ms);
+          })]);
+        } finally { if (timer !== undefined) clearTimeout(timer); }
+      };
       try {
-        engine = await createEngine(kind, target, true, consumption);
+        let started = 0;
+        const currentEngine = await bounded<Engine>(() => { started = performance.now(); return createEngine(kind, target, true, consumption).then((created) => {
+          // A late WASM load must not open an orphaned surface after timeout.
+          if (timedOut) { created.dispose(); throw new Error("Raw benchmark creation completed after deadline"); }
+          return created;
+        }); }, 10000);
+        engine = currentEngine;
         const startupMs = performance.now() - started;
-        stage = "warmup"; await engine.write("warmup\r\n"); engine.term.reset();
+        stage = "warmup"; await bounded(() => currentEngine.write("warmup\r\n"), 5000); currentEngine.term.reset();
         let last = performance.now(); let maxGapMs = 0;
         ticker = setInterval(() => { const now = performance.now(); maxGapMs = Math.max(maxGapMs, now - last); last = now; }, 5);
-        const begin = performance.now(); stage = "write and render";
-        await writeWindow(engine, payload); await frames();
+        let begin = 0; stage = "write and render";
+        await bounded(async () => { begin = performance.now(); await writeWindow(currentEngine, payload); await frames(); }, 10000);
         const writeAndFramesMs = performance.now() - begin; clearInterval(ticker); ticker = undefined;
-        results.push({ kind, consumption, renderer: engine.renderer, round, bytes: payload.length, cols: engine.term.cols, rows: engine.term.rows,
-          startupMs, writeAndFramesMs, maxTimerGapMs: maxGapMs, retainedLastLine: engine.text().includes("11999 build output") });
-      } catch (error) { results.push({ kind, consumption, round, stage, error: error instanceof Error ? error.stack : String(error) }); }
+        results.push({ kind, consumption, renderer: currentEngine.renderer, round, bytes: payload.length, cols: currentEngine.term.cols, rows: currentEngine.term.rows,
+          startupMs, writeAndFramesMs, maxTimerGapMs: maxGapMs, retainedLastLine: currentEngine.text().includes("11999 build output") });
+      } catch (error) {
+        results.push({ kind, consumption, round, stage, timedOut, visibilityState: document.visibilityState,
+          hasFocus: document.hasFocus(), error: error instanceof Error ? error.stack : String(error) });
+      }
       finally {
         if (ticker) clearInterval(ticker);
         try { engine?.dispose(); } catch (error) { results.push({ kind, consumption, round, stage: "dispose", error: String(error) }); }
         target.remove();
       }
+      // A stalled callback/rAF is an explicit failed sample. Stop rather than
+      // spending the whole native deadline repeating an unavailable condition.
+      if (timedOut) break rounds;
     }
   }
   return { userAgent: navigator.userAgent, devicePixelRatio, hardwareConcurrency: navigator.hardwareConcurrency,
