@@ -30,6 +30,12 @@ impl HerdrManager {
 #[serde(rename_all = "camelCase")]
 pub struct OpenResult { id: u32, binding: Binding, created: bool }
 
+/// Filesystem-only discovery. Does not invoke core or connect to a session.
+#[tauri::command]
+pub fn herdr_detect_executable(executable: String) -> Result<String, String> {
+    crate::herdr_executable::resolve(&executable).map(|path| path.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 pub async fn herdr_open(state: State<'_, HerdrManager>, options: Options, rows: u16, cols: u16,
                         on_event: Channel<Event>) -> Result<OpenResult, String> {
