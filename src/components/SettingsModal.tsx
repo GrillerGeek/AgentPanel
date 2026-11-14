@@ -7,6 +7,7 @@ import { runUpdateCheck } from "../lib/updater";
 import { getTelemetryConsent, setTelemetryConsent } from "../lib/telemetry";
 import { SCHEMES } from "../themes/schemes";
 import type { ShellInfo } from "../types";
+import { HerdrExecutableField } from "./HerdrExecutableField";
 
 const CUSTOM = "__custom__";
 /** Empty shell = let the backend pick the platform default (PowerShell on
@@ -218,12 +219,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             detach on close. Herdr mode is unavailable on Windows.</small>
         </label>
         {terminalRuntime === "herdr" && <>
-          <label className="settings-field">
-            <span>Herdr core executable</span>
-            <input className="settings-input" value={herdrExecutable}
-              onChange={(e) => setHerdrExecutable(e.currentTarget.value)} />
-            <small>Install herdr-core separately. Enter its executable name or full path, without arguments.</small>
-          </label>
+          <HerdrExecutableField value={herdrExecutable} onChange={setHerdrExecutable} />
           <label className="settings-field">
             <span>Herdr core session</span>
             <input className="settings-input" value={herdrSession}
