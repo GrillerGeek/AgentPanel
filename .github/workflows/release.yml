@@ -219,7 +219,7 @@ jobs:
           tagName: ${{ env.RELEASE_TAG }}
           releaseName: "AgentPanel ${{ env.RELEASE_TAG }}"
           releaseDraft: true
-          prerelease: false
+          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
           tauriScript: npm run tauri
           args: ${{ matrix.args }}
 
