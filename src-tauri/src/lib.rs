@@ -5,6 +5,7 @@ mod gh;
 mod git;
 mod herdr;
 mod herdr_commands;
+mod herdr_executable;
 mod remote_projects;
 mod remote_worktrees;
 mod model;
@@ -222,6 +223,7 @@ pub fn run() {
             pty::detect_login_path,
             herdr_commands::herdr_open,
             herdr_commands::herdr_inventory,
+            herdr_commands::herdr_detect_executable,
             remote_projects::add_remote_repository,
             remote_worktrees::remote_list_branches,
             remote_worktrees::remote_create_worktree,

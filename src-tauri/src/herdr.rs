@@ -163,14 +163,15 @@ fn validate_endpoint(executable: &str, session: &str) -> Result<(), String> {
 async fn connect(executable: &str, session: &str) -> Result<(Child, ChildStdin, BufReader<ChildStdout>, Value), String> {
     validate_endpoint(executable, session)?;
     if cfg!(windows) { return Err("Herdr prototype is not enabled on Windows yet (ConPTY input acceptance pending)".into()); }
-    let mut command = Command::new(executable);
+    let resolved = crate::herdr_executable::resolve(executable)?;
+    let mut command = Command::new(&resolved);
     command.arg("connect").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).kill_on_drop(true);
     // Never attach to an inherited agent session or endpoint accidentally.
     for (key, _) in std::env::vars() {
         if key.starts_with("HC_") || key.starts_with("HERDR_") { command.env_remove(key); }
     }
     command.env("HC_SESSION", session);
-    let mut child = command.spawn().map_err(|e| format!("Could not start herdr-core connect: {e}"))?;
+    let mut child = command.spawn().map_err(|e| crate::herdr_executable::launch_error(&resolved.to_string_lossy(), &e))?;
     let mut writer = child.stdin.take().unwrap();
     let mut reader = BufReader::new(child.stdout.take().unwrap());
     let hello = tokio::time::timeout(DEADLINE, async {

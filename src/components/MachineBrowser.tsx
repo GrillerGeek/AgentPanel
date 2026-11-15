@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "../state/store";
 import { useEscapeToClose } from "../lib/useEscapeToClose";
 import type { HerdrEndpoint, HerdrInventory } from "../types";
+import { HerdrExecutableField } from "./HerdrExecutableField";
 
 export function MachineBrowser({ onClose }: { onClose: () => void }) {
   const [endpoint, setEndpoint] = useState<HerdrEndpoint>(() => {
@@ -68,8 +69,8 @@ export function MachineBrowser({ onClose }: { onClose: () => void }) {
         <button onClick={onClose} aria-label="Close machine browser">✕</button></div>
       <p>Attach to a running terminal in a Herdr core session. Closing an attached tab leaves its program running.</p>
       <form onSubmit={(e) => { e.preventDefault(); void refresh(); }} className="machine-endpoint">
-        <label>Herdr executable<input className="settings-input" value={endpoint.executable}
-          onChange={(e) => setEndpoint({ ...endpoint, executable: e.target.value })} /></label>
+        <HerdrExecutableField label="Herdr executable" value={endpoint.executable}
+          onChange={(executable) => setEndpoint((current) => ({ ...current, executable }))} />
         <label>Local core session<input className="settings-input" value={endpoint.session}
           onChange={(e) => setEndpoint({ ...endpoint, session: e.target.value })} /></label>
         <button className="add-btn" type="submit" disabled={busy || adding}>{busy ? "Loading…" : "Refresh terminals"}</button>

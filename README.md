@@ -38,7 +38,9 @@ It includes the close-versus-detach rules and troubleshooting.
 
 AgentPanel can use [herdr-core](https://herdr.dev/core/) to keep programs running when you
 close the app. Install core separately, then choose **Settings → Runtime for new local
-terminals → Herdr core (experimental)** and save the executable and a dedicated session.
+terminals → Herdr core (experimental)**. AgentPanel detects common `hc`/`herdr-core` install
+locations; use **Find automatically** or **Browse…** to choose the executable, then save a
+dedicated session. Discovery checks files without starting core or connecting to a session.
 Existing panes keep their runtime; the built-in local PTY remains the default.
 
 Use **Machines & terminals** to browse a core's configured machines, attach to existing

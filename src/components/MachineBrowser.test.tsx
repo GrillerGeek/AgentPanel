@@ -14,11 +14,20 @@ const inventory: HerdrInventory = { coreId: "core", coreName: "mac", machines: [
   { address: "offline/t1", cwd: "/same/path", title: null, state: "live", status: "working" },
 ] };
 beforeEach(() => {
-  vi.mocked(invoke).mockReset().mockResolvedValue(inventory);
+  vi.mocked(invoke).mockReset().mockImplementation((command) => command === "herdr_detect_executable" ? Promise.resolve("/detected/hc") : Promise.resolve(inventory));
   useStore.setState({ terminals: [], activeTabId: null });
-  useStore.getState().updateSettings({ herdrBrowserEndpoint: undefined });
+  useStore.getState().updateSettings({ herdrBrowserEndpoint: undefined, herdrExecutable: "herdr-core" });
 });
 afterEach(cleanup);
+
+it("discovers the default executable without refreshing inventory or saving an endpoint", async () => {
+  useStore.getState().updateSettings({ herdrExecutable: "herdr-core", herdrBrowserEndpoint: undefined });
+  render(<MachineBrowser onClose={vi.fn()} />);
+  await screen.findByText("Found: /detected/hc");
+  expect((screen.getByLabelText("Herdr executable") as HTMLInputElement).value).toBe("/detected/hc");
+  expect(invoke).toHaveBeenCalledExactlyOnceWith("herdr_detect_executable", { executable: "herdr-core" });
+  expect(useStore.getState().settings.herdrBrowserEndpoint).toBeUndefined();
+});
 
 it("remembers a successfully browsed session without changing the runtime for new local terminals", async () => {
   const original = { ...useStore.getState().settings };
@@ -39,7 +48,8 @@ it("remembers a successfully browsed session without changing the runtime for ne
 
 it("browses configured machines, shows unknown status, and disables offline terminal attachment", async () => {
   const close = vi.fn(); render(<MachineBrowser onClose={close} />);
-  expect(invoke).not.toHaveBeenCalled();
+  expect(vi.mocked(invoke).mock.calls.every(([command]) => command === "herdr_detect_executable")).toBe(true);
+  await screen.findByText("Found: /detected/hc");
   fireEvent.click(screen.getByText("Refresh terminals"));
   const attach = await screen.findByRole("button", { name: "Attach box/t1" });
   expect(screen.getByText("live · status not reported")).toBeTruthy();
@@ -54,6 +64,7 @@ it("browses configured machines, shows unknown status, and disables offline term
 
 it("keeps failed-refresh inventory visible but stale, and prevents attaching after endpoint edits", async () => {
   render(<MachineBrowser onClose={vi.fn()} />);
+  await screen.findByText("Found: /detected/hc");
   fireEvent.click(screen.getByText("Refresh terminals"));
   await screen.findByRole("button", { name: "Attach box/t1" });
   vi.mocked(invoke).mockRejectedValueOnce("core unavailable");

@@ -44,13 +44,26 @@ without restoring that text.
    provides). On macOS/Linux, `command -v hc` gives its path if it is on your shell's PATH.
 3. Open AgentPanel **Settings**. Under **Runtime for new local terminals**, select
    **Herdr core (experimental)**.
-4. Set **Herdr core executable** to the installed executable name, such as `hc` or
-   `herdr-core`, or its full path. Enter only the executable, without command arguments.
-   Use a full path if a GUI-launched app cannot find it.
+4. AgentPanel looks for an untouched default `hc` or `herdr-core` executable automatically.
+   Use **Find automatically** to search again, or **Browse…** to select the installed file.
+   Discovery checks your app's PATH, `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`,
+   and `/usr/bin` without starting core or connecting to a session. The requested command
+   name takes priority over its other alias. A detected absolute path also works when a
+   GUI-launched app has a smaller PATH than your shell.
+   You can still enter a custom executable name or full path, without arguments. Custom
+   paths are left untouched and never replaced as a fallback if invalid. **Install Herdr
+   core ↗** opens the installation instructions in your browser; AgentPanel does not install it.
 5. Set **Herdr core session** to a dedicated name such as `agentpanel`, then click **Save**.
    Names contain 1–32 letters, numbers, hyphens, or underscores.
 6. Create a new terminal. Its status strip identifies the Herdr session. Existing panes keep
    their previous runtime and session; changing Settings affects new local panes.
+
+**Machines & terminals** has the same discovery and file picker. Detection updates only its
+editable executable field; choose **Refresh terminals** yourself to connect and read inventory.
+If launch reports a missing or nonexecutable file, use Find or Browse to select an executable
+file and save the corrected path. An explicitly entered relative path is relative to the app's
+working directory; prefer an absolute path or Browse. Shell expansions such as `~/bin/hc` are
+not applied to custom paths.
 
 Quit and reopen AgentPanel to reconnect to the saved program. This is attachment to the same
 runtime-owned process; AgentPanel does not replay the agent launch command. A missing program
